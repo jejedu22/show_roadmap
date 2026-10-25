@@ -88,3 +88,37 @@ def test_tenant_isolation(admin):
     with Client() as bob:
         bob.login("bob@test.io", "bob-password-123")
         assert bob.get(f"/events/{ev}").status_code == 200
+
+
+def test_sncf(admin, monkeypatch):
+    import json
+    from io import BytesIO
+
+    from app import config, sncf
+
+    cid, (a, _) = build_company(admin, "Cie SNCF")
+    ev = int(loc(admin.post(f"/shows/{a}/events", {"venue": "V", "first_date": "2026-06-01"})).split("/")[-1])
+    # sans jeton : 502 propre, lien SNCF Connect toujours disponible
+    assert admin.get(f"/events/{ev}/sncf/places?q=paris").status_code == 502
+    assert admin.get(f"/events/{ev}/sncf/connect").status_code == 303
+    monkeypatch.setattr(config, "SNCF_API_TOKEN", "tok")
+
+    calls = []
+
+    def fake_urlopen(req, timeout):
+        calls.append(req.full_url)
+        if "/places" in req.full_url:
+            body = {"places": [{"id": "stop_area:X", "name": "Paris Gare du Nord", "embedded_type": "stop_area"}]}
+        else:
+            body = {"journeys": [{"departure_date_time": "20260601T080500", "arrival_date_time": "20260601T091700", "duration": 4320,
+                                  "sections": [{"type": "public_transport", "display_informations": {"commercial_mode": "TER", "trip_short_name": "857123"}},
+                                               {"type": "waiting"}]}]}
+        return BytesIO(json.dumps(body).encode())
+
+    monkeypatch.setattr(sncf, "urlopen", lambda req, timeout: fake_urlopen(req, timeout))
+    assert admin.get(f"/events/{ev}/sncf/places?q=paris").json() == [{"id": "stop_area:X", "name": "Paris Gare du Nord"}]
+    r = admin.get(f"/events/{ev}/sncf/journeys?origin=a&dest=b&day=2026-06-01&time=08:00").json()
+    assert r == [{"dep_time": "8h05", "arr_time": "9h17", "mode": "TER", "transfers": 0, "duration_min": 72, "numbers": "857123"}]
+    assert admin.get(f"/events/{ev}/sncf/journeys?origin=a&dest=b&day=pas-une-date").status_code == 400
+    with Client() as anon:
+        assert anon.get(f"/events/{ev}/sncf/places?q=paris").status_code == 303

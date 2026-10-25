@@ -14,6 +14,7 @@
   <div><label>Réservé le</label><input type="date" name="booked_on" value="{{ l.booked_on or '' if l else '' }}"></div>
   <div><label>Note</label><input name="note" value="{{ l.note if l else '' }}"></div>
 {% endmacro %}
+<datalist id="sncf-places"></datalist>
 <datalist id="modes"><option>Train</option><option>TER</option><option>TGV</option><option>Avion</option><option>Véhicule perso</option><option>Bus</option><option>Taxi</option></datalist>
 
 {% for p in ev.participations %}
@@ -30,6 +31,19 @@
   <form method="post" action="/events/{{ ev.id }}/item/leg" class="row" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
     <input type="hidden" name="csrf" value="{{ csrf(request) }}"><input type="hidden" name="participation_id" value="{{ p.id }}">
     {{ leg_fields(none) }}<div><button>Ajouter</button></div>
+    <div class="sncf" style="grid-column:1/-1" data-base="/events/{{ ev.id }}/sncf" data-enabled="{{ 1 if sncf_enabled else 0 }}">
+      {% if sncf_enabled %}<button type="button" class="sec sncf-open">🔎 Rechercher un train (SNCF)</button>{% endif %}
+      <a class="btn sec sncf-connect" target="_blank" rel="noopener" href="/events/{{ ev.id }}/sncf/connect">Ouvrir SNCF Connect ↗</a>
+      <div class="sncf-panel" hidden>
+        <div class="grid g3" style="margin-top:8px">
+          <div><label>Gare de départ</label><input class="sncf-from" list="sncf-places" autocomplete="off" placeholder="Paris Gare de Lyon"></div>
+          <div><label>Gare d'arrivée</label><input class="sncf-to" list="sncf-places" autocomplete="off" placeholder="Beauvais"></div>
+          <div><label>À partir de (heure)</label><input type="time" class="sncf-time"></div>
+        </div>
+        <div class="actions"><button type="button" class="sncf-go">Chercher</button></div>
+        <div class="sncf-results small"></div>
+      </div>
+    </div>
   </form></details>
 </div>
 {% else %}<div class="alert">Ajoutez d'abord des personnes dans l'onglet Équipe.</div>{% endfor %}
@@ -41,4 +55,5 @@
   <tfoot><tr><td colspan="2">Total</td><td class="r">{{ costs|sum(attribute='outbound')|money }}</td><td class="r">{{ costs|sum(attribute='ret')|money }}</td><td class="r">{{ (costs|sum(attribute='outbound') + costs|sum(attribute='ret'))|money }}</td></tr></tfoot>
 </table></div>
 <div class="actions noprint"><a class="btn sec" target="_blank" href="/events/{{ ev.id }}/docs/travelcost">Suivi des frais de voyage</a></div>
+<script src="/static/sncf.js" defer></script>
 {% endblock %}

@@ -5,11 +5,12 @@ from collections import defaultdict
 from urllib.parse import quote as urlquote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from sqlalchemy.orm import Session
 
+from .. import sncf
 from ..auth import accessible_company, csrf_protect, current_user
 from ..db import get_db
 from ..models import (Day, Event, ExtraCost, Leg, Lodging, Participation, Person, RoadmapSection, ScheduleItem,
@@ -268,7 +269,38 @@ def item_delete(eid: int, kind: str, item_id: int, user: User = Depends(current_
 @router.get("/{eid}/travel")
 def travel(eid: int, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     ev = get_event(db, user, eid)
-    return page(request, "event_travel.html", user, ev, db, "travel", costs=person_costs(ev))
+    return page(request, "event_travel.html", user, ev, db, "travel", costs=person_costs(ev),
+                sncf_enabled=sncf.enabled(), sncf_connect=sncf.connect_url())
+
+
+@router.get("/{eid}/sncf/places")
+def sncf_places(eid: int, q: str = "", user: User = Depends(current_user), db: Session = Depends(get_db)):
+    get_event(db, user, eid)
+    return _sncf_call(lambda: sncf.search_places(q.strip()) if len(q.strip()) >= 2 else [])
+
+
+@router.get("/{eid}/sncf/journeys")
+def sncf_journeys(eid: int, origin: str, dest: str, day: str, time: str = "", user: User = Depends(current_user),
+                  db: Session = Depends(get_db)):
+    get_event(db, user, eid)
+    p_date(day)  # valide le format
+    return _sncf_call(lambda: sncf.search_journeys(origin, dest, day, time or "00:00"))
+
+
+def _sncf_call(fn):
+    try:
+        return JSONResponse(fn())
+    except sncf.SncfError as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+    except ValueError:
+        return JSONResponse({"error": "Paramètres invalides"}, status_code=400)
+
+
+@router.get("/{eid}/sncf/connect")
+def sncf_connect(eid: int, origin: str = "", dest: str = "", day: str = "", user: User = Depends(current_user),
+                 db: Session = Depends(get_db)):
+    get_event(db, user, eid)
+    return RedirectResponse(sncf.connect_url(origin, dest, day), status_code=303)
 
 
 @router.get("/{eid}/quote")

@@ -36,6 +36,14 @@ du `docker-compose.yml` (routeur HTTPS + resolver). Adaptez `TRAEFIK_ENTRYPOINT`
 Le compte administrateur est créé au premier démarrage si la base est vide ; créez ensuite les autres comptes
 dans **Utilisateurs**.
 
+## Recherche d'horaires SNCF
+
+Renseignez `SNCF_API_TOKEN` (jeton gratuit sur https://numerique.sncf.com/startup/api/). Dans l'onglet **Voyages**,
+« Rechercher un train » propose des itinéraires (API SNCF/Navitia) qui pré-remplissent départ, arrivée, heures et mode.
+Les prix et références de billet restent à saisir. Le bouton « Ouvrir SNCF Connect » ouvre `SNCF_CONNECT_URL`
+(placeholders `{origin}`, `{destination}`, `{date}` ; par défaut la page d'accueil, car je n'ai pas pu vérifier
+un lien de recherche pré-rempli).
+
 ## Sécurité
 
 Mots de passe hachés (scrypt), session par cookie signé `HttpOnly` / `SameSite=Lax` / `Secure`, jeton CSRF sur
