@@ -9,5 +9,9 @@
     <div><label>Mot de passe</label><input type="password" name="password" required autocomplete="current-password"></div>
     <button>Se connecter</button>
   </form>
+  {% if google_enabled() %}
+  <p class="muted small" style="text-align:center;margin:14px 0 8px">ou</p>
+  <a class="btn sec" style="display:block;text-align:center" href="/auth/google/login">Se connecter avec Google</a>
+  {% endif %}
 </div>
 {% endblock %}

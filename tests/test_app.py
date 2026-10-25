@@ -122,3 +122,38 @@ def test_sncf(admin, monkeypatch):
     assert admin.get(f"/events/{ev}/sncf/journeys?origin=a&dest=b&day=pas-une-date").status_code == 400
     with Client() as anon:
         assert anon.get(f"/events/{ev}/sncf/places?q=paris").status_code == 303
+
+
+def test_google_login(admin, monkeypatch):
+    from urllib.parse import parse_qs, urlparse
+
+    from app import config, google
+
+    with Client() as c:
+        assert c.get("/auth/google/login").status_code == 404  # désactivé sans configuration
+        assert "Google" not in c.get("/login").text
+    monkeypatch.setattr(config, "GOOGLE_CLIENT_ID", "cid")
+    monkeypatch.setattr(config, "GOOGLE_CLIENT_SECRET", "sec")
+    monkeypatch.setattr(config, "PUBLIC_URL", "https://roadmap.test")
+    admin.post("/admin/users", {"email": "gina@test.io", "name": "Gina", "password": "gina-password-123"})
+    with Client() as c:
+        assert "Se connecter avec Google" in c.get("/login").text
+        r = c.get("/auth/google/login")
+        q = parse_qs(urlparse(loc(r)).query)
+        assert loc(r).startswith("https://accounts.google.com/") and q["redirect_uri"] == ["https://roadmap.test/auth/google/callback"]
+        state = q["state"][0]
+        ident = {"email": "gina@test.io", "email_verified": True, "name": "Gina"}
+        monkeypatch.setattr(google, "fetch_identity", lambda code, uri: ident)
+        assert c.get("/auth/google/callback?code=x&state=faux").status_code == 200  # mauvais state
+        assert c.get("/account").status_code == 303
+        state = parse_qs(urlparse(loc(c.get("/auth/google/login"))).query)["state"][0]
+        r = c.get(f"/auth/google/callback?code=x&state={state}")
+        assert r.status_code == 303 and loc(r) == "/"
+        assert c.get("/account").status_code == 200
+    # e-mail non vérifié ou compte inconnu : refus
+    for ident in ({"email": "gina@test.io", "email_verified": False, "name": ""}, {"email": "inconnu@test.io", "email_verified": True, "name": ""}):
+        with Client() as c:
+            state = parse_qs(urlparse(loc(c.get("/auth/google/login"))).query)["state"][0]
+            monkeypatch.setattr(google, "fetch_identity", lambda code, uri, i=ident: i)
+            assert "Aucun compte autorisé" in c.get(f"/auth/google/callback?code=x&state={state}").text
+            assert c.get("/account").status_code == 303

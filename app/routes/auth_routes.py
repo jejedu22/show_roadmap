@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, Form, Request
+import secrets
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import config, google
 from ..auth import (csrf_protect, current_user, hash_password, login_failed, login_ok, login_throttled,
                     verify_password)
 from ..db import get_db
@@ -62,3 +65,38 @@ def account_save(request: Request, current: str = Form(""), new: str = Form(""),
         msg = "Mot de passe modifié."
     db.commit()
     return render(request, "account.html", user=user, msg=msg)
+
+
+# ---- Connexion Google ----
+# Seuls les comptes déjà créés par un administrateur (même e-mail, vérifié par Google) peuvent se connecter.
+
+def _redirect_uri(request: Request) -> str:
+    base = config.PUBLIC_URL or str(request.base_url).rstrip("/")
+    return f"{base}/auth/google/callback"
+
+
+@router.get("/auth/google/login")
+def google_login(request: Request):
+    if not google.enabled():
+        raise HTTPException(404)
+    state = request.session["google_state"] = secrets.token_urlsafe(24)
+    return RedirectResponse(google.authorize_url(_redirect_uri(request), state), status_code=303)
+
+
+@router.get("/auth/google/callback")
+def google_callback(request: Request, code: str = "", state: str = "", error: str = "", db: Session = Depends(get_db)):
+    if not google.enabled():
+        raise HTTPException(404)
+    expected = request.session.pop("google_state", "")
+    if error or not code or not expected or not secrets.compare_digest(state, expected):
+        return render(request, "login.html", error="Connexion Google annulée ou invalide.")
+    try:
+        ident = google.fetch_identity(code, _redirect_uri(request))
+    except google.GoogleError as e:
+        return render(request, "login.html", error=str(e))
+    user = db.scalar(select(User).where(User.email == ident["email"])) if ident["email_verified"] else None
+    if not user or not user.is_active:
+        return render(request, "login.html", error="Aucun compte autorisé pour cette adresse Google. Demandez à un administrateur de le créer.")
+    request.session.clear()
+    request.session["uid"] = user.id
+    return RedirectResponse("/", status_code=303)

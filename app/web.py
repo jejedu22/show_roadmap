@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import HTTPException, Request
 from fastapi.templating import Jinja2Templates
 
+from . import google
 from .auth import csrf_token
 
 BASE = Path(__file__).parent
@@ -44,6 +45,7 @@ def num(x: float | None) -> str:
 
 templates.env.filters.update(fdate=fdate, money=money, num=num, fperiod=fperiod)
 templates.env.globals["csrf"] = csrf_token
+templates.env.globals["google_enabled"] = google.enabled
 
 
 def render(request: Request, name: str, **ctx):

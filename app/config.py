@@ -18,3 +18,9 @@ SNCF_API_TOKEN = os.getenv("SNCF_API_TOKEN", "")
 SNCF_API_URL = os.getenv("SNCF_API_URL", "https://api.sncf.com/v1/coverage/sncf")
 # Lien « Ouvrir SNCF Connect » ; placeholders possibles : {origin} {destination} {date} (AAAA-MM-JJ), déjà encodés.
 SNCF_CONNECT_URL = os.getenv("SNCF_CONNECT_URL", "https://www.sncf-connect.com/")
+
+# Connexion Google (OAuth 2.0). Créer un « ID client OAuth » (application Web) dans Google Cloud Console,
+# avec l'URI de redirection <PUBLIC_URL>/auth/google/callback
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").rstrip("/")  # ex. https://roadmap.example.com

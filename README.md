@@ -44,6 +44,15 @@ Les prix et références de billet restent à saisir. Le bouton « Ouvrir SNCF C
 (placeholders `{origin}`, `{destination}`, `{date}` ; par défaut la page d'accueil, car je n'ai pas pu vérifier
 un lien de recherche pré-rempli).
 
+## Connexion avec Google
+
+1. Google Cloud Console → *APIs et services* → *Identifiants* → *ID client OAuth* de type **Application Web**.
+2. URI de redirection autorisée : `https://<votre-hôte>/auth/google/callback`.
+3. Renseigner `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` et `PUBLIC_URL` (URL publique en HTTPS) dans `.env`.
+
+Le bouton apparaît sur la page de connexion. Seuls les comptes **déjà créés par un administrateur** (même e-mail,
+vérifié par Google) peuvent entrer : Google ne crée aucun compte automatiquement. Le mot de passe reste utilisable.
+
 ## Sécurité
 
 Mots de passe hachés (scrypt), session par cookie signé `HttpOnly` / `SameSite=Lax` / `Secure`, jeton CSRF sur
