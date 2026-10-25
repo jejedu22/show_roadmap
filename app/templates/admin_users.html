@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% block title %}Utilisateurs{% endblock %}
+{% block content %}
+<h1>Utilisateurs</h1>
+<form method="post" action="/admin/users" class="card grid g3">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+  <div><label>E-mail</label><input type="email" name="email" required></div>
+  <div><label>Nom</label><input name="name"></div>
+  <div><label>Mot de passe initial (10 min.)</label><input type="password" name="password" required minlength="10" autocomplete="new-password"></div>
+  <div><label><input type="checkbox" name="is_admin"> Administrateur</label><button>Créer</button></div>
+</form>
+{% for u in users %}
+<form method="post" action="/admin/users/{{ u.id }}" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+  <b>{{ u.name or u.email }}</b> <span class="muted small">{{ u.email }}</span>
+  <div class="grid g3" style="margin-top:8px">
+    <div><label><input type="checkbox" name="is_admin" {{ 'checked' if u.is_admin }} {{ 'disabled' if u.id == user.id }}> Admin</label>
+         <label><input type="checkbox" name="is_active" {{ 'checked' if u.is_active }} {{ 'disabled' if u.id == user.id }}> Actif</label></div>
+    <div><label>Compagnies accessibles</label>
+      {% for c in companies %}<label><input type="checkbox" name="companies" value="{{ c.id }}" {{ 'checked' if c in u.companies }}> {{ c.name }}</label>{% endfor %}</div>
+    <div><label>Nouveau mot de passe (optionnel)</label><input type="password" name="password" autocomplete="new-password"></div>
+  </div>
+  <div class="actions"><button class="sec">Enregistrer</button></div>
+</form>
+{% endfor %}
+{% endblock %}

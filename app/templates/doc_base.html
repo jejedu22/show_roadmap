@@ -1,0 +1,9 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{% endblock %} — {{ ev.title }}</title><link rel="stylesheet" href="/static/style.css"></head>
+<body style="background:#eee">
+<div class="docbar noprint"><a class="btn sec" style="background:#fff" href="/events/{{ ev.id }}">← Retour</a><button onclick="window.print()">Imprimer / PDF</button></div>
+<div class="doc">
+<h1>{% block h1 %}{% endblock %}</h1>
+<p><b>{{ ev.show.title }}</b> — {{ ev.venue }}{% if ev.city %}, {{ ev.city }}{% endif %} — {{ ev.first_date|fperiod(ev.last_date) }}</p>
+{% block body %}{% endblock %}
+</div></body></html>

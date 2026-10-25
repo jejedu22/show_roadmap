@@ -1,0 +1,25 @@
+{% extends "doc_base.html" %}{% block title %}Feuille de route{% endblock %}{% block h1 %}Feuille de route{% endblock %}
+{% block body %}
+{% if ev.address or ev.venue_contact %}<p>{{ ev.address }}</p><pre>{{ ev.venue_contact }}</pre>{% endif %}
+
+<h2>Voyages</h2>
+{% for d, items in travel_by_day.items() %}
+<h3>{{ d|fdate }}</h3>
+<table><tbody>{% for part, l in items %}
+<tr><td><b>{{ part.person.first_name }}</b></td><td>{{ '→ aller' if l.direction == 'outbound' else '← retour' }}</td><td>{{ l.origin }} › {{ l.destination }}</td><td>{{ l.dep_time }}{% if l.arr_time %} – {{ l.arr_time }}{% endif %}</td><td>{{ l.reference }}</td><td>{{ l.mode }}</td></tr>
+{% endfor %}</tbody></table>
+{% else %}<p class="muted">Aucun voyage saisi.</p>{% endfor %}
+
+<h2>Hébergement</h2>
+{% for l in ev.lodgings %}
+<h3>{{ l.name }} — {{ ev.participations|selectattr('lodging_id','equalto',l.id)|map(attribute='person')|map(attribute='first_name')|join(', ') }}</h3>
+<pre>{{ l.address }}{% if l.phone %} · {{ l.phone }}{% endif %}
+{{ l.details }}</pre>
+{% else %}<p class="muted">Aucun hébergement renseigné.</p>{% endfor %}
+
+{% if ev.schedule %}<h2>Planning</h2>
+{% for s in ev.schedule %}{% if loop.first or ev.schedule[loop.index0 - 1].day != s.day %}<h3>{{ s.day|fdate }}</h3>{% endif %}
+<div>{{ s.time }} — {{ s.label }}</div>{% endfor %}{% endif %}
+
+{% for s in ev.sections %}<h2>{{ s.title }}</h2><pre>{{ s.body }}</pre>{% endfor %}
+{% endblock %}

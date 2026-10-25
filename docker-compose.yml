@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    image: show-roadmap:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY manquant}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      COOKIE_SECURE: "true"
+    volumes:
+      - roadmap-data:/data
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.roadmap.rule=Host(`${APP_HOST:?APP_HOST manquant}`)
+      - traefik.http.routers.roadmap.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.roadmap.tls=true
+      - traefik.http.routers.roadmap.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.roadmap.loadbalancer.server.port=8000
+
+volumes:
+  roadmap-data:
+
+networks:
+  traefik:
+    name: ${TRAEFIK_NETWORK:-traefik}
+    external: true

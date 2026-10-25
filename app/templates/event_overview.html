@@ -1,0 +1,32 @@
+{% extends "event_base.html" %}
+{% block tab %}
+{% if overlaps %}<div class="alert">⚠ Cette date chevauche {% for o in overlaps %}<a href="/events/{{ o.id }}">{{ o.show.title }} — {{ o.venue }} ({{ o.first_date|fperiod(o.last_date) }})</a>{{ ', ' if not loop.last }}{% endfor %}.
+{% if conflicts %}Personnes engagées sur les deux : <b>{% for pid, evs in conflicts.items() %}{{ (ev.participations|selectattr('person_id','equalto',pid)|first).person.full_name }}{{ ', ' if not loop.last }}{% endfor %}</b>.{% else %}Aucune personne en commun pour l'instant.{% endif %}</div>{% endif %}
+<div class="kpis">
+  <div class="kpi"><span class="muted small">Équipe</span><b>{{ ev.participations|length }}</b></div>
+  <div class="kpi"><span class="muted small">Total HT</span><b>{{ quote.total_ht|money }}</b></div>
+  <div class="kpi"><span class="muted small">Total TTC</span><b>{{ quote.total_ttc|money }}</b></div>
+  <div class="kpi"><span class="muted small">Nuitées</span><b>{{ quote.nights_count }}</b></div>
+</div>
+<form method="post" class="card grid g3">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+  <div><label>Lieu / théâtre</label><input name="venue" value="{{ ev.venue }}" required></div>
+  <div><label>Ville</label><input name="city" value="{{ ev.city }}"></div>
+  <div><label>Adresse</label><input name="address" value="{{ ev.address }}"></div>
+  <div><label>1re représentation</label><input type="date" name="first_date" value="{{ ev.first_date }}" required></div>
+  <div><label>Dernière représentation</label><input type="date" name="last_date" value="{{ ev.last_date }}" required></div>
+  <div><label>Nb de représentations</label><input type="number" min="1" name="performances" value="{{ ev.performances }}"></div>
+  <div><label>Arrivée équipe technique</label><input type="date" name="tech_arrival" value="{{ ev.tech_arrival or '' }}"></div>
+  <div><label>Arrivée équipe artistique</label><input type="date" name="artistic_arrival" value="{{ ev.artistic_arrival or '' }}"></div>
+  <div><label>Départ équipe</label><input type="date" name="departure" value="{{ ev.departure or '' }}"></div>
+  <div><label>Statut</label><select name="status">{% for v, l in [('confirmed','Confirmé'),('option','Option'),('cancelled','Annulé')] %}<option value="{{ v }}" {{ 'selected' if ev.status == v }}>{{ l }}</option>{% endfor %}</select></div>
+  <div style="grid-column:1/-1"><label>Contacts du lieu (accueil, technique…)</label><textarea name="venue_contact">{{ ev.venue_contact }}</textarea></div>
+  <div style="grid-column:1/-1"><label>Notes internes</label><textarea name="notes">{{ ev.notes }}</textarea></div>
+  <div class="actions"><button>Enregistrer</button></div>
+</form>
+<div class="actions">
+  <a class="btn sec" href="/events/{{ ev.id }}/export.xlsx">⬇ Export Excel</a>
+  <form method="post" action="/events/{{ ev.id }}/duplicate"><input type="hidden" name="csrf" value="{{ csrf(request) }}"><button class="sec">Dupliquer cette date</button></form>
+  <form method="post" action="/events/{{ ev.id }}/delete" onsubmit="return confirm('Supprimer définitivement cette date ?')"><input type="hidden" name="csrf" value="{{ csrf(request) }}"><button class="danger">Supprimer</button></form>
+</div>
+{% endblock %}

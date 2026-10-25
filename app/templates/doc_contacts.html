@@ -1,0 +1,5 @@
+{% extends "doc_base.html" %}{% block title %}Coordonnées{% endblock %}{% block h1 %}Coordonnées de l'équipe{% endblock %}
+{% block body %}
+<table><thead><tr><th>Nom</th><th>Fonction</th><th>Téléphone</th><th>E-mail</th><th>Régime alimentaire</th></tr></thead>
+<tbody>{% for p in ev.participations %}<tr><td>{{ p.person.full_name }}</td><td>{{ p.role }}</td><td>{{ p.person.phone }}</td><td>{{ p.person.email }}</td><td>{{ p.person.diet }}</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

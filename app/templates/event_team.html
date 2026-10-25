@@ -1,0 +1,34 @@
+{% extends "event_base.html" %}
+{% block tab %}
+<form method="post" action="/events/{{ ev.id }}/team/save" class="card scroll">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+  <table>
+    <thead><tr><th>Nom</th><th>Fonction sur cette date</th><th>Chambre</th><th>Hébergement</th><th>Ville de départ</th><th>Note</th><th></th></tr></thead>
+    <tbody>
+    {% for p in ev.participations %}
+    <tr>
+      <td><b>{{ p.person.full_name }}</b>
+        {% if p.person_id in conflicts %}<br><span class="badge bad" title="Aussi engagé(e) sur une date simultanée">⚠ aussi sur {% for o in conflicts[p.person_id] %}<a href="/events/{{ o.id }}">{{ o.show.title }}</a>{{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}</td>
+      <td><input name="role_{{ p.id }}" value="{{ p.role }}"></td>
+      <td><select name="room_{{ p.id }}">{% for r in ['single','double','twin','appartement'] %}<option {{ 'selected' if p.room_type == r }}>{{ r }}</option>{% endfor %}</select></td>
+      <td><select name="lodging_{{ p.id }}"><option value="">—</option>{% for l in ev.lodgings %}<option value="{{ l.id }}" {{ 'selected' if p.lodging_id == l.id }}>{{ l.name }}</option>{% endfor %}</select></td>
+      <td><input name="city_{{ p.id }}" value="{{ p.departure_city }}"></td>
+      <td><input name="note_{{ p.id }}" value="{{ p.note }}"></td>
+      <td><button class="danger" formaction="/events/{{ ev.id }}/team/{{ p.id }}/remove" formnovalidate onclick="return confirm('Retirer {{ p.person.full_name }} de cette date ?')">✕</button></td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="muted">Personne n'est encore affecté à cette date.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div class="actions"><button>Enregistrer</button></div>
+</form>
+
+<form method="post" action="/events/{{ ev.id }}/team/add" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+  <h3>Ajouter des personnes à cette date</h3>
+  {% if available %}
+  <div class="grid g3">{% for p in available %}<label style="font-size:.95rem;color:var(--ink)"><input type="checkbox" name="person_id" value="{{ p.id }}"> {{ p.full_name }} <span class="muted small">{{ p.function }}</span></label>{% endfor %}</div>
+  <div class="actions"><button>Ajouter la sélection</button></div>
+  {% else %}<p class="muted">Tout l'annuaire est déjà affecté. <a href="/companies/{{ company.id }}/people">Gérer l'annuaire</a></p>{% endif %}
+  <p class="muted small">Les grilles de nuitées et de repas sont pré-remplies selon les dates d'arrivée/départ ; ajustez-les dans l'onglet Séjour.</p>
+</form>
+{% endblock %}

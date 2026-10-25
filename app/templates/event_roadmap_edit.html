@@ -1,0 +1,41 @@
+{% extends "event_base.html" %}
+{% block tab %}
+<div class="actions noprint" style="margin-bottom:12px">
+  <a class="btn" target="_blank" href="/events/{{ ev.id }}/docs/roadmap">Voir / imprimer la feuille de route</a>
+  <a class="btn sec" target="_blank" href="/events/{{ ev.id }}/docs/contacts">Coordonnées de l'équipe</a>
+</div>
+<p class="muted">La feuille de route est générée à partir des voyages, des hébergements, de l'équipe et des blocs ci-dessous.</p>
+
+<h2>Planning</h2>
+<div class="card">
+  {% for s in ev.schedule %}
+  <form method="post" action="/events/{{ ev.id }}/item/schedule" class="row" style="grid-template-columns:1fr 1fr 3fr auto">
+    <input type="hidden" name="csrf" value="{{ csrf(request) }}"><input type="hidden" name="id" value="{{ s.id }}">
+    <div><label>Jour</label><input type="date" name="day" value="{{ s.day }}" required></div><div><label>Heure</label><input name="time" value="{{ s.time }}"></div>
+    <div><label>Intitulé</label><input name="label" value="{{ s.label }}" required></div>
+    <div class="actions"><button class="sec">OK</button><button class="danger" formaction="/events/{{ ev.id }}/item/schedule/{{ s.id }}/delete" formnovalidate>✕</button></div>
+  </form>{% endfor %}
+  <form method="post" action="/events/{{ ev.id }}/item/schedule" class="row" style="grid-template-columns:1fr 1fr 3fr auto">
+    <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+    <div><label>Jour</label><input type="date" name="day" required value="{{ ev.first_date }}"></div><div><label>Heure</label><input name="time" placeholder="10h–13h"></div>
+    <div><label>Intitulé (montage, répétition, représentation…)</label><input name="label" required></div><button>Ajouter</button>
+  </form>
+</div>
+
+<h2>Blocs d'information</h2>
+<p class="muted small">Ateliers, repas, transferts, accès au théâtre, wifi… Affichés dans l'ordre (position croissante).</p>
+{% for s in ev.sections %}
+<form method="post" action="/events/{{ ev.id }}/item/section" class="card grid g2">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}"><input type="hidden" name="id" value="{{ s.id }}">
+  <div><label>Titre</label><input name="title" value="{{ s.title }}" required></div><div><label>Position</label><input type="number" name="position" value="{{ s.position }}"></div>
+  <div style="grid-column:1/-1"><label>Contenu</label><textarea name="body" rows="4">{{ s.body }}</textarea></div>
+  <div class="actions"><button class="sec">Enregistrer</button><button class="danger" formaction="/events/{{ ev.id }}/item/section/{{ s.id }}/delete" formnovalidate>Supprimer</button></div>
+</form>{% endfor %}
+<form method="post" action="/events/{{ ev.id }}/item/section" class="card grid g2">
+  <input type="hidden" name="csrf" value="{{ csrf(request) }}">
+  <div><label>Nouveau bloc</label><input name="title" list="sec-titles" required></div><div><label>Position</label><input type="number" name="position" value="{{ (ev.sections|length + 1) * 10 }}"></div>
+  <datalist id="sec-titles"><option>ATELIERS</option><option>REPAS</option><option>TRANSFERTS</option><option>ACCÈS AU THÉÂTRE</option><option>WIFI</option><option>CONTACTS SUR PLACE</option></datalist>
+  <div style="grid-column:1/-1"><textarea name="body" rows="3"></textarea></div>
+  <div><button>Ajouter</button></div>
+</form>
+{% endblock %}

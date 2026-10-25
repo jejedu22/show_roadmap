@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}{{ ev.title }}{% endblock %}
+{% block content %}
+<div class="muted small"><a href="/companies/{{ company.id }}">{{ company.name }}</a> › {{ ev.show.title }}</div>
+<h1>{{ ev.venue }}{% if ev.city %} <span class="muted">· {{ ev.city }}</span>{% endif %}</h1>
+<div class="muted">{{ ev.show.title }} — {{ ev.first_date|fperiod(ev.last_date) }}
+  {% if ev.status == 'option' %}<span class="badge warn">option</span>{% elif ev.status == 'cancelled' %}<span class="badge bad">annulé</span>{% endif %}</div>
+<div class="tabs">
+  {% for key, label in tabs %}<a href="/events/{{ ev.id }}{{ '/' ~ key if key }}" class="{{ 'on' if tab == key }}">{{ label }}</a>{% endfor %}
+</div>
+{% block tab %}{% endblock %}
+{% endblock %}
