@@ -82,6 +82,7 @@ async function requestLink() {
           <a class="btn" :href="`/api/auth/google${remember ? '?remember=1' : ''}`">Se connecter avec Google</a>
         </template>
       </template>
+      <p class="login-legal muted small"><RouterLink to="/mentions-legales">Mentions légales</RouterLink> · <RouterLink to="/confidentialite">Confidentialité</RouterLink></p>
     </div>
   </div>
 </template>

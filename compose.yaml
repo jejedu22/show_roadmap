@@ -19,6 +19,18 @@ services:
       SNCF_CONNECT_URL: ${SNCF_CONNECT_URL:-https://www.sncf-connect.com/}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      LEGAL_NAME: ${LEGAL_NAME:-}
+      LEGAL_FORM: ${LEGAL_FORM:-}
+      LEGAL_ID: ${LEGAL_ID:-}
+      LEGAL_ADDRESS: ${LEGAL_ADDRESS:-}
+      LEGAL_EMAIL: ${LEGAL_EMAIL:-}
+      LEGAL_PHONE: ${LEGAL_PHONE:-}
+      LEGAL_DIRECTOR: ${LEGAL_DIRECTOR:-}
+      LEGAL_HOST_NAME: ${LEGAL_HOST_NAME:-}
+      LEGAL_HOST_ADDRESS: ${LEGAL_HOST_ADDRESS:-}
+      LEGAL_HOST_PHONE: ${LEGAL_HOST_PHONE:-}
+      LEGAL_PRIVACY_EMAIL: ${LEGAL_PRIVACY_EMAIL:-}
+      LEGAL_SOURCE_URL: ${LEGAL_SOURCE_URL:-https://github.com/jejedu22/show_roadmap}
       MAILER_DSN: ${MAILER_DSN:-null://null}
       MAILER_FROM: ${MAILER_FROM:-Show Roadmap <no-reply@${APP_HOST}>}
     networks: [traefik, internal]

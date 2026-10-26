@@ -188,8 +188,8 @@ CREATE TABLE shows (
 	PRIMARY KEY (id), 
 	FOREIGN KEY(company_id) REFERENCES companies (id) ON DELETE CASCADE
 );
-INSERT INTO "shows" VALUES(1,1,'Le Murmure des songes','');
-INSERT INTO "shows" VALUES(2,1,'Prélude','');
+INSERT INTO "shows" VALUES(1,1,'La Nuit des lucioles','');
+INSERT INTO "shows" VALUES(2,1,'Ouverture','');
 CREATE TABLE truck_legs (
 	id INTEGER NOT NULL, 
 	event_id INTEGER NOT NULL, 

@@ -7,6 +7,10 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - **frontend/** : Vue 3 + Vite + Vue Router.
 - **Docker** : une image FrankenPHP qui sert l'API et le front compilé, plus un conteneur MariaDB, derrière Traefik.
 
+> **Logiciel libre** sous licence [GNU AGPL v3 ou ultérieure](LICENSE). Vous pouvez l'installer, l'étudier, le modifier
+> et le partager ; si vous le proposez en ligne à d'autres utilisateurs, vous devez leur donner accès au code source de
+> votre version (lien « code source » des pages légales). Voir [Licence et contribution](#licence-et-contribution).
+
 ## Fonctionnalités
 
 - **Tableau de bord** : prochaine date, trajets sans billet, conflits de planning, dates par mois avec leur avancement,
@@ -222,6 +226,19 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
   - **Révocation :** chaque appareil est révocable dans « Mon compte ». Tous sont révoqués au changement de mot de passe
     et à la désactivation du compte.
 
+## Mentions légales et RGPD
+
+L'application fournit les pages publiques **Mentions légales** (`/mentions-legales`) et **Confidentialité**
+(`/confidentialite`), liées depuis la page de connexion. Elles se complètent avec les variables `LEGAL_*` du `.env`
+(éditeur, hébergeur, contact RGPD, adresse du code source).
+
+- **Pas de déclaration à la CNIL** : depuis 2018, on tient un registre des traitements à la place. Un modèle de registre,
+  la liste des obligations et un message type pour les personnes de l'annuaire sont dans
+  [docs/conformite-rgpd.md](docs/conformite-rgpd.md).
+- **Durées de conservation appliquées automatiquement** (commande `app:purge`, lancée chaque nuit par le conteneur) :
+  journal d'audit 12 mois, liens périmés et appareils de confiance inutilisés 30 jours.
+- **Régime alimentaire** : donnée potentiellement sensible, à ne renseigner qu'avec l'accord de la personne.
+
 ## Sécurité
 
 - Mots de passe hachés par Symfony (`auto`) : 12 caractères minimum, robustesse au moins moyenne, sans l'adresse e-mail.
@@ -232,3 +249,13 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
 - Cloisonnement strict entre compagnies.
 - Un compte désactivé perd sa session immédiatement.
 - L'export Excel écrit les textes en chaînes explicites : une saisie commençant par « = » ne devient jamais une formule.
+
+## Licence et contribution
+
+Show Roadmap est distribué sous licence **GNU Affero General Public License v3 ou ultérieure** (voir [LICENSE](LICENSE)).
+Les composants tiers et leurs licences sont listés dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+- Contribuer : [CONTRIBUTING.md](CONTRIBUTING.md) (n'utilisez que des données fictives dans les tickets et les tests).
+- Signaler une faille : [SECURITY.md](SECURITY.md).
+- Les données de démonstration (`app:seed-demo`) et les jeux de test sont entièrement fictifs.
+

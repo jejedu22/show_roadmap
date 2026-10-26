@@ -54,8 +54,8 @@ class SeedDemoCommand extends Command
             }
         }
         $this->em->persist($team);
-        $murmure = new Show($c, 'Le Murmure des songes');
-        $prelude = new Show($c, 'Prélude');
+        $lucioles = new Show($c, 'La Nuit des lucioles');
+        $ouverture = new Show($c, 'Ouverture');
         $people = [];
         foreach ([['MARTIN', 'Alice', 'Admin tournée', 'Lyon', ''], ['DURAND', 'Bruno', 'Régisseur lumière', 'Marseille', ''],
             ['LEROY', 'Chloé', 'Danseuse', 'Paris', 'Végétarienne'], ['PETIT', 'David', 'Danseur', 'Lille', ''],
@@ -68,11 +68,11 @@ class SeedDemoCommand extends Command
             $this->em->persist($p);
         }
 
-        $ev1 = new Event($murmure, 'Théâtre du Beauvaisis — Scène nationale', $d('2026-05-19'), $d('2026-05-23'));
+        $ev1 = new Event($lucioles, 'Théâtre du Beauvaisis — Scène nationale', $d('2026-05-19'), $d('2026-05-23'));
         [$ev1->city, $ev1->address, $ev1->techArrival, $ev1->artisticArrival, $ev1->departure, $ev1->performances] =
             ['Beauvais', '3 place Georges Brassens, 60000 Beauvais', $d('2026-05-16'), $d('2026-05-18'), $d('2026-05-23'), 3];
         [$ev1->fee, $ev1->venueContact] = ['9000.00', 'Accueil : Jeanne Exemple — 03 00 00 00 00'];
-        $ev2 = new Event($prelude, 'Festival Exemple', $d('2026-05-21'), $d('2026-05-22'));
+        $ev2 = new Event($ouverture, 'Festival Exemple', $d('2026-05-21'), $d('2026-05-22'));
         [$ev2->city, $ev2->artisticArrival, $ev2->departure, $ev2->performances, $ev2->fee] = ['Strasbourg', $d('2026-05-20'), $d('2026-05-23'), 2, '5000.00'];
 
         $hotel = new Lodging($ev1);
@@ -85,7 +85,7 @@ class SeedDemoCommand extends Command
             $ev1->participations->add($part);
             $this->planning->fillDefaultDays($part);
         }
-        foreach ([$people[3], $people[4]] as $p) { // David est aussi sur Prélude → conflit signalé
+        foreach ([$people[3], $people[4]] as $p) { // David est aussi sur Ouverture → conflit signalé
             $part = new Participation($ev2, $p);
             $ev2->participations->add($part);
             $this->planning->fillDefaultDays($part);
@@ -110,7 +110,7 @@ class SeedDemoCommand extends Command
         [$slot->day, $slot->time, $slot->label, $slot->detail] = [$d('2026-05-18'), '10h–18h', 'Montage', 'et réglages'];
         $ev1->schedule->add($slot);
 
-        array_map($this->em->persist(...), [$c, $murmure, $prelude, $ev1, $ev2]);
+        array_map($this->em->persist(...), [$c, $lucioles, $ouverture, $ev1, $ev2]);
         $this->em->flush();
         $output->writeln('Données de démo créées.');
 

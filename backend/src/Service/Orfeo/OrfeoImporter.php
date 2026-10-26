@@ -298,7 +298,7 @@ class OrfeoImporter
         return preg_match('/^(\d{1,2})h(\d{0,2})/', $t, $m) ? (int) $m[1] * 60 + (int) ($m[2] ?: 0) : -1;
     }
 
-    /** « LE GOFF Romain » ou « Romain Le Goff » → [nom, prénom]. */
+    /** « LE ROUX Pierre » ou « Pierre Le Roux » → [nom, prénom]. */
     private static function split(string $name): array
     {
         $name = trim($name);

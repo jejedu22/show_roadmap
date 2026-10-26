@@ -43,6 +43,7 @@ const remove = (p) => confirm(`Supprimer ${p.fullName} ? La personne sera retir�
     <form v-if="adding" class="card warn" @submit.prevent="save">
       <h2 style="margin-bottom:14px">Nouvelle personne</h2>
       <div class="form-grid"><label v-for="[f, label, type] in FIELDS" :key="f" class="field">{{ label }}<ListSelect v-if="f === 'function'" v-model="form.function" kind="function" /><input v-else v-model="form[f]" :type="type" :required="f === 'lastName'"></label></div>
+      <p class="muted small" style="margin:8px 0 0">Le régime alimentaire peut révéler un état de santé ou une conviction religieuse : ne le renseignez qu'avec l'accord de la personne, et limitez-le à ce qui est utile (allergies, « sans porc », végétarien…).</p>
       <div class="actions" style="margin-top:14px"><button class="btn btn-primary">Ajouter</button><button type="button" class="btn btn-ghost" @click="close">Annuler</button></div>
     </form>
 
@@ -50,6 +51,7 @@ const remove = (p) => confirm(`Supprimer ${p.fullName} ? La personne sera retir�
       <div v-for="p in people" :key="p.id" style="border-bottom:1px solid var(--line);padding:12px 0">
         <form v-if="editing === p.id" @submit.prevent="save">
           <div class="form-grid"><label v-for="[f, label, type] in FIELDS" :key="f" class="field">{{ label }}<ListSelect v-if="f === 'function'" v-model="form.function" kind="function" /><input v-else v-model="form[f]" :type="type" :required="f === 'lastName'"></label></div>
+      <p class="muted small" style="margin:8px 0 0">Le régime alimentaire peut révéler un état de santé ou une conviction religieuse : ne le renseignez qu'avec l'accord de la personne, et limitez-le à ce qui est utile (allergies, « sans porc », végétarien…).</p>
           <div class="actions" style="margin-top:12px"><button class="btn btn-primary">Enregistrer</button><button type="button" class="btn btn-ghost" @click="close">Annuler</button>
             <button type="button" class="btn btn-danger" style="margin-left:auto" @click="remove(p)"><Icon name="trash" :size="16" />Supprimer</button></div>
         </form>

@@ -66,7 +66,7 @@ class ImportSqliteTest extends ApiTestCase
         self::assertSame(4, $beauvais['teamSize']);
         self::assertSame('Hôtel Cathédrale', $beauvais['lodgings'][0]['name']);
         self::assertSame($beauvais['lodgings'][0]['id'], $beauvais['participations'][0]['lodgingId']);
-        self::assertNotEmpty($beauvais['participations'][3]['conflicts'], 'conflit David / Prélude conservé');
+        self::assertNotEmpty($beauvais['participations'][3]['conflicts'], 'conflit David / Ouverture conservé');
         $this->call('POST', '/api/logout');
 
         // Bob se connecte avec son mot de passe temporaire et voit sa compagnie

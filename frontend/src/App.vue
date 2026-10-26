@@ -78,6 +78,7 @@ async function logout() {
           <span style="display:flex;gap:10px"><RouterLink to="/account">Mon compte</RouterLink><button type="button" @click="logout">Déconnexion</button></span>
         </span>
       </div>
+      <p class="side-legal"><RouterLink to="/mentions-legales">Mentions légales</RouterLink> · <RouterLink to="/confidentialite">Confidentialité</RouterLink></p>
     </nav>
     <main class="content"><div class="content-inner"><RouterView /></div></main>
   </div>

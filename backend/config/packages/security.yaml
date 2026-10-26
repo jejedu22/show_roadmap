@@ -37,7 +37,7 @@ security:
             entry_point: App\Security\JsonEntryPoint
 
     access_control:
-        - { path: ^/api/(login|config|auth/google|auth/token/|auth/forgot), roles: PUBLIC_ACCESS }
+        - { path: ^/api/(login|config|auth/google|auth/token/|auth/forgot|legal), roles: PUBLIC_ACCESS }
         # /api/admin : droits vérifiés finement dans AdminController (gestion des utilisateurs, des groupes)
         - { path: ^/api, roles: ROLE_USER }
 

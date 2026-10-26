@@ -687,7 +687,7 @@ class TourWorkbookParser
                 return $i;
             }
         }
-        foreach ($team as $i => $p) { // « BUECHE Aline » ↔ « BUECHE LOPES Aline »
+        foreach ($team as $i => $p) { // « DUPONT Marie » ↔ « DUPONT LEROY Marie »
             $pl = Sheet::norm($p['lastName']);
             if (Sheet::norm($p['firstName']) === $f && '' !== $l && (str_starts_with($pl, $l) || str_starts_with($l, $pl))) {
                 return $i;
@@ -712,7 +712,7 @@ class TourWorkbookParser
         return array_map(fn ($x) => new \DateTimeImmutable($x), array_keys($days));
     }
 
-    /** « LE GOFF Romain » → [LE GOFF, Romain] : les mots en capitales forment le nom. */
+    /** « LE ROUX Pierre » → [LE ROUX, Pierre] : les mots en capitales forment le nom. */
     public static function splitName(string $name): array
     {
         $words = preg_split('/\s+/u', trim($name));
@@ -833,7 +833,7 @@ class TourWorkbookParser
         return mb_substr(self::sentence($s), 0, 255);
     }
 
-    /** « LE MURMURE DES SONGES » → « Le murmure des songes » (texte en capitales seulement). */
+    /** « LA NUIT DES LUCIOLES » → « La nuit des lucioles » (texte en capitales seulement). */
     private static function sentence(string $s): string
     {
         $s = trim($s);
