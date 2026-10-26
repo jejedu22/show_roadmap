@@ -12,6 +12,7 @@ WORKDIR /app
 COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
 COPY backend/ ./
+RUN test -f .env || (echo "backend/.env manquant" >&2 && exit 1)
 RUN composer dump-autoload --no-dev --classmap-authoritative \
  && rm -rf tests var .env.local .env.*.local public/dev-router.php phpunit.dist.xml
 

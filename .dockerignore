@@ -7,4 +7,4 @@ backend/.env.local
 backend/.env.*.local
 backend/public/index.html
 backend/public/assets
-.env
+/.env
