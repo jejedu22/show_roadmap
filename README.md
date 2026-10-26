@@ -137,7 +137,9 @@ Un trajet avec correspondance crée un trajet par tronçon. Prix et référence 
 - Le conteneur charge les horaires au premier démarrage puis les rafraîchit chaque nuit, en arrière-plan (environ 15 Mo
   à télécharger, 40 s d'import). Import manuel : `docker compose exec app php bin/console app:gtfs-import`.
 - Si la SNCF déplace un fichier, renseignez la nouvelle adresse dans `GTFS_URL` ou `GTFS_IDF_URL` (`.env`).
-- Le bouton « Ouvrir SNCF Connect » ouvre `SNCF_CONNECT_URL` (placeholders `{origin}`, `{destination}`, `{date}`).
+- Le bouton « SNCF Connect » copie le trajet (« Paris Gare du Nord Beauvais 18/11/2026 ») dans le presse-papiers, à coller dans
+  la recherche de SNCF Connect, puis ouvre `SNCF_CONNECT_URL`. SNCF Connect ne documente pas de lien de recherche pré-remplie ;
+  si vous en trouvez un, mettez-le dans `SNCF_CONNECT_URL` avec les repères `{origin}`, `{destination}` et `{date}` (AAAA-MM-JJ).
 
 ## Connexion avec Google
 

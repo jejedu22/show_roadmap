@@ -77,6 +77,16 @@ function pick(t, i) {
   Object.assign(form, first ? legOf(first) : { origin: stations.from, destination: stations.to, depTime: t.depTime, arrTime: t.arrTime, mode: t.mode, note: t.numbers ? `Train ${t.numbers}` : form.note })
 }
 const nextDay = (iso) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) }
+// SNCF Connect n'a pas de lien de recherche pré-remplie documenté : le trajet est copié pour être collé dans sa recherche,
+// et le lien passe par le serveur (SNCF_CONNECT_URL, avec {origin}, {destination}, {date} si une adresse adaptée est configurée).
+const tripText = computed(() => [stations.from || form.origin, stations.to || form.destination, form.day ? form.day.split('-').reverse().join('/') : '', form.depTime].filter(Boolean).join(' '))
+const connectHref = computed(() => `/api/events/${props.ev.id}/sncf/connect?${new URLSearchParams({ origin: stations.from || form.origin || '', dest: stations.to || form.destination || '', day: form.day || '' })}`)
+async function copyTrip() {
+  try {
+    await navigator.clipboard.writeText(tripText.value)
+    toast(`« ${tripText.value} » copié : collez-le dans la recherche SNCF Connect`)
+  } catch { /* presse-papiers indisponible (http, refus) : le lien s'ouvre quand même */ }
+}
 const who = computed(() => props.part.person.firstName || props.part.person.lastName)
 const title = computed(() => `${props.leg ? 'Modifier' : props.direction === 'outbound' ? 'Aller' : 'Retour'} de ${who.value}`)
 async function save() {
@@ -136,7 +146,7 @@ async function save() {
     <label class="field">Note<input v-model="form.note"></label>
     <div class="actions">
       <button class="btn btn-sun" style="flex:1">Enregistrer</button>
-      <a class="btn" href="https://www.sncf-connect.com/" target="_blank" rel="noopener">SNCF Connect ↗</a>
+      <a class="btn" :href="connectHref" target="_blank" rel="noopener" :title="`Copie « ${tripText} » pour le coller dans la recherche SNCF Connect`" @click="copyTrip">SNCF Connect ↗</a>
     </div>
   </form>
 </template>

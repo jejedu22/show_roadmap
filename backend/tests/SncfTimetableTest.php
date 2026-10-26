@@ -179,6 +179,18 @@ class SncfTimetableTest extends ApiTestCase
         self::assertStringContainsString('un mois à l’avance (actuellement jusqu’au 18/11/2026)', $res['error']);
     }
 
+    public function testSncfConnectLink(): void
+    {
+        $ev = $this->event();
+        $this->client->request('GET', "/api/events/$ev/sncf/connect?origin=Paris+Gare+du+Nord&dest=Beauvais&day=2026-11-18");
+        self::assertSame(302, $this->code());
+        self::assertSame('https://www.sncf-connect.com/', $this->client->getResponse()->headers->get('Location'), 'adresse sans paramètres : page d\'accueil');
+
+        // Adresse configurée avec paramètres : gares et date insérées, encodées
+        $sncf = new \App\Service\SncfTimetable(static::getContainer()->get('doctrine.dbal.default_connection'), 'https://connect.test/?from={origin}&to={destination}&date={date}');
+        self::assertSame('https://connect.test/?from=Paris%20Gare%20du%20Nord&to=Beauvais&date=2026-11-18', $sncf->connectUrl('Paris Gare du Nord', 'Beauvais', '2026-11-18'));
+    }
+
     public function testDownloadAndFailedImportKeepsData(): void
     {
         $fake = static::getContainer()->get(FakeHttp::class);
