@@ -4,6 +4,7 @@ import { session, loadConfig, setUnauthorizedHandler } from './api.js'
 const routes = [
   { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
   { path: '/', component: () => import('./views/HomeView.vue') },
+  { path: '/companies', component: () => import('./views/HomeView.vue'), props: { stay: true } },
   { path: '/account', component: () => import('./views/AccountView.vue') },
   { path: '/admin/users', component: () => import('./views/AdminUsersView.vue') },
   { path: '/companies/:id', component: () => import('./views/CompanyView.vue'), props: true },

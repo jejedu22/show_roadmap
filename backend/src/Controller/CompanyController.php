@@ -10,6 +10,7 @@ use App\Security\Access;
 use App\Service\Input;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -52,6 +53,23 @@ class CompanyController extends ApiController
         $company->notes = Input::text($d, 'notes');
 
         return $this->savedCompany($company);
+    }
+
+    /** Suppression définitive (administrateurs) : il faut renvoyer le nom exact de la compagnie. */
+    #[Route('/api/companies/{id<\d+>}', methods: ['DELETE'])]
+    public function delete(int $id, Request $request): JsonResponse
+    {
+        if (!$this->me()->isAdmin) {
+            throw new AccessDeniedHttpException('Seul un administrateur peut supprimer une compagnie.');
+        }
+        $company = $this->company($id);
+        if (Input::str($this->body($request), 'confirmName') !== $company->name) {
+            throw new BadRequestHttpException('Pour confirmer, saisissez exactement le nom de la compagnie.');
+        }
+        $this->em->remove($company);
+        $this->em->flush();
+
+        return $this->json(['ok' => true]);
     }
 
     // ---- Spectacles ----

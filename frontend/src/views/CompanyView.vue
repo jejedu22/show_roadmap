@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { get, post, put, del, showError } from '../api.js'
+import { api, get, post, put, del, showError, session } from '../api.js'
 import { fperiod } from '../format.js'
 
 const props = defineProps({ id: String })
@@ -10,9 +10,12 @@ const company = ref(null)
 const showEdits = reactive({})
 const newShow = reactive({ title: '', description: '' })
 const newEvent = reactive({})
+const settings = reactive({ name: '', notes: '' })
+const confirmName = ref('')
 
 function load(c) {
   company.value = c
+  Object.assign(settings, { name: c.name, notes: c.notes })
   for (const s of c.shows) {
     showEdits[s.id] = { title: s.title, description: s.description }
     newEvent[s.id] ??= { venue: '', city: '', firstDate: '', lastDate: '' }
@@ -26,6 +29,17 @@ const deleteShow = (s) => confirm(`Supprimer « ${s.title} » ?`) && run(del(`/s
 async function addShow() { await run(post(`/companies/${props.id}/shows`, newShow)); Object.assign(newShow, { title: '', description: '' }) }
 async function addEvent(s) {
   try { const ev = await post(`/shows/${s.id}/events`, newEvent[s.id]); router.push(`/events/${ev.id}`) } catch (e) { showError(e) }
+}
+async function saveSettings() {
+  await run(put(`/companies/${props.id}`, settings))
+  window.dispatchEvent(new Event('companies-changed'))
+}
+async function removeCompany() {
+  try {
+    await api(`/companies/${props.id}`, { method: 'DELETE', body: { confirmName: confirmName.value } })
+    window.dispatchEvent(new Event('companies-changed'))
+    router.push('/companies')
+  } catch (e) { showError(e) }
 }
 const overlapTitles = (e) => [...new Set(e.overlaps.map((o) => o.showTitle))].join(', ')
 </script>
@@ -85,5 +99,18 @@ const overlapTitles = (e) => [...new Set(e.overlaps.map((o) => o.showTitle))].jo
       <div><label>Description</label><input v-model="newShow.description"></div>
       <div><button>Ajouter le spectacle</button></div>
     </form>
+
+    <h2>Paramètres de la compagnie</h2>
+    <form class="card grid g2" @submit.prevent="saveSettings">
+      <div><label>Nom</label><input v-model="settings.name" required></div>
+      <div><label>Notes</label><input v-model="settings.notes"></div>
+      <div><button class="sec">Enregistrer</button></div>
+    </form>
+    <details v-if="session.user.isAdmin" class="card">
+      <summary class="muted">Supprimer la compagnie…</summary>
+      <p>Supprime définitivement <b>{{ company.name }}</b>, ses spectacles, dates, équipes et voyages. Pour confirmer, saisissez son nom :</p>
+      <div class="grid g2"><input v-model="confirmName" :placeholder="company.name">
+        <div><button class="danger" :disabled="confirmName !== company.name" @click="removeCompany">Supprimer définitivement</button></div></div>
+    </details>
   </template>
 </template>

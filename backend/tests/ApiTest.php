@@ -227,4 +227,27 @@ class ApiTest extends ApiTestCase
         $this->call('GET', "/api/events/{$ev['id']}/pdf/roadmap");
         self::assertSame(404, $this->code());
     }
+
+    public function testCreateRenameAndDeleteCompanies(): void
+    {
+        $this->createUser('zoe@test.io', 'zoe-password-123');
+        $this->login('zoe@test.io', 'zoe-password-123');
+        [$c1] = $this->buildCompany('Cie Une');
+        $c2 = $this->call('POST', '/api/companies', ['name' => 'Cie Deux'])['id'];
+        self::assertSame(['Cie Deux', 'Cie Une'], array_column($this->call('GET', '/api/companies'), 'name'), 'le créateur accède à ses compagnies');
+        self::assertSame('Cie 2', $this->call('PUT', "/api/companies/$c2", ['name' => 'Cie 2', 'notes' => 'n'])['name']);
+        $this->call('DELETE', "/api/companies/$c1", ['confirmName' => 'Cie Une']);
+        self::assertSame(403, $this->code(), 'suppression réservée aux administrateurs');
+        $this->call('POST', '/api/logout');
+
+        $this->login();
+        $this->call('DELETE', "/api/companies/$c1", ['confirmName' => 'cie une']);
+        self::assertSame(400, $this->code(), 'nom exact exigé');
+        $this->call('DELETE', "/api/companies/$c1", ['confirmName' => 'Cie Une']);
+        self::assertSame(200, $this->code());
+        $this->call('GET', "/api/companies/$c1");
+        self::assertSame(404, $this->code());
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM person p JOIN company c ON c.id = p.company_id WHERE c.name = ?', ['Cie Une']));
+        self::assertSame(['Cie 2'], array_column($this->call('GET', '/api/companies'), 'name'));
+    }
 }

@@ -3,13 +3,15 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post, showError } from '../api.js'
 
+const props = defineProps({ stay: Boolean })
 const router = useRouter()
 const companies = ref(null)
 const name = ref('')
 
 onMounted(async () => {
   companies.value = await get('/companies')
-  if (companies.value.length === 1) router.replace(`/companies/${companies.value[0].id}`)
+  // Accès direct à l'unique compagnie depuis l'accueil ; la page « Compagnies » reste accessible par le menu
+  if (!props.stay && companies.value.length === 1) router.replace(`/companies/${companies.value[0].id}`)
 })
 
 async function create() {
@@ -30,7 +32,7 @@ async function create() {
     <p v-if="!companies.length" class="muted">Aucune compagnie. Créez-en une ci-dessous.</p>
   </div>
   <form class="card grid g2" @submit.prevent="create">
-    <div><label>Nouvelle compagnie</label><input v-model="name" required></div>
+    <div><label>Nouvelle compagnie</label><input v-model="name" required placeholder="Nom de la compagnie"></div>
     <div style="align-self:end"><button>Créer</button></div>
   </form>
 </template>

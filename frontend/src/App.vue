@@ -26,6 +26,7 @@ window.addEventListener('companies-changed', async () => { companies.value = awa
     <RouterLink class="brand" to="/">🎭 Show Roadmap</RouterLink>
     <nav v-if="session.user">
       <RouterLink v-for="c in companies" :key="c.id" :to="`/companies/${c.id}`">{{ c.name }}</RouterLink>
+      <RouterLink to="/companies" title="Toutes les compagnies, créer une compagnie">＋ Compagnies</RouterLink>
       <RouterLink v-if="session.user.isAdmin" to="/admin/users">Utilisateurs</RouterLink>
     </nav>
     <template v-if="session.user">
