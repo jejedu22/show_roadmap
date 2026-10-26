@@ -197,7 +197,7 @@ class CompanyController extends ApiController
     {
         $p->lastName = Input::str($d, 'lastName', 120) ?: throw new BadRequestHttpException('Le nom est obligatoire');
         $p->firstName = Input::str($d, 'firstName', 120);
-        $p->function = Input::str($d, 'function', 120);
+        $p->function = $this->lists->check('function', Input::str($d, 'function', 120), $p->function);
         $p->phone = Input::str($d, 'phone', 60);
         $p->email = Input::str($d, 'email');
         $p->diet = Input::str($d, 'diet');

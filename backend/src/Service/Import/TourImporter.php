@@ -16,9 +16,11 @@ use App\Entity\TruckLeg;
 use App\Entity\User;
 use App\Security\Authz;
 use App\Service\Audit;
+use App\Service\Lists;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -32,11 +34,15 @@ class TourImporter
     public const MAX_SIZE = 10 * 1024 * 1024;
     private const TTL = 86400;
 
+    /** Correspondances des valeurs hors liste pour l'import en cours (voir resolveVocabulary). */
+    private array $vocab = ['function' => [], 'schedule' => []];
+
     public function __construct(
         private EntityManagerInterface $em,
         private TourWorkbookParser $parser,
         private Authz $authz,
         private Audit $audit,
+        private Lists $lists,
         #[Autowire('%kernel.project_dir%/var/imports')] private string $dir,
     ) {
     }
@@ -74,7 +80,135 @@ class TourImporter
         $id = bin2hex(random_bytes(12));
         $this->store($id, ['user' => $user->id, 'company' => $company->id, 'drafts' => $drafts]);
 
-        return ['id' => $id, 'files' => array_map(fn ($i) => $this->summary($company, $drafts[$i], $i), array_keys($drafts))];
+        return ['id' => $id, 'files' => array_map(fn ($i) => $this->summary($company, $drafts[$i], $i), array_keys($drafts)),
+            'vocabulary' => $this->vocabulary($drafts, $this->authz->can($user, 'lists.manage')), 'lists' => $this->lists->all(), 'canManageLists' => $this->authz->can($user, 'lists.manage')];
+    }
+
+    /**
+     * Fonctions et intitulés de planning des fichiers absents des listes paramétrées, avec une suggestion.
+     * Les valeurs reconnues (à la casse et aux accents près, ou planning commençant par une entrée) n'y figurent pas.
+     *
+     * @return array<string, list<array{value: string, count: int, suggestion: ?string}>>
+     */
+    private function vocabulary(array $drafts, bool $canManage = false): array
+    {
+        $seen = ['function' => [], 'schedule' => []];
+        foreach ($drafts as $d) {
+            if (isset($d['error'])) {
+                continue;
+            }
+            foreach ($d['team'] as $p) {
+                '' !== $p['role'] && $seen['function'][$p['role']] = ($seen['function'][$p['role']] ?? 0) + 1;
+            }
+            foreach ($d['roadmap']['found'] ? $d['schedule'] : [] as $i) {
+                $seen['schedule'][$i['label']] = ($seen['schedule'][$i['label']] ?? 0) + 1;
+            }
+        }
+        $out = [];
+        foreach ($seen as $kind => $values) {
+            $out[$kind] = [];
+            foreach ($values as $value => $count) {
+                if (!$this->lists->match($kind, (string) $value)) {
+                    $u = ['value' => (string) $value, 'count' => $count, 'suggestion' => $this->suggest($kind, (string) $value)];
+                    $out[$kind][] = $u + ['choice' => self::defaultChoice($u, $canManage)];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /** Entrée la plus proche (« Régisseuse lumière » ↔ « Régisseur lumière », « Diner du soir » ↔ « Dîner ») ; null si rien d'approchant. */
+    private function suggest(string $kind, string $value): ?string
+    {
+        $v = Lists::key($value);
+        $best = null;
+        $score = 0.0;
+        foreach ($this->lists->entries($kind) as $label) {
+            $l = Lists::key($label);
+            similar_text($v, $l, $pct);
+            // Bonus quand l'un commence par l'autre (« RDV Tech » ↔ « RDV technique »), pas pour un mot isolé au milieu d'une phrase
+            if (str_starts_with($v, $l) || str_starts_with($l, $v)) {
+                $pct = max($pct, 80 + min(mb_strlen($l), mb_strlen($v)) / max(mb_strlen($l), mb_strlen($v)) * 10);
+            }
+            if ($pct > $score) {
+                [$best, $score] = [$label, $pct];
+            }
+        }
+
+        return $score >= 70 ? $best : null;
+    }
+
+    /**
+     * Correspondances choisies à l'écran pour les valeurs hors liste : [kind => [valeur => entrée de liste | '+' (ajouter)]].
+     * Les ajouts demandent le droit « Gérer les listes » ; sans choix, la suggestion (ou l'ajout pour qui peut gérer les listes).
+     *
+     * @return array<string, array<string, string>> valeur normalisée → entrée de liste
+     */
+    private function resolveVocabulary(array $drafts, array $choices, bool $canManage): array
+    {
+        $maps = ['function' => [], 'schedule' => []];
+        $added = ['function' => [], 'schedule' => []];
+        foreach ($this->vocabulary($drafts, $canManage) as $kind => $unknown) {
+            foreach ($unknown as $u) {
+                $choice = (string) ($choices[$kind][$u['value']] ?? self::defaultChoice($u, $canManage));
+                if ('+' === $choice) {
+                    if (!$canManage) {
+                        throw new AccessDeniedHttpException('Droit nécessaire : « Gérer les listes » pour ajouter « '.$u['value'].' ».');
+                    }
+                    $added[$kind][] = mb_substr($u['value'], 0, 120);
+                    $maps[$kind][Sheet::norm($u['value'])] = mb_substr($u['value'], 0, 120);
+                } elseif ('' === $choice) {
+                    $maps[$kind][Sheet::norm($u['value'])] = '';
+                } else {
+                    $maps[$kind][Sheet::norm($u['value'])] = $this->lists->check($kind, $choice);
+                }
+            }
+        }
+        foreach ($added as $kind => $labels) {
+            if ($labels) {
+                $this->lists->append($kind, $labels);
+                $this->audit->log('lists.update', \App\Entity\ListItem::KINDS[$kind].' (import)', ['added' => $labels]);
+            }
+        }
+
+        return $maps;
+    }
+
+    /**
+     * Choix proposé pour une valeur hors liste : la suggestion, sinon l'ajout à la liste — sauf pour une phrase
+     * (« Un repas vous sera servi à l'hôtel. »), gardée en précision sans intitulé — ou rien sans le droit.
+     */
+    public static function defaultChoice(array $unknown, bool $canManage): string
+    {
+        return $unknown['suggestion'] ?? ($canManage && mb_strlen($unknown['value']) <= 40 ? '+' : '');
+    }
+
+    /** Fonction importée → entrée de liste. */
+    private function functionLabel(string $value): string
+    {
+        if ('' === $value) {
+            return '';
+        }
+
+        return $this->lists->match('function', $value)['label'] ?? $this->vocab['function'][Sheet::norm($value)] ?? '';
+    }
+
+    /** Intitulé de planning importé → [entrée de liste, précision]. */
+    private function scheduleLabel(string $value): array
+    {
+        if ($m = $this->lists->match('schedule', $value)) {
+            return [$m['label'], $m['detail']];
+        }
+        $label = $this->vocab['schedule'][Sheet::norm($value)] ?? '';
+        if ('' === $label) {
+            return ['', $value];
+        }
+        // Rattaché à une entrée : le texte d'origine devient la précision, sans répéter l'intitulé
+        $same = Sheet::norm($label) === Sheet::norm($value);
+        $prefix = str_starts_with(Sheet::norm($value), Sheet::norm($label));
+
+        return [$label, $same ? '' : ($prefix ? Lists::rest($value, $label) : mb_substr($value, 0, 255))];
     }
 
     /** Doublons dans le lot, dates déjà présentes dans l'application, choix par défaut. */
@@ -169,7 +303,7 @@ class TourImporter
      * Enregistre les fichiers cochés. $choices : [index => {include, showId|null, showTitle, venue, city, address,
      * firstDate, lastDate, techArrival, artisticArrival, departure, performances, status, includeRoadmap}].
      */
-    public function commit(Company $company, User $user, string $id, array $choices): array
+    public function commit(Company $company, User $user, string $id, array $choices, array $vocabulary = []): array
     {
         $batch = $this->load($id);
         if (!$batch || $batch['user'] !== $user->id || $batch['company'] !== $company->id) {
@@ -180,7 +314,9 @@ class TourImporter
         $created = [];
         $skippedTravel = false;
 
-        $this->em->wrapInTransaction(function () use ($company, $batch, $choices, $can, &$people, &$created, &$skippedTravel) {
+        $this->em->wrapInTransaction(function () use ($company, $user, $batch, $choices, $vocabulary, $can, &$people, &$created, &$skippedTravel) {
+            $kept = array_filter($batch['drafts'], fn ($d, $i) => !isset($d['error']) && !empty($choices[$i]['include']), ARRAY_FILTER_USE_BOTH);
+            $this->vocab = $this->resolveVocabulary($kept, $vocabulary, $this->authz->can($user, 'lists.manage'));
             foreach ($choices as $index => $c) {
                 $d = $batch['drafts'][(int) $index] ?? null;
                 if (!$d || isset($d['error']) || empty($c['include'])) {
@@ -299,13 +435,14 @@ class TourImporter
                 $people[$key] = $person;
             }
             // Les fiches existantes ne sont complétées que là où elles sont vides.
-            foreach (['function' => $p['role'], 'phone' => $p['phone'], 'email' => $p['email'], 'diet' => $p['diet'], 'homeCity' => $p['departureCity']] as $f => $v) {
+            $role = $this->functionLabel($p['role']);
+            foreach (['function' => $role, 'phone' => $p['phone'], 'email' => $p['email'], 'diet' => $p['diet'], 'homeCity' => $p['departureCity']] as $f => $v) {
                 if ('' === $person->$f && '' !== $v) {
                     $person->$f = mb_substr($v, 0, 'email' === $f || 'diet' === $f ? 255 : ('phone' === $f ? 60 : 120));
                 }
             }
             $part = new Participation($event, $person);
-            $part->role = mb_substr($p['role'] ?: $person->function, 0, 120);
+            $part->role = mb_substr($role ?: $person->function, 0, 120);
             $part->roomType = $p['roomType'];
             $part->departureCity = mb_substr($p['departureCity'] ?: $person->homeCity, 0, 120);
             $part->note = mb_substr($p['note'], 0, 255);
@@ -380,7 +517,9 @@ class TourImporter
             $item = new ScheduleItem($event);
             $item->day = new \DateTimeImmutable($i['day']);
             $item->time = $i['time'];
-            $item->label = $i['label'];
+            [$label, $detail] = $this->scheduleLabel($i['label']);
+            $item->label = mb_substr($label, 0, 255);
+            $item->detail = mb_substr($detail, 0, 255);
             $event->schedule->add($item);
             $this->em->persist($item);
         }

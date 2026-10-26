@@ -281,3 +281,11 @@ dialog.modal::backdrop { background: rgba(27, 27, 58, .55); }
 .team-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .import-bar { position: sticky; bottom: 12px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--radius); background: var(--ink); color: #fff; box-shadow: 0 12px 40px rgba(27, 27, 58, .25); }
 .import-done { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- Listes paramétrées ---------- */
+.lists-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start; }
+.list-edit { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; }
+.list-edit li { display: flex; gap: 6px; align-items: center; }
+.list-edit input { flex: 1; min-height: 38px; }
+.vocab-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+@media (max-width: 700px) { .lists-grid { grid-template-columns: 1fr; } .vocab-row { grid-template-columns: 1fr; } }

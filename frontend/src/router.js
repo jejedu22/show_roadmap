@@ -8,6 +8,7 @@ const routes = [
   { path: '/account', component: () => import('./views/AccountView.vue') },
   { path: '/admin/users', component: () => import('./views/admin/UsersView.vue'), meta: { perm: 'users.manage' } },
   { path: '/admin/groups', component: () => import('./views/admin/GroupsView.vue'), meta: { perm: 'groups.manage' } },
+  { path: '/admin/lists', component: () => import('./views/admin/ListsView.vue'), meta: { perm: 'lists.manage' } },
   { path: '/admin/audit', component: () => import('./views/admin/AuditView.vue'), meta: { perm: 'users.manage' } },
   { path: '/mot-de-passe/:token', component: () => import('./views/PasswordTokenView.vue'), props: true, meta: { public: true, bare: true, anyone: true } },
   { path: '/companies/:id', component: () => import('./views/DashboardView.vue'), props: true },

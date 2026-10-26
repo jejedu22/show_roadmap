@@ -30,7 +30,7 @@ class ImportController extends ApiController
             throw new BadRequestHttpException('Aucun fichier à importer.');
         }
 
-        return $this->json($importer->commit($company, $this->me(), $importId, $choices));
+        return $this->json($importer->commit($company, $this->me(), $importId, $choices, (array) ($this->body($request)['vocabulary'] ?? [])));
     }
 
     /** Importer crée des dates et des fiches de personnes : il faut les deux droits. */

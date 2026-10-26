@@ -160,7 +160,7 @@ class Presenter
             'sections' => $e->sections->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'body' => $s->body,
                 'position' => $s->position])->getValues(),
             'schedule' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
-                'label' => $s->label], self::byTime($e->schedule->toArray(), 'time')),
+                'label' => $s->label, 'detail' => $s->detail], self::byTime($e->schedule->toArray(), 'time')),
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
             'team' => $this->team($e),
             'readiness' => $this->readinessFor($e, $perms),

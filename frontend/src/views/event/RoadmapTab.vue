@@ -3,6 +3,7 @@ import { inject, reactive, ref, watch } from 'vue'
 import { post, put, del, toast } from '../../api.js'
 import { fdate } from '../../format.js'
 import Icon from '../../components/Icon.vue'
+import ListSelect from '../../components/ListSelect.vue'
 
 const { ev, apply, allowed } = inject('event')
 const slots = reactive({})
@@ -14,7 +15,7 @@ const TITLES = ['ATELIERS', 'REPAS', 'TRANSFERTS', 'ACCÈS AU THÉÂTRE', 'WIFI'
 watch(ev, (e) => {
   for (const s of e.schedule) slots[s.id] = { ...s }
   for (const s of e.sections) sections[s.id] = { ...s }
-  newSlot.value = { day: newSlot.value.day || e.firstDate, time: '', label: '' }
+  newSlot.value = { day: newSlot.value.day || e.firstDate, time: '', label: '', detail: '' }
   newSection.value = { title: '', body: '', position: (e.sections.length + 1) * 10 }
 }, { immediate: true })
 
@@ -31,14 +32,16 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
         <form v-for="s in ev.schedule" :key="s.id" class="actions" style="margin-bottom:8px" @submit.prevent="saved(put(url('schedule', s.id), slots[s.id]))">
           <label class="field" style="flex:1 1 140px">Jour<input v-model="slots[s.id].day" type="date" required></label>
           <label class="field" style="flex:1 1 100px">Heure<input v-model="slots[s.id].time"></label>
-          <label class="field" style="flex:3 1 220px">Intitulé<input v-model="slots[s.id].label" required></label>
+          <label class="field" style="flex:2 1 180px">Intitulé<ListSelect v-model="slots[s.id].label" kind="schedule" required empty="— choisir —" /></label>
+          <label class="field" style="flex:2 1 180px">Précision<input v-model="slots[s.id].detail" placeholder="#1 scolaire, lieu…"></label>
           <span class="actions" style="align-self:flex-end"><button class="btn btn-sm">OK</button>
             <button type="button" class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ${s.label}`" @click="saved(del(url('schedule', s.id)))"><Icon name="trash" :size="16" /></button></span>
         </form>
         <form class="actions" @submit.prevent="saved(post(url('schedule'), newSlot))">
           <label class="field" style="flex:1 1 140px">Jour<input v-model="newSlot.day" type="date" required></label>
           <label class="field" style="flex:1 1 100px">Heure<input v-model="newSlot.time" placeholder="10h–13h"></label>
-          <label class="field" style="flex:3 1 220px">Intitulé<input v-model="newSlot.label" required placeholder="Montage, répétition, représentation…"></label>
+          <label class="field" style="flex:2 1 180px">Intitulé<ListSelect v-model="newSlot.label" kind="schedule" required empty="— choisir —" /></label>
+          <label class="field" style="flex:2 1 180px">Précision<input v-model="newSlot.detail" placeholder="#1 scolaire, lieu…"></label>
           <button class="btn btn-sm" style="align-self:flex-end"><Icon name="plus" :size="16" />Ajouter</button>
         </form>
       </section>

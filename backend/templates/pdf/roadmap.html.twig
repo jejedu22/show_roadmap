@@ -24,7 +24,7 @@
     <div class="sec"><span class="dot sun"></span>Planning</div>
     {% for day, slots in schedule %}
       <div class="day">{{ day|fday }}</div>
-      <table class="slots">{% for s in slots %}<tr><td class="h">{{ s.time }}</td><td>{{ s.label }}</td></tr>{% endfor %}</table>
+      <table class="slots">{% for s in slots %}<tr><td class="h">{{ s.time }}</td><td>{{ [s.label, s.detail ?? '']|filter(v => v)|join(' — ') }}</td></tr>{% endfor %}</table>
     {% endfor %}
   {% endif %}
 

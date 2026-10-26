@@ -11,6 +11,7 @@ const busy = ref(false)
 const dragging = ref(false)
 const batch = ref(null)         // { id, files: [...] } renvoyé par l'analyse
 const forms = ref({})           // corrections saisies, par index de fichier
+const vocab = ref({ function: {}, schedule: {} }) // valeurs hors liste → entrée choisie ou '+' (ajouter à la liste)
 const result = ref(null)
 const input = ref(null)
 
@@ -24,6 +25,8 @@ const allowed = computed(() => company.value && can('events.edit', company.value
 const canCreateShow = computed(() => can('shows.edit', company.value?.permissions))
 const files = computed(() => batch.value?.files || [])
 const chosen = computed(() => files.value.filter((f) => !f.error && forms.value[f.index].include))
+const VOCAB = [['function', 'Fonctions', 'Laisser vide'], ['schedule', 'Intitulés de planning', 'Sans intitulé (texte en précision)']]
+const unknownCount = computed(() => ['function', 'schedule'].reduce((n, k) => n + (batch.value?.vocabulary?.[k]?.length || 0), 0))
 const LEVEL = { danger: 'bad', warning: 'warn', info: 'info' }
 
 function reset() {
@@ -39,6 +42,9 @@ async function send(list) {
   busy.value = true
   try {
     batch.value = await upload(`/companies/${props.id}/import`, 'files', xlsx)
+    // Choix proposé par le serveur : suggestion, ajout à la liste, ou texte gardé en précision pour une phrase
+    vocab.value = Object.fromEntries(['function', 'schedule'].map((k) => [k, Object.fromEntries((batch.value.vocabulary?.[k] || [])
+      .map((u) => [u.value, u.choice]))]))
     forms.value = Object.fromEntries(batch.value.files.filter((f) => !f.error).map((f) => [f.index, {
       include: f.defaults.include, includeRoadmap: f.defaults.includeRoadmap,
       showId: f.show.id || '', showTitle: f.show.title,
@@ -64,7 +70,7 @@ async function commit() {
       const v = forms.value[f.index]
       return [f.index, { ...v, showId: v.showId || null, techArrival: v.techArrival || null, artisticArrival: v.artisticArrival || null, departure: v.departure || null }]
     }))
-    result.value = await post(`/companies/${props.id}/import/${batch.value.id}`, { files: payload })
+    result.value = await post(`/companies/${props.id}/import/${batch.value.id}`, { files: payload, vocabulary: vocab.value })
     step.value = 'done'
     toast(`${result.value.created.length} date${result.value.created.length > 1 ? 's' : ''} importée${result.value.created.length > 1 ? 's' : ''}`)
   } catch (e) {
@@ -173,6 +179,26 @@ function roadmapCounts(c) {
           <p v-else class="muted small" style="margin:0">{{ f.show.title }} · {{ f.event.venue }}<template v-if="f.event.city"> ({{ f.event.city }})</template> · {{ fperiod(f.event.firstDate, f.event.lastDate) }}</p>
         </template>
       </article>
+
+      <section v-if="unknownCount" class="card">
+        <h2 style="margin-bottom:4px">Valeurs hors liste</h2>
+        <p class="muted small" style="margin:0 0 8px">Ces fonctions et intitulés de planning des fichiers ne sont pas dans les listes (Administration → Listes).
+          Rattachez-les à une entrée existante — le texte d'origine est gardé en précision pour le planning — <template v-if="batch.canManageLists">ou ajoutez-les à la liste.</template><template v-else>(seule une personne ayant le droit « Gérer les listes » peut en ajouter).</template>
+          Les valeurs reconnues (« Représentation #1 - Place Kléber » → Représentation + « #1 - Place Kléber ») sont rattachées d'office.</p>
+        <template v-for="[kind, title, none] in VOCAB" :key="kind">
+          <h3 v-if="batch.vocabulary[kind].length" style="margin:12px 0 4px">{{ title }}</h3>
+          <div v-for="u in batch.vocabulary[kind]" :key="u.value" class="vocab-row">
+            <span>« {{ u.value }} » <span class="muted small">× {{ u.count }}</span></span>
+            <label class="field"><span class="sr-only">Correspondance de {{ u.value }}</span>
+              <select v-model="vocab[kind][u.value]">
+                <option v-if="batch.canManageLists" value="+">Ajouter « {{ u.value }} » à la liste</option>
+                <option value="">{{ none }}</option>
+                <option v-for="e in batch.lists[kind]" :key="e" :value="e">{{ e }}{{ e === u.suggestion ? ' (suggestion)' : '' }}</option>
+              </select>
+            </label>
+          </div>
+        </template>
+      </section>
 
       <div class="import-bar">
         <span>{{ chosen.length }} date{{ chosen.length > 1 ? 's' : '' }} sur {{ files.length }} fichier{{ files.length > 1 ? 's' : '' }}</span>

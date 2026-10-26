@@ -28,6 +28,7 @@ final class Permissions
         'groups.manage' => ['Gérer les groupes', 'Créer des groupes, choisir leurs droits, leurs compagnies et leurs membres'],
         'companies.create' => ['Créer des compagnies', 'Le créateur reçoit un groupe « Équipe » avec tous les droits sur la nouvelle compagnie'],
         'companies.delete' => ['Supprimer des compagnies', 'Suppression définitive avec tout leur contenu'],
+        'lists.manage' => ['Gérer les listes', 'Fonctions des personnes et intitulés de planning proposés dans les listes déroulantes'],
     ];
 
     /** @return list<string> */

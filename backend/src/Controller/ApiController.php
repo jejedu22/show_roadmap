@@ -7,6 +7,7 @@ use App\Entity\Event;
 use App\Entity\User;
 use App\Security\Authz;
 use App\Service\Audit;
+use App\Service\Lists;
 use App\Service\Presenter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,7 +17,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 abstract class ApiController extends AbstractController
 {
-    public function __construct(protected EntityManagerInterface $em, protected Presenter $presenter, protected Authz $authz, protected Audit $audit)
+    public function __construct(protected EntityManagerInterface $em, protected Presenter $presenter, protected Authz $authz, protected Audit $audit,
+        protected Lists $lists)
     {
     }
 

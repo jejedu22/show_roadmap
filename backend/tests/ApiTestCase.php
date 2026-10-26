@@ -38,6 +38,14 @@ abstract class ApiTestCase extends WebTestCase
         foreach (['gtfs_stop', 'gtfs_trip', 'gtfs_stop_time', 'gtfs_service_date', 'gtfs_meta'] as $t) {
             $db->executeStatement("DELETE FROM $t");
         }
+        // Listes paramétrées : valeurs de départ, comme après la migration
+        require_once dirname(__DIR__).'/migrations/Version20261028090000.php';
+        foreach (['function' => \DoctrineMigrations\Version20261028090000::FUNCTIONS, 'schedule' => \DoctrineMigrations\Version20261028090000::SCHEDULE] as $kind => $labels) {
+            foreach ($labels as $i => $label) {
+                $em->persist(new \App\Entity\ListItem($kind, $label, $i + 1));
+            }
+        }
+        $em->flush();
         $this->createUser('admin@test.io', 'admin-password-123', true);
     }
 

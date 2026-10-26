@@ -3,6 +3,7 @@ import { computed, inject, reactive, ref, watch } from 'vue'
 import { post, put, del, toast, showError } from '../../api.js'
 import Avatar from '../../components/Avatar.vue'
 import Icon from '../../components/Icon.vue'
+import ListSelect from '../../components/ListSelect.vue'
 
 const { ev, apply, allowed } = inject('event')
 const rows = reactive({})
@@ -50,7 +51,7 @@ async function createAndAdd() {
           <button v-if="allowed('events.edit')" type="button" class="btn btn-sm btn-icon btn-danger status" :aria-label="`Retirer ${p.person.fullName}`" @click="remove(p)"><Icon name="trash" :size="16" /></button>
         </div>
         <div class="form-grid" style="margin-top:12px">
-          <label class="field">Fonction sur cette date<input v-model="rows[p.id].role"></label>
+          <label class="field">Fonction sur cette date<ListSelect v-model="rows[p.id].role" kind="function" /></label>
           <label class="field">Ville de départ<input v-model="rows[p.id].departureCity"></label>
           <label class="field">Chambre<select v-model="rows[p.id].roomType"><option v-for="r in ['single', 'double', 'twin', 'appartement']" :key="r">{{ r }}</option></select></label>
           <label class="field">Hébergement<select v-model="rows[p.id].lodgingId"><option value="">— à choisir —</option><option v-for="l in ev.lodgings" :key="l.id" :value="l.id">{{ l.name }}</option></select></label>
@@ -78,7 +79,7 @@ async function createAndAdd() {
         <form v-if="creating" style="display:flex;flex-direction:column;gap:10px;margin-top:14px" @submit.prevent="createAndAdd">
           <label class="field">Nom<input v-model="person.lastName" required></label>
           <label class="field">Prénom<input v-model="person.firstName"></label>
-          <label class="field">Fonction<input v-model="person.function"></label>
+          <label class="field">Fonction<ListSelect v-model="person.function" kind="function" /></label>
           <label class="field">Ville de départ<input v-model="person.homeCity"></label>
           <label class="field">Téléphone<input v-model="person.phone" type="tel"></label>
           <label class="field">E-mail<input v-model="person.email" type="email"></label>

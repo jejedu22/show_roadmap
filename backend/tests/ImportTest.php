@@ -256,6 +256,44 @@ class ImportTest extends ApiTestCase
         self::assertSame(1, (int) $this->em()->getRepository(Event::class)->count(['city' => 'Brest']));
     }
 
+    public function testMatchesValuesWithLists(): void
+    {
+        $this->login();
+        [$cid] = $this->buildCompany('Cie Listes');
+        // « Danseuse » retirée de la liste : elle doit être signalée, avec « Danseur » en suggestion
+        $this->call('PUT', '/api/admin/lists/function', ['items' => ['Danseur', 'Régisseur lumière']]);
+        $res = $this->upload($cid, ['Devis_Oiseaux_Lorient.xlsx' => $this->workbook()]);
+        self::assertTrue($res['canManageLists']);
+        self::assertSame([['value' => 'Danseuse', 'count' => 1, 'suggestion' => 'Danseur', 'choice' => 'Danseur']], $res['vocabulary']['function']);
+        self::assertSame([], $res['vocabulary']['schedule'], '« Montage » et « Représentation #1 » sont reconnus');
+
+        $done = $this->call('POST', "/api/companies/$cid/import/{$res['id']}", ['files' => [0 => ['include' => true, 'includeRoadmap' => true]],
+            'vocabulary' => ['function' => ['Danseuse' => '+']]]);
+        self::assertSame(200, $this->code(), json_encode($done));
+        self::assertSame(['Danseur', 'Régisseur lumière', 'Danseuse'], $this->call('GET', '/api/lists')['function'], 'ajoutée en fin de liste');
+        $ev = $this->call('GET', "/api/events/{$done['created'][0]['id']}");
+        self::assertSame(['Danseuse', 'Régisseur lumière'], array_column($ev['participations'], 'role'));
+        self::assertSame([['Montage', ''], ['Représentation', '#1'], ['Représentation', '#2']], array_map(fn ($s) => [$s['label'], $s['detail']], $ev['schedule']));
+
+        // Sans le droit « Gérer les listes » : rattachement possible, ajout refusé
+        $this->call('PUT', '/api/admin/lists/function', ['items' => ['Danseur']]);
+        $this->call('POST', '/api/logout');
+        $this->createUser('ed@test.io', 'ed-password-12345');
+        $this->grant(['ed@test.io'], ['company.view', 'events.edit', 'people.edit', 'shows.edit'], [$cid]);
+        $this->login('ed@test.io', 'ed-password-12345');
+        $res = $this->upload($cid, ['Devis_Oiseaux_Brest.xlsx' => $this->workbook('Le Quartz - Brest', '3 et 4 décembre 2027')]);
+        self::assertFalse($res['canManageLists']);
+        $this->call('POST', "/api/companies/$cid/import/{$res['id']}", ['files' => [0 => ['include' => true]], 'vocabulary' => ['function' => ['Danseuse' => '+']]]);
+        self::assertSame(403, $this->code());
+        $this->call('POST', "/api/companies/$cid/import/{$res['id']}", ['files' => [0 => ['include' => true]], 'vocabulary' => ['function' => ['Danseuse' => 'Inventée']]]);
+        self::assertSame(400, $this->code(), 'entrée hors liste refusée');
+        $done = $this->call('POST', "/api/companies/$cid/import/{$res['id']}", ['files' => [0 => ['include' => true]],
+            'vocabulary' => ['function' => ['Danseuse' => 'Danseur', 'Régisseur lumière' => '']]]);
+        $ev = $this->call('GET', "/api/events/{$done['created'][0]['id']}");
+        self::assertSame(['Danseur', 'Régisseur lumière'], array_column($ev['participations'], 'role'), 'fonction laissée vide : celle de la fiche (hors liste) est gardée');
+        self::assertSame(['Danseur'], $this->call('GET', '/api/lists')['function']);
+    }
+
     public function testRequiresRights(): void
     {
         $this->login();

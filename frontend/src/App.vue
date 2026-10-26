@@ -23,7 +23,7 @@ const NAV = computed(() => [['', 'Tableau de bord', 'dashboard'], ['/calendar', 
   ...(can('events.edit', current.value?.permissions) && can('people.edit', current.value?.permissions) ? [['/import', 'Importer des devis', 'upload']] : []),
   ...(can('company.manage', current.value?.permissions) || can('companies.delete') ? [['/settings', 'Paramètres', 'settings']] : [])])
 const ADMIN = computed(() => [['/admin/users', 'Utilisateurs', 'user', 'users.manage'], ['/admin/groups', 'Groupes et droits', 'people', 'groups.manage'],
-  ['/admin/audit', 'Journal', 'file', 'users.manage']].filter(([, , , perm]) => can(perm)))
+  ['/admin/lists', 'Listes', 'menu', 'lists.manage'], ['/admin/audit', 'Journal', 'file', 'users.manage']].filter(([, , , perm]) => can(perm)))
 const isActive = (suffix) => suffix === '' ? route.path === `/companies/${cid.value}` || route.path.startsWith('/events/') : route.path === `/companies/${cid.value}${suffix}`
 const abbr = (name) => name.split(/\s+/).filter((w) => w.length > 2 || /^[A-Z]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || name.slice(0, 2).toUpperCase()
 

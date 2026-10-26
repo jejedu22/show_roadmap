@@ -149,6 +149,19 @@ Un trajet avec correspondance crée un trajet par tronçon. Prix et référence 
 
 Seuls les comptes déjà créés par un administrateur (même e-mail, vérifié par Google) peuvent se connecter.
 
+## Listes paramétrées (fonctions, intitulés de planning)
+
+**Administration → Listes** (droit global « Gérer les listes ») : les fonctions des personnes et les intitulés du planning
+sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, planning). Chaque ligne de planning a en plus une
+**précision** libre (« #1 scolaire », un lieu…), affichée dans la feuille de route.
+
+- Retirer une entrée ne modifie pas les fiches existantes : la valeur y reste, marquée « hors liste ».
+- Au premier démarrage, les listes sont pré-remplies avec des valeurs courantes et les fonctions déjà saisies.
+- **Import des devis** : les valeurs des fichiers sont rapprochées des listes, sans tenir compte de la casse, des accents ni
+  des tirets. Un intitulé qui commence par une entrée est découpé : « Représentation #1 - Place Kléber » donne
+  Représentation + « #1 - Place Kléber ». Les autres valeurs sont présentées à la relecture. On peut les rattacher à une
+  entrée (une suggestion est proposée) ou les ajouter à la liste ; l'ajout demande le droit « Gérer les listes ».
+
 ## Utilisateurs, groupes et droits
 
 - **Droits** : une liste fixe d'actions. Sur les compagnies : consulter, organiser les dates, gérer les voyages,

@@ -21,8 +21,13 @@ class ScheduleItem
     #[ORM\Column(length: 20)]
     public string $time = '';
 
+    /** Intitulé choisi dans la liste paramétrée (« Représentation »). */
     #[ORM\Column(length: 255)]
     public string $label = '';
+
+    /** Précision libre (« #1 - Place Kléber »). */
+    #[ORM\Column(length: 255, options: ['default' => ''])]
+    public string $detail = '';
 
     public function __construct(Event $event)
     {

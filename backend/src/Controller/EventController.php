@@ -140,7 +140,7 @@ class EventController extends ApiController
                 continue;
             }
             $d = $rows[$p->id];
-            $p->role = Input::str($d, 'role', 120);
+            $p->role = $this->lists->check('function', Input::str($d, 'role', 120), $p->role);
             $p->roomType = Input::str($d, 'roomType', 40) ?: 'single';
             $p->departureCity = Input::str($d, 'departureCity', 120);
             $p->note = Input::str($d, 'note');
@@ -372,9 +372,10 @@ class EventController extends ApiController
                     'team_transport' === ($d['kind'] ?? null) ? 'team_transport' : 'other'],
             $item instanceof RoadmapSection => [$item->title, $item->body, $item->position] =
                 [Input::str($d, 'title') ?: throw new BadRequestHttpException('Titre obligatoire'), Input::text($d, 'body'), Input::int($d, 'position')],
-            $item instanceof ScheduleItem => [$item->day, $item->time, $item->label] =
+            $item instanceof ScheduleItem => [$item->day, $item->time, $item->label, $item->detail] =
                 [Input::date($d, 'day') ?? $item->day, Input::str($d, 'time', 20),
-                    Input::str($d, 'label') ?: throw new BadRequestHttpException('Intitulé obligatoire')],
+                    $this->lists->check('schedule', Input::str($d, 'label') ?: throw new BadRequestHttpException('Intitulé obligatoire'), $item->label),
+                    Input::str($d, 'detail')],
         };
     }
 

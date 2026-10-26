@@ -107,7 +107,7 @@ class SeedDemoCommand extends Command
         [$section->title, $section->body, $section->position] = ['ACCÈS AU THÉÂTRE', "Entrée par l'arrière du bâtiment, quai de déchargement.", 10];
         $ev1->sections->add($section);
         $slot = new ScheduleItem($ev1);
-        [$slot->day, $slot->time, $slot->label] = [$d('2026-05-18'), '10h–18h', 'Montage et réglages'];
+        [$slot->day, $slot->time, $slot->label, $slot->detail] = [$d('2026-05-18'), '10h–18h', 'Montage', 'et réglages'];
         $ev1->schedule->add($slot);
 
         array_map($this->em->persist(...), [$c, $murmure, $prelude, $ev1, $ev2]);
