@@ -133,4 +133,25 @@ class SncfTimetableTest extends ApiTestCase
         $db = static::getContainer()->get('doctrine.dbal.default_connection');
         self::assertSame(3, (int) $db->fetchOne('SELECT COUNT(*) FROM gtfs_stop'));
     }
+
+    public function testConcurrentImportIsSkipped(): void
+    {
+        // Un autre processus tient le verrou (ex. import lancé au démarrage du conteneur)
+        $db = static::getContainer()->get('doctrine.dbal.default_connection');
+        $other = \Doctrine\DBAL\DriverManager::getConnection($db->getParams());
+        self::assertSame(1, (int) $other->fetchOne("SELECT GET_LOCK('gtfs_import', 0)"));
+
+        $file = tempnam(sys_get_temp_dir(), 'gtfs');
+        file_put_contents($file, self::gtfsZip());
+        $tester = $this->importCommand(['--file' => $file]);
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('déjà en cours', $tester->getDisplay());
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM gtfs_stop'), 'aucune table touchée');
+
+        $other->fetchOne("SELECT RELEASE_LOCK('gtfs_import')");
+        $other->close();
+        $this->importCommand(['--file' => $file])->assertCommandIsSuccessful();
+        self::assertSame(3, (int) $db->fetchOne('SELECT COUNT(*) FROM gtfs_stop'));
+        unlink($file);
+    }
 }

@@ -24,8 +24,25 @@ class GtfsImporter
     ) {
     }
 
-    /** @return array<string, int|string> statistiques de l'import */
+    /**
+     * @return array<string, int|string> statistiques de l'import
+     *
+     * @throws GtfsImportInProgress si un autre import tourne déjà (démarrage du conteneur, commande manuelle…)
+     */
     public function import(string $zipPath): array
+    {
+        // Verrou MariaDB : un seul import à la fois, quel que soit le processus ou le conteneur
+        if (1 !== (int) $this->db->fetchOne("SELECT GET_LOCK('gtfs_import', 0)")) {
+            throw new GtfsImportInProgress('Un import des horaires SNCF est déjà en cours.');
+        }
+        try {
+            return $this->importLocked($zipPath);
+        } finally {
+            $this->db->fetchOne("SELECT RELEASE_LOCK('gtfs_import')");
+        }
+    }
+
+    private function importLocked(string $zipPath): array
     {
         $zip = new \ZipArchive();
         if (true !== $zip->open($zipPath)) {

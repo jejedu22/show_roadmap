@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Service\GtfsImporter;
+use App\Service\GtfsImportInProgress;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -58,6 +59,10 @@ class GtfsImportCommand extends Command
             }
             $started = microtime(true);
             $stats = $this->importer->import($file);
+        } catch (GtfsImportInProgress $e) {
+            $io->note($e->getMessage().' Les horaires seront disponibles à la fin de cet import (environ une minute).');
+
+            return Command::SUCCESS;
         } catch (\Throwable $e) {
             $io->error('Import des horaires SNCF impossible (les horaires précédents restent en place) : '.$e->getMessage());
 
