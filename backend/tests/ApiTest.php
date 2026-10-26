@@ -178,4 +178,12 @@ class ApiTest extends ApiTestCase
             self::assertNull($this->call('GET', '/api/config')['user']);
         }
     }
+
+    public function testSncfCheckCommand(): void
+    {
+        $tester = new \Symfony\Component\Console\Tester\CommandTester((new \Symfony\Bundle\FrameworkBundle\Console\Application(static::$kernel))->find('app:sncf-check'));
+        $tester->execute([]);
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('Paris Gare du Nord', $tester->getDisplay());
+    }
 }

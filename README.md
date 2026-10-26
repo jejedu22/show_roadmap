@@ -96,6 +96,9 @@ Renseignez `SNCF_API_TOKEN` (jeton gratuit sur https://numerique.sncf.com/startu
 « Rechercher un train » pré-remplit départ, arrivée, heures et mode ; prix et référence restent à saisir.
 Le bouton « Ouvrir SNCF Connect » ouvre `SNCF_CONNECT_URL` (placeholders `{origin}`, `{destination}`, `{date}`).
 
+En cas de problème : `docker compose exec app php bin/console app:sncf-check` teste le jeton et l'accès réseau
+depuis le conteneur, et indique la cause. Après une modification de `.env`, recréez le conteneur avec `docker compose up -d`.
+
 ## Connexion avec Google
 
 1. Google Cloud Console → *APIs et services* → *Identifiants* → *ID client OAuth* de type **Application Web**.
