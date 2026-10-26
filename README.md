@@ -34,6 +34,32 @@ Sauvegarde de la base :
 docker compose exec db sh -c 'mariadb-dump -u roadmap -p"$MARIADB_PASSWORD" roadmap' > sauvegarde.sql
 ```
 
+## Reprise des données de l'ancienne version (SQLite)
+
+L'ancienne version (FastAPI) stockait ses données dans le fichier `app.db` du volume Docker `<projet>_roadmap-data`.
+L'import se fait sur une base **sans compagnie** : ne lancez pas `app:seed-demo` avant.
+
+```bash
+# 1. Démarrer la nouvelle version (l'ancien conteneur est arrêté proprement, sa base est complète)
+docker compose up -d --build
+
+# 2. Copier la base depuis l'ancien volume (le nom exact est donné par : docker volume ls | grep roadmap-data)
+docker run --rm -v <projet>_roadmap-data:/old -v "$PWD":/backup alpine \
+  sh -c 'cp /old/app.db /backup/app.db && chmod 644 /backup/app.db'
+
+# 3. Vérifier puis importer
+docker compose cp app.db app:/tmp/app.db
+docker compose exec app php bin/console app:import-sqlite /tmp/app.db --dry-run
+docker compose exec app php bin/console app:import-sqlite /tmp/app.db
+```
+
+- Tout est repris : comptes, accès aux compagnies, spectacles, annuaire, dates, équipe, grilles, voyages, devis, feuille de route.
+- L'import est tout ou rien : en cas d'erreur, rien n'est enregistré. Une relance est refusée, sans doublons.
+- **Mots de passe** : ceux de l'ancienne version ne sont pas lisibles par Symfony. Un compte déjà présent avec le même e-mail
+  (l'administrateur créé au démarrage) garde son mot de passe. Les autres comptes actifs reçoivent un mot de passe temporaire,
+  affiché une seule fois à la fin de l'import, à transmettre aux personnes. La connexion Google fonctionne directement.
+- Gardez l'ancien volume tant que vous n'avez pas vérifié les données ; supprimez-le ensuite (`docker volume rm <projet>_roadmap-data`).
+
 ## Développement
 
 Prérequis : PHP 8.3 (pdo_mysql, intl, zip, gd), Composer, Node 22, MariaDB.
