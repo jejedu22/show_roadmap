@@ -48,3 +48,6 @@ td input,td select{padding:4px 6px}
 .saving{opacity:.6;pointer-events:none}
 .toast{position:fixed;bottom:16px;right:16px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:360px;z-index:10}
 .sncf-results button{display:block;margin:4px 0;text-align:left}
+.leg-group{margin-top:10px}
+.leg-group h4{margin:6px 0 2px;font-size:.95rem}
+.leg-group + .leg-group{border-top:1px dashed var(--line);padding-top:8px}

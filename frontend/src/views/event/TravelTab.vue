@@ -1,18 +1,18 @@
 <script setup>
 import { inject, reactive, watch } from 'vue'
 import { post, put, del } from '../../api.js'
-import { money, sum } from '../../format.js'
+import { money, sum, byDeparture, DIRECTIONS } from '../../format.js'
 import SncfSearch from '../../components/SncfSearch.vue'
 
 const { ev, apply } = inject('event')
-const blank = (pid) => ({ _key: `new-${pid}`, participationId: pid, direction: 'outbound', day: '', origin: '', destination: '', depTime: '', arrTime: '', mode: 'Train', reference: '', price: '', bookedOn: '', note: '' })
+const blank = (pid, direction) => ({ _key: `new-${pid}-${direction}`, participationId: pid, direction, day: '', origin: '', destination: '', depTime: '', arrTime: '', mode: 'Train', reference: '', price: '', bookedOn: '', note: '' })
 const legs = reactive({})
 const fresh = reactive({})
 const opened = reactive({})
 watch(ev, (e) => {
   for (const p of e.participations) {
     for (const l of p.legs) legs[l.id] = { ...l, _key: l.id, bookedOn: l.bookedOn || '' }
-    fresh[p.id] ??= blank(p.id)
+    for (const [dir] of DIRECTIONS) fresh[`${p.id}-${dir}`] ??= blank(p.id, dir)
   }
 }, { immediate: true })
 
@@ -22,7 +22,13 @@ const FIELDS = [['day', 'Date', 'date'], ['origin', 'De'], ['destination', 'À']
 
 const save = (l) => apply(put(`/events/${ev.value.id}/items/leg/${l.id}`, legs[l.id]))
 const remove = (l) => apply(del(`/events/${ev.value.id}/items/leg/${l.id}`))
-async function add(p) { if (await apply(post(`/events/${ev.value.id}/items/leg`, fresh[p.id]))) fresh[p.id] = blank(p.id) }
+async function add(p, dir) {
+  const key = `${p.id}-${dir}`
+  if (await apply(post(`/events/${ev.value.id}/items/leg`, fresh[key]))) fresh[key] = blank(p.id, dir)
+}
+const legsOf = (p, dir) => p.legs.filter((l) => l.direction === dir).sort(byDeparture)
+/** Formulaire d'ajout ouvert là où il reste à saisir : l'aller d'abord, puis le retour une fois l'aller saisi. */
+const openByDefault = (p, dir) => dir === 'outbound' ? !legsOf(p, 'outbound').length : legsOf(p, 'outbound').length > 0 && !legsOf(p, 'return').length
 const pick = (target, values) => Object.assign(target, Object.fromEntries(Object.entries(values).filter(([k, v]) => v && !(k === 'note' && target.note))))
 </script>
 
@@ -32,21 +38,24 @@ const pick = (target, values) => Object.assign(target, Object.fromEntries(Object
   <div v-if="!ev.participations.length" class="alert">Ajoutez d'abord des personnes dans l'onglet Équipe.</div>
   <div v-for="p in ev.participations" :key="p.id" class="card">
     <h3>{{ p.person.fullName }} <span class="muted small">départ de {{ p.departureCity || '?' }}</span></h3>
-    <form v-for="l in p.legs" :key="l.id" class="row" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))" @submit.prevent="save(l)">
-      <div><label>Sens</label><select v-model="legs[l.id].direction"><option value="outbound">Aller</option><option value="return">Retour</option></select></div>
-      <div v-for="[f, label, type, ph] in FIELDS" :key="f"><label>{{ label }}</label>
-        <input v-model="legs[l.id][f]" :type="type || 'text'" :placeholder="ph" :list="f === 'mode' ? 'modes' : null" :required="f === 'day'"></div>
-      <div class="actions"><button class="sec">OK</button><button type="button" class="danger" @click="remove(l)">✕</button></div>
-    </form>
-    <details :open="!p.legs.length || opened[p.id]" @toggle="opened[p.id] = $event.target.open"><summary>Ajouter un trajet</summary>
-      <form class="row" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))" @submit.prevent="add(p)">
-        <div><label>Sens</label><select v-model="fresh[p.id].direction"><option value="outbound">Aller</option><option value="return">Retour</option></select></div>
-        <div v-for="[f, label, type, ph] in FIELDS" :key="f"><label>{{ label }}</label>
-          <input v-model="fresh[p.id][f]" :type="type || 'text'" :placeholder="ph" :list="f === 'mode' ? 'modes' : null" :required="f === 'day'"></div>
-        <div><button>Ajouter</button></div>
-        <SncfSearch :event-id="ev.id" :leg="fresh[p.id]" @pick="pick(fresh[p.id], $event)" />
+    <section v-for="[dir, label, arrow] in DIRECTIONS" :key="dir" class="leg-group">
+      <h4>{{ arrow }} {{ label }} <span class="muted small">({{ legsOf(p, dir).length }} trajet{{ legsOf(p, dir).length > 1 ? 's' : '' }})</span></h4>
+      <form v-for="l in legsOf(p, dir)" :key="l.id" class="row" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))" @submit.prevent="save(l)">
+        <div><label>Sens</label><select v-model="legs[l.id].direction"><option value="outbound">Aller</option><option value="return">Retour</option></select></div>
+        <div v-for="[f, flabel, type, ph] in FIELDS" :key="f"><label>{{ flabel }}</label>
+          <input v-model="legs[l.id][f]" :type="type || 'text'" :placeholder="ph" :list="f === 'mode' ? 'modes' : null" :required="f === 'day'"></div>
+        <div class="actions"><button class="sec">OK</button><button type="button" class="danger" @click="remove(l)">✕</button></div>
       </form>
-    </details>
+      <details :open="opened[`${p.id}-${dir}`] ?? openByDefault(p, dir)" @toggle="opened[`${p.id}-${dir}`] = $event.target.open">
+        <summary>Ajouter un trajet {{ label.toLowerCase() }}</summary>
+        <form class="row" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))" @submit.prevent="add(p, dir)">
+          <div v-for="[f, flabel, type, ph] in FIELDS" :key="f"><label>{{ flabel }}</label>
+            <input v-model="fresh[`${p.id}-${dir}`][f]" :type="type || 'text'" :placeholder="ph" :list="f === 'mode' ? 'modes' : null" :required="f === 'day'"></div>
+          <div><button>Ajouter</button></div>
+          <SncfSearch :event-id="ev.id" :leg="fresh[`${p.id}-${dir}`]" @pick="pick(fresh[`${p.id}-${dir}`], $event)" />
+        </form>
+      </details>
+    </section>
   </div>
 
   <h2>Récapitulatif</h2>

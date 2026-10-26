@@ -21,3 +21,14 @@ export function fperiod(a, b) {
 export const money = (x) => (x ?? 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 export const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 export const sum = (arr, f) => arr.reduce((s, x) => s + (typeof f === 'function' ? f(x) : x[f]), 0)
+
+/** « 9h05 », « 09:05 » → minutes depuis minuit ; heure absente ou illisible en dernier. */
+export function timeKey(t) {
+  const m = /^(\d{1,2})\s*[h:]\s*(\d{0,2})/i.exec(t || '')
+  return m ? Number(m[1]) * 60 + Number(m[2] || 0) : 24 * 60
+}
+
+/** Ordre chronologique des trajets : date puis heure de départ. */
+export const byDeparture = (a, b) => (a.day || '').localeCompare(b.day || '') || timeKey(a.depTime) - timeKey(b.depTime)
+
+export const DIRECTIONS = [['outbound', 'Aller', '→'], ['return', 'Retour', '←']]

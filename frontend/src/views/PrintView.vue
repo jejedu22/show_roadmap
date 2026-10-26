@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { get } from '../api.js'
-import { ddmm, fdate, fperiod, money, sum } from '../format.js'
+import { byDeparture, ddmm, fdate, fperiod, money, sum } from '../format.js'
 
 const props = defineProps({ id: String, doc: String })
 const ev = ref(null)
@@ -13,11 +13,15 @@ watch(() => props.id, async (id) => {
 
 const night = (p, d) => p.days[d]?.night || 0
 const nights = (p) => Object.values(p.days).reduce((s, d) => s + d.night, 0)
-const travelByDay = computed(() => {
+/** Trajets d'un sens, regroupés par jour et dans l'ordre des départs : [[jour, [{ p, l }]]]. */
+const travel = (dir) => {
   const days = {}
-  for (const p of ev.value.participations) for (const l of p.legs) (days[l.day] ||= []).push({ p, l })
-  return Object.keys(days).sort().map((d) => [d, days[d].sort((a, b) => (a.l.depTime || '99').localeCompare(b.l.depTime || '99'))])
-})
+  for (const p of ev.value.participations) for (const l of p.legs) if (l.direction === dir) (days[l.day] ||= []).push({ p, l })
+  return Object.keys(days).sort().map((d) => [d, days[d].sort((a, b) => byDeparture(a.l, b.l))])
+}
+const outbound = computed(() => travel('outbound'))
+const inbound = computed(() => travel('return'))
+const sortedLegs = (p) => [...p.legs].sort(byDeparture)
 const scheduleByDay = computed(() => {
   const days = {}
   for (const s of ev.value.schedule) (days[s.day] ||= []).push(s)
@@ -39,15 +43,15 @@ const lodgers = (l) => ev.value.participations.filter((p) => p.lodgingId === l.i
 
       <template v-if="doc === 'roadmap'">
         <p v-if="ev.address">{{ ev.address }}</p><pre v-if="ev.venueContact">{{ ev.venueContact }}</pre>
-        <h2>Voyages</h2>
-        <template v-for="[d, items] in travelByDay" :key="d">
+        <h2>Voyages aller</h2>
+        <template v-for="[d, items] in outbound" :key="d">
           <h3>{{ fdate(d) }}</h3>
           <table><tbody><tr v-for="{ p, l } in items" :key="l.id">
-            <td><b>{{ p.person.firstName }}</b></td><td>{{ l.direction === 'outbound' ? '→ aller' : '← retour' }}</td>
-            <td>{{ l.origin }} › {{ l.destination }}</td><td>{{ l.depTime }}<template v-if="l.arrTime"> – {{ l.arrTime }}</template></td>
+            <td><b>{{ p.person.firstName }}</b></td><td>{{ l.origin }} › {{ l.destination }}</td>
+            <td>{{ l.depTime }}<template v-if="l.arrTime"> – {{ l.arrTime }}</template></td>
             <td>{{ l.reference }}</td><td>{{ l.mode }}</td></tr></tbody></table>
         </template>
-        <p v-if="!travelByDay.length" class="muted">Aucun voyage saisi.</p>
+        <p v-if="!outbound.length" class="muted">Aucun voyage aller saisi.</p>
         <h2>Hébergement</h2>
         <template v-for="l in ev.lodgings" :key="l.id">
           <h3>{{ l.name }} — {{ lodgers(l) }}</h3>
@@ -60,6 +64,15 @@ const lodgers = (l) => ev.value.participations.filter((p) => p.lodgingId === l.i
           <template v-for="[d, slots] in scheduleByDay" :key="d"><h3>{{ fdate(d) }}</h3><div v-for="s in slots" :key="s.id">{{ s.time }} — {{ s.label }}</div></template>
         </template>
         <template v-for="s in ev.sections" :key="s.id"><h2>{{ s.title }}</h2><pre>{{ s.body }}</pre></template>
+        <h2>Voyages retour</h2>
+        <template v-for="[d, items] in inbound" :key="d">
+          <h3>{{ fdate(d) }}</h3>
+          <table><tbody><tr v-for="{ p, l } in items" :key="l.id">
+            <td><b>{{ p.person.firstName }}</b></td><td>{{ l.origin }} › {{ l.destination }}</td>
+            <td>{{ l.depTime }}<template v-if="l.arrTime"> – {{ l.arrTime }}</template></td>
+            <td>{{ l.reference }}</td><td>{{ l.mode }}</td></tr></tbody></table>
+        </template>
+        <p v-if="!inbound.length" class="muted">Aucun voyage retour saisi.</p>
       </template>
 
       <table v-else-if="doc === 'rooming'">
@@ -89,7 +102,7 @@ const lodgers = (l) => ev.value.participations.filter((p) => p.lodgingId === l.i
         </table>
         <h2>Détail des billets</h2>
         <table><thead><tr><th>Nom</th><th>Date</th><th>Trajet</th><th>Réf.</th><th>Réservé le</th><th>Prix</th></tr></thead>
-          <tbody><template v-for="p in ev.participations" :key="p.id"><tr v-for="l in p.legs" :key="l.id"><td>{{ p.person.firstName }}</td><td>{{ fdate(l.day, true) }}</td>
+          <tbody><template v-for="p in ev.participations" :key="p.id"><tr v-for="l in sortedLegs(p)" :key="l.id"><td>{{ p.person.firstName }}</td><td>{{ fdate(l.day, true) }}</td>
             <td>{{ l.origin }} › {{ l.destination }} ({{ l.mode }})</td><td>{{ l.reference }}</td><td>{{ fdate(l.bookedOn, true) }}</td><td>{{ money(l.price) }}</td></tr></template></tbody></table>
       </template>
 

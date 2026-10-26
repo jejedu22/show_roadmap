@@ -40,7 +40,11 @@ class XlsxExporter
 
         $rows = [];
         foreach ($ev->participations as $p) {
-            foreach ($p->legs as $l) {
+            // Allers puis retours, chacun dans l'ordre chronologique
+            $legs = $p->legs->toArray();
+            usort($legs, fn ($a, $b) => [$a->direction !== 'outbound', $a->day, self::minutes($a->depTime)]
+                <=> [$b->direction !== 'outbound', $b->day, self::minutes($b->depTime)]);
+            foreach ($legs as $l) {
                 $rows[] = [$p->person->fullName(), 'return' === $l->direction ? 'Retour' : 'Aller', $l->day->format('d/m/Y'),
                     $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, $l->reference, (float) $l->price];
             }
@@ -74,5 +78,11 @@ class XlsxExporter
         foreach ($ws->getColumnIterator() as $col) {
             $ws->getColumnDimension($col->getColumnIndex())->setAutoSize(true);
         }
+    }
+
+    /** « 9h05 », « 09:05 » → minutes ; heure absente en dernier. */
+    private static function minutes(string $t): int
+    {
+        return preg_match('/^(\d{1,2})\s*[h:]\s*(\d{0,2})/i', $t, $m) ? (int) $m[1] * 60 + (int) ($m[2] ?: 0) : 1440;
     }
 }

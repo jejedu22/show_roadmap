@@ -166,4 +166,23 @@ class ApiTest extends ApiTestCase
             self::assertNull($this->call('GET', '/api/config')['user']);
         }
     }
+
+    public function testExportListsOutboundThenReturnInTimeOrder(): void
+    {
+        $this->login();
+        [, [$a]] = $this->buildCompany();
+        $ev = $this->call('POST', "/api/shows/$a/events", ['venue' => 'V', 'firstDate' => '2026-06-02']);
+        $ev = $this->call('POST', "/api/events/{$ev['id']}/participations", ['personIds' => [$ev['availablePeople'][0]['id']]]);
+        $pid = $ev['participations'][0]['id'];
+        foreach ([['return', '2026-06-03', '18h00'], ['outbound', '2026-06-01', '10h00'], ['outbound', '2026-06-01', '9h05'], ['outbound', '2026-05-31', '']] as [$dir, $day, $time]) {
+            $this->call('POST', "/api/events/{$ev['id']}/items/leg", ['participationId' => $pid, 'direction' => $dir, 'day' => $day, 'depTime' => $time]);
+        }
+        $this->client->request('GET', "/api/events/{$ev['id']}/export.xlsx");
+        $file = tempnam(sys_get_temp_dir(), 'x');
+        file_put_contents($file, $this->client->getInternalResponse()->getContent());
+        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file)->getSheetByName('Voyages')->toArray();
+        unlink($file);
+        self::assertSame([['Aller', '31/05/2026', ''], ['Aller', '01/06/2026', '9h05'], ['Aller', '01/06/2026', '10h00'], ['Retour', '03/06/2026', '18h00']],
+            array_map(fn ($r) => [$r[1], $r[2], (string) $r[5]], array_slice($rows, 1)));
+    }
 }
