@@ -1,12 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { session, loadConfig, setUnauthorizedHandler } from './api.js'
+import { session, loadConfig, setUnauthorizedHandler, can } from './api.js'
 
 const routes = [
   { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true, bare: true } },
   { path: '/', component: () => import('./views/HomeView.vue') },
   { path: '/companies', component: () => import('./views/HomeView.vue'), props: { stay: true } },
   { path: '/account', component: () => import('./views/AccountView.vue') },
-  { path: '/admin/users', component: () => import('./views/AdminUsersView.vue') },
+  { path: '/admin/users', component: () => import('./views/admin/UsersView.vue'), meta: { perm: 'users.manage' } },
+  { path: '/admin/groups', component: () => import('./views/admin/GroupsView.vue'), meta: { perm: 'groups.manage' } },
+  { path: '/admin/audit', component: () => import('./views/admin/AuditView.vue'), meta: { perm: 'users.manage' } },
+  { path: '/mot-de-passe/:token', component: () => import('./views/PasswordTokenView.vue'), props: true, meta: { public: true, bare: true, anyone: true } },
   { path: '/companies/:id', component: () => import('./views/DashboardView.vue'), props: true },
   { path: '/companies/:id/calendar', component: () => import('./views/CalendarView.vue'), props: true },
   { path: '/companies/:id/shows', component: () => import('./views/ShowsView.vue'), props: true },
@@ -33,6 +36,7 @@ router.beforeEach(async (to) => {
   if (!session.loaded) await loadConfig()
   if (!to.meta.public && !session.user) return { path: '/login' }
   if (to.path === '/login' && session.user) return { path: '/' }
+  if (to.meta.perm && !can(to.meta.perm)) return { path: '/' }
 })
 
 setUnauthorizedHandler(() => router.push('/login'))

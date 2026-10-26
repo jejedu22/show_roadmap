@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\EquatableInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -25,20 +26,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
     #[ORM\Column(length: 255)]
     public string $password = '';
 
+    /** Super-administrateur : tous les droits, sur toutes les compagnies */
     #[ORM\Column]
     public bool $isAdmin = false;
 
     #[ORM\Column]
     public bool $isActive = true;
 
-    /** @var Collection<int, Company> */
-    #[ORM\ManyToMany(targetEntity: Company::class, inversedBy: 'users')]
-    #[ORM\JoinTable(name: 'user_company')]
-    public Collection $companies;
+    /** @var Collection<int, Group> */
+    #[ORM\ManyToMany(targetEntity: Group::class, mappedBy: 'users')]
+    #[ORM\OrderBy(['name' => 'ASC'])]
+    public Collection $groups;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    public \DateTimeImmutable $createdAt;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $lastLoginAt = null;
 
     public function __construct()
     {
-        $this->companies = new ArrayCollection();
+        $this->groups = new ArrayCollection();
+        $this->createdAt = new \DateTimeImmutable();
     }
 
     public function getRoles(): array
@@ -75,7 +84,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
 
     public function __unserialize(array $data): void
     {
-        $this->companies = new ArrayCollection();
+        $this->groups = new ArrayCollection();
         foreach ($data as $k => $v) {
             $this->$k = $v;
         }

@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { post, showError, toast } from '../api.js'
+import { can, post, showError, toast } from '../api.js'
 import Modal from './Modal.vue'
 
 /** Création d'une date : choix (ou création) du spectacle, lieu, dates. */
@@ -11,7 +11,7 @@ const router = useRouter()
 const form = reactive({ showId: '', newShow: '', venue: '', city: '', firstDate: '', lastDate: '' })
 
 watch(() => props.open, (open) => {
-  if (open) Object.assign(form, { showId: props.showId || props.company?.shows[0]?.id || 'new', newShow: '', venue: '', city: '', firstDate: '', lastDate: '' })
+  if (open) Object.assign(form, { showId: props.showId || props.company?.shows[0]?.id || (can('shows.edit', props.company?.permissions) ? 'new' : ''), newShow: '', venue: '', city: '', firstDate: '', lastDate: '' })
 })
 
 async function submit() {
@@ -35,7 +35,7 @@ async function submit() {
       <label class="field">Spectacle
         <select v-model="form.showId" required>
           <option v-for="s in company?.shows || []" :key="s.id" :value="s.id">{{ s.title }}</option>
-          <option value="new">＋ Nouveau spectacle…</option>
+          <option v-if="can('shows.edit', company?.permissions)" value="new">＋ Nouveau spectacle…</option>
         </select>
       </label>
       <label v-if="form.showId === 'new'" class="field">Titre du nouveau spectacle<input v-model="form.newShow" required></label>

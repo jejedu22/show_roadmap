@@ -19,10 +19,6 @@ class Company
     #[ORM\Column(type: Types::TEXT)]
     public string $notes = '';
 
-    /** @var Collection<int, User> */
-    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'companies')]
-    public Collection $users;
-
     /** @var Collection<int, Show> */
     #[ORM\OneToMany(targetEntity: Show::class, mappedBy: 'company', cascade: ['remove'])]
     #[ORM\OrderBy(['title' => 'ASC'])]
@@ -36,7 +32,6 @@ class Company
     public function __construct(string $name = '')
     {
         $this->name = $name;
-        $this->users = new ArrayCollection();
         $this->shows = new ArrayCollection();
         $this->people = new ArrayCollection();
     }

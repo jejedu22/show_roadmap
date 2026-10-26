@@ -14,7 +14,8 @@ class XlsxExporter
     {
     }
 
-    public function export(Event $ev): string
+    /** $withContacts : inclut l'onglet Coordonnées (droit « Voir les coordonnées »). */
+    public function export(Event $ev, bool $withContacts = true): string
     {
         $book = new Spreadsheet();
         $book->removeSheetByIndex(0);
@@ -51,7 +52,7 @@ class XlsxExporter
         }
         $this->sheet($book, 'Voyages', ['Nom', 'Sens', 'Date', 'De', 'À', 'Départ', 'Arrivée', 'Mode', 'Référence', 'Prix (€)', 'Lien billet'], $rows);
 
-        $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
+        $withContacts && $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
             $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues());
 
         $book->setActiveSheetIndex(0);

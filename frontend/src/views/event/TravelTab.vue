@@ -6,7 +6,7 @@ import Avatar from '../../components/Avatar.vue'
 import Icon from '../../components/Icon.vue'
 import LegPanel from '../../components/LegPanel.vue'
 
-const { ev, apply } = inject('event')
+const { ev, apply, allowed } = inject('event')
 const panel = ref(null) // { part, direction, leg }
 const panelEl = ref(null)
 const open = ref({})
@@ -33,7 +33,7 @@ async function remove(p, l) {
     <section class="main-col" aria-labelledby="voy">
       <div class="page-head">
         <h2 id="voy">Voyages</h2>
-        <span class="muted">{{ ev.readiness.legsCovered }} / {{ ev.readiness.legsNeeded }} trajets · billets <b style="color:var(--ink)">{{ money(ev.quote.travelTickets) }}</b></span>
+        <span class="muted">{{ ev.readiness.legsCovered }} / {{ ev.readiness.legsNeeded }} trajets<template v-if="ev.quote"> · billets <b style="color:var(--ink)">{{ money(ev.quote.travelTickets) }}</b></template></span>
       </div>
       <p v-if="!ev.participations.length" class="card empty">Ajoutez d'abord des personnes à l'étape Équipe.</p>
 
@@ -54,21 +54,21 @@ async function remove(p, l) {
               <span v-if="l.reference" class="ref mono">{{ l.reference }}</span>
               <span v-if="l.price" class="small muted">{{ money(l.price) }}</span>
               <a v-if="l.bookingUrl" class="btn-ticket" :href="l.bookingUrl" target="_blank" rel="noopener noreferrer">Billet ↗</a>
-              <button v-else type="button" class="chip missing" style="cursor:pointer;background:none" @click="edit(p, dir, l)">Lien manquant</button>
-              <span class="actions">
+              <button v-else-if="allowed('travel.edit')" type="button" class="chip missing" style="cursor:pointer;background:none" @click="edit(p, dir, l)">Lien manquant</button>
+              <span v-if="allowed('travel.edit')" class="actions">
                 <button type="button" class="btn btn-sm btn-icon" :aria-label="`Modifier ce trajet de ${name(p)}`" @click="edit(p, dir, l)"><Icon name="edit" :size="16" /></button>
                 <button type="button" class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ce trajet de ${name(p)}`" @click="remove(p, l)"><Icon name="trash" :size="16" /></button>
               </span>
             </div>
-            <button v-if="!legsOf(p, dir).length" type="button" class="btn btn-dashed" :class="{ violet: dir === 'outbound' }" @click="edit(p, dir)">
+            <button v-if="!legsOf(p, dir).length && allowed('travel.edit')" type="button" class="btn btn-dashed" :class="{ violet: dir === 'outbound' }" @click="edit(p, dir)">
               <Icon name="plus" />Ajouter {{ dir === 'outbound' ? "l'aller" : 'le retour' }} de {{ name(p) }}</button>
           </template>
-          <button v-if="legsOf(p, 'outbound').length && legsOf(p, 'return').length" type="button" class="btn btn-sm btn-ghost" style="align-self:flex-start" @click="edit(p, 'outbound')">
+          <button v-if="legsOf(p, 'outbound').length && legsOf(p, 'return').length && allowed('travel.edit')" type="button" class="btn btn-sm btn-ghost" style="align-self:flex-start" @click="edit(p, 'outbound')">
             <Icon name="plus" :size="16" />Autre trajet (correspondance, échange…)</button>
         </div>
       </article>
 
-      <section v-if="ev.participations.length" class="card">
+      <section v-if="ev.participations.length && ev.personCosts" class="card">
         <div class="card-head"><h3>Récapitulatif des frais</h3>
           <RouterLink class="btn btn-sm" :to="`/events/${ev.id}/print/travelcost`" target="_blank">Suivi des frais PDF</RouterLink></div>
         <div class="table-wrap">
@@ -83,7 +83,7 @@ async function remove(p, l) {
       </section>
     </section>
 
-    <aside ref="panelEl" class="side-col">
+    <aside v-if="allowed('travel.edit')" ref="panelEl" class="side-col">
       <LegPanel v-if="panel" :key="`${panel.part.id}-${panel.direction}-${panel.leg?.id}`" :ev="ev" :part="panel.part" :direction="panel.direction"
         :leg="panel.leg" :apply="apply" @close="panel = null" />
       <div v-else class="card">

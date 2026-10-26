@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, get, put, showError, toast, session, setCompany } from '../api.js'
+import { api, can, get, put, showError, toast, setCompany } from '../api.js'
 
 const props = defineProps({ id: String })
 const router = useRouter()
@@ -35,14 +35,14 @@ async function remove() {
 <template>
   <template v-if="company">
     <div class="page-head"><div><h1>Paramètres</h1><p>{{ company.name }}</p></div></div>
-    <form class="card" @submit.prevent="save">
+    <form class="card" @submit.prevent="save"><fieldset :disabled="!can('company.manage', company.permissions)" style="border:0;padding:0;margin:0">
       <div class="form-grid">
         <label class="field">Nom de la compagnie<input v-model="form.name" required></label>
         <label class="field wide">Notes<textarea v-model="form.notes" placeholder="Coordonnées administratives, licence, SIRET…" /></label>
       </div>
       <div class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
-    </form>
-    <section v-if="session.user.isAdmin" class="card" style="border:2px solid #f3b9bb">
+    </fieldset></form>
+    <section v-if="can('companies.delete')" class="card" style="border:2px solid #f3b9bb">
       <h2 style="margin-bottom:6px">Supprimer la compagnie</h2>
       <p class="muted" style="margin:0 0 14px">Supprime définitivement <b>{{ company.name }}</b>, ses spectacles, dates, équipes et voyages. Pour confirmer, saisissez son nom.</p>
       <div class="actions">

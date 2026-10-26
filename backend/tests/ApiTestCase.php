@@ -2,6 +2,8 @@
 
 namespace App\Tests;
 
+use App\Entity\Company;
+use App\Entity\Group;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -53,6 +55,24 @@ abstract class ApiTestCase extends WebTestCase
         $this->em()->flush();
 
         return $u;
+    }
+
+    /** Crée un groupe (droits, compagnies, membres) directement en base. */
+    protected function grant(array $emails, array $perms, array $companyIds = [], bool $all = false, ?string $name = null): Group
+    {
+        $em = $this->em();
+        $g = new Group($name ?? 'Groupe '.bin2hex(random_bytes(3)), $perms);
+        $g->allCompanies = $all;
+        foreach ($companyIds as $id) {
+            $g->companies->add($em->find(Company::class, $id));
+        }
+        foreach ($emails as $email) {
+            $g->users->add($em->getRepository(User::class)->findOneBy(['email' => $email]));
+        }
+        $em->persist($g);
+        $em->flush();
+
+        return $g;
     }
 
     /** Appel JSON avec l'en-tête anti-CSRF ; retourne le corps décodé. */

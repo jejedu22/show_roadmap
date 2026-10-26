@@ -4,7 +4,7 @@ import { post, put, del, toast } from '../../api.js'
 import { money } from '../../format.js'
 import Icon from '../../components/Icon.vue'
 
-const { ev, apply } = inject('event')
+const { ev, apply, allowed } = inject('event')
 const RATES = [['fee', 'Cachet HT (€)'], ['mealRate', 'Repas / personne / jour'], ['breakfastRate', 'Petit-déjeuner'], ['nightRate', 'Nuitée (0 = prise en charge)'],
   ['truckRate', 'Camion (€ HT / km)'], ['vatRate', 'TVA (%)']]
 const rates = reactive({})
@@ -13,6 +13,7 @@ const extras = reactive({})
 const newTruck = ref({ label: '', km: '' })
 const newExtra = ref({ label: '', amount: '', kind: 'team_transport' })
 watch(ev, (e) => {
+  if (!e.rates) return
   Object.assign(rates, e.rates)
   for (const t of e.trucks) trucks[t.id] = { ...t }
   for (const x of e.extras) extras[x.id] = { ...x }
@@ -26,8 +27,9 @@ async function addExtra() { if (await saved(post(url('extra'), newExtra.value)))
 </script>
 
 <template>
-  <div class="two-cols">
-    <div class="main-col">
+  <div v-if="!ev.quote" class="card empty"><h3>Montants non accessibles</h3><p>Le devis demande le droit « Voir les montants ».</p></div>
+  <div v-else class="two-cols">
+    <fieldset class="main-col" :disabled="!allowed('finance.edit')" style="border:0;padding:0;margin:0;min-width:0">
       <form class="card" @submit.prevent="saveRates">
         <h2 style="margin-bottom:14px">Cachet et tarifs</h2>
         <div class="form-grid"><label v-for="[f, label] in RATES" :key="f" class="field">{{ label }}<input v-model="rates[f]" inputmode="decimal"></label></div>
@@ -66,7 +68,7 @@ async function addExtra() { if (await saved(post(url('extra'), newExtra.value)))
           <button class="btn btn-sm" style="align-self:flex-end"><Icon name="plus" :size="16" />Ajouter</button>
         </form>
       </section>
-    </div>
+    </fieldset>
 
     <aside class="side-col">
       <section class="card dark" style="position:sticky;top:20px">

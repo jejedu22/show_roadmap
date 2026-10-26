@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Event;
+use App\Entity\User;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Twig\Environment;
@@ -19,13 +20,20 @@ class PdfRenderer
         'quote' => 'Devis',
     ];
 
+    /** Droit nécessaire pour chaque document. */
+    public const PERMS = [
+        'roadmap' => 'company.view', 'rooming' => 'company.view', 'contacts' => 'people.view',
+        'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view',
+    ];
+
     public function __construct(private Environment $twig, private Presenter $presenter)
     {
     }
 
-    public function render(Event $event, string $doc): string
+    /** $user : données filtrées selon ses droits ; null pour la feuille de route partagée (document complet). */
+    public function render(Event $event, string $doc, ?User $user = null): string
     {
-        $ev = $this->presenter->event($event);
+        $ev = $this->presenter->event($event, $user);
         $html = $this->twig->render("pdf/$doc.html.twig", [
             'ev' => $ev,
             'title' => self::DOCS[$doc],

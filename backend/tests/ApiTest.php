@@ -98,8 +98,7 @@ class ApiTest extends ApiTestCase
         $this->login();
         [$cid, [$a]] = $this->buildCompany('Cie Privée');
         $ev = $this->call('POST', "/api/shows/$a/events", ['venue' => 'V', 'firstDate' => '2026-06-01']);
-        $users = $this->call('POST', '/api/admin/users', ['email' => 'bob@test.io', 'name' => 'Bob', 'password' => 'bob-password-123']);
-        $bobId = array_values(array_filter($users['users'], fn ($u) => 'bob@test.io' === $u['email']))[0]['id'];
+        $this->createUser('bob@test.io', 'bob-password-123');
         $this->call('POST', '/api/logout');
 
         $this->login('bob@test.io', 'bob-password-123');
@@ -113,9 +112,7 @@ class ApiTest extends ApiTestCase
         self::assertSame(403, $this->code());
         $this->call('POST', '/api/logout');
 
-        $this->login();
-        $this->call('PUT', "/api/admin/users/$bobId", ['companyIds' => [$cid], 'isActive' => true]);
-        $this->call('POST', '/api/logout');
+        $this->grant(['bob@test.io'], ['company.view'], [$cid]);
         $this->login('bob@test.io', 'bob-password-123');
         $this->call('GET', "/api/events/{$ev['id']}");
         self::assertSame(200, $this->code());
@@ -221,7 +218,7 @@ class ApiTest extends ApiTestCase
         self::assertSame(404, $this->code());
 
         // cloisonnement
-        $this->call('POST', '/api/admin/users', ['email' => 'eve@test.io', 'password' => 'eve-password-123']);
+        $this->createUser('eve@test.io', 'eve-password-123');
         $this->call('POST', '/api/logout');
         $this->login('eve@test.io', 'eve-password-123');
         $this->call('GET', "/api/events/{$ev['id']}/pdf/roadmap");
@@ -231,6 +228,7 @@ class ApiTest extends ApiTestCase
     public function testCreateRenameAndDeleteCompanies(): void
     {
         $this->createUser('zoe@test.io', 'zoe-password-123');
+        $this->grant(['zoe@test.io'], ['companies.create'], name: 'Créateurs');
         $this->login('zoe@test.io', 'zoe-password-123');
         [$c1] = $this->buildCompany('Cie Une');
         $c2 = $this->call('POST', '/api/companies', ['name' => 'Cie Deux'])['id'];

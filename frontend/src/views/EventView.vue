@@ -1,7 +1,7 @@
 <script setup>
 import { computed, provide, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { get, setCompany, showError } from '../api.js'
+import { can, get, setCompany, showError } from '../api.js'
 import { fperiod } from '../format.js'
 import Icon from '../components/Icon.vue'
 import ShareDialog from '../components/ShareDialog.vue'
@@ -22,7 +22,9 @@ watch(() => props.id, async (id) => {
 async function apply(promise) {
   try { ev.value = await promise; return true } catch (e) { showError(e); return false }
 }
-provide('event', { ev, apply })
+/** Droit sur cette date (liste renvoyée par le serveur avec la date). */
+const allowed = (perm) => can(perm, ev.value?.permissions)
+provide('event', { ev, apply, allowed })
 const status = computed(() => ({ confirmed: ['Confirmé', 'ok'], option: ['Option', 'warn'], cancelled: ['Annulé', 'bad'] })[ev.value.status])
 </script>
 
@@ -43,7 +45,7 @@ const status = computed(() => ({ confirmed: ['Confirmé', 'ok'], option: ['Optio
       </div>
       <div class="actions">
         <RouterLink class="btn" :to="`/events/${ev.id}/print/roadmap`" target="_blank"><Icon name="file" />Feuille de route PDF</RouterLink>
-        <button class="btn btn-sun" @click="sharing = true"><Icon name="send" />Envoyer à l'équipe</button>
+        <button v-if="can('share.manage', ev.permissions)" class="btn btn-sun" @click="sharing = true"><Icon name="send" />Envoyer à l'équipe</button>
       </div>
     </header>
 

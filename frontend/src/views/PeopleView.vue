@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { get, post, put, del, showError, toast, setCompany } from '../api.js'
+import { can, get, post, put, del, showError, toast, setCompany } from '../api.js'
 import Avatar from '../components/Avatar.vue'
 import Icon from '../components/Icon.vue'
 
@@ -33,8 +33,9 @@ const remove = (p) => confirm(`Supprimer ${p.fullName} ? La personne sera retir�
   <template v-if="company">
     <div class="page-head">
       <div><h1>Annuaire</h1><p>{{ company.people.length }} personne{{ company.people.length > 1 ? 's' : '' }}, communes à tous les spectacles de {{ company.name }}.</p></div>
-      <button class="btn btn-primary" @click="openNew"><Icon name="plus" />Nouvelle personne</button>
+      <button v-if="can('people.edit', company.permissions)" class="btn btn-primary" @click="openNew"><Icon name="plus" />Nouvelle personne</button>
     </div>
+    <p v-if="!can('people.view', company.permissions)" class="alert" style="margin:0">Les coordonnées (téléphone, e-mail, régime) ne sont visibles qu'avec le droit « Voir les coordonnées ».</p>
     <label class="field" style="max-width:420px"><span class="sr-only">Rechercher</span>
       <input v-model="query" type="search" placeholder="Rechercher un nom, une fonction, une ville…"></label>
 
@@ -58,7 +59,7 @@ const remove = (p) => confirm(`Supprimer ${p.fullName} ? La personne sera retir�
             <a v-if="p.phone" :href="`tel:${p.phone.replace(/\s/g, '')}`">{{ p.phone }}</a><template v-if="p.phone && p.email"> · </template>
             <a v-if="p.email" :href="`mailto:${p.email}`">{{ p.email }}</a><template v-if="p.diet"> · {{ p.diet }}</template>
           </span>
-          <button class="btn btn-sm btn-icon" :aria-label="`Modifier ${p.fullName}`" @click="open(p)"><Icon name="edit" :size="16" /></button>
+          <button v-if="can('people.edit', company.permissions)" class="btn btn-sm btn-icon" :aria-label="`Modifier ${p.fullName}`" @click="open(p)"><Icon name="edit" :size="16" /></button>
         </div>
       </div>
       <p v-if="!people.length" class="empty">{{ company.people.length ? 'Aucun résultat.' : 'Ajoutez les artistes, techniciens et chargés de production de la compagnie.' }}</p>

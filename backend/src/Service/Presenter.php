@@ -6,12 +6,45 @@ use App\Entity\Company;
 use App\Entity\Event;
 use App\Entity\Person;
 use App\Entity\User;
+use App\Security\Authz;
+use App\Security\Permissions;
 
 /** Représentation JSON des entités pour le front. */
 class Presenter
 {
-    public function __construct(private Planning $planning, private QuoteCalculator $quotes, private Readiness $readiness)
+    public function __construct(private Planning $planning, private QuoteCalculator $quotes, private Readiness $readiness, private Authz $authz)
     {
+    }
+
+    /** Droits de l'utilisateur sur la compagnie ; sans utilisateur (PDF partagé, export interne) : tout. */
+    private function perms(Company $c, ?User $user): array
+    {
+        return $user ? $this->authz->companyPerms($user, $c) : array_keys(Permissions::COMPANY);
+    }
+
+    /** Retire les coordonnées personnelles sans le droit « Voir les coordonnées ». */
+    private function personFor(Person $p, array $perms): array
+    {
+        $data = $this->person($p);
+
+        return in_array('people.view', $perms, true) ? $data : ['phone' => '', 'email' => '', 'diet' => ''] + $data;
+    }
+
+    /** Avancement sans les montants pour qui ne voit pas les finances. */
+    private function readinessFor(Event $e, array $perms): array
+    {
+        $r = $this->readiness->compute($e);
+        if (!in_array('finance.view', $perms, true)) {
+            $r['steps'] = array_values(array_filter($r['steps'], fn ($s) => 'quote' !== $s['key']));
+            $r['todo'] = array_values(array_filter($r['todo'], fn ($t) => 'quote' !== $t['step']));
+            $r['done'] = count(array_filter($r['steps'], fn ($s) => $s['done']));
+            $r['total'] = count($r['steps']);
+        }
+        if (!in_array('share.manage', $perms, true)) {
+            $r['todo'] = array_values(array_filter($r['todo'], fn ($t) => 'roadmap' !== $t['step']));
+        }
+
+        return $r;
     }
 
     /** Membres de l'équipe d'une date, pour les pastilles (initiales). */
@@ -21,10 +54,12 @@ class Presenter
             'initials' => mb_strtoupper(mb_substr($p->person->firstName, 0, 1).mb_substr($p->person->lastName, 0, 1))])->getValues();
     }
 
+    /** Utilisateur connecté : son profil et ses droits d'administration. */
     public function user(User $u): array
     {
         return ['id' => $u->id, 'email' => $u->email, 'name' => $u->name, 'isAdmin' => $u->isAdmin, 'isActive' => $u->isActive,
-            'companies' => $u->companies->map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name])->getValues()];
+            'permissions' => $this->authz->globalPerms($u),
+            'groups' => $u->groups->map(fn ($g) => ['id' => $g->id, 'name' => $g->name])->getValues()];
     }
 
     public function person(Person $p): array
@@ -40,8 +75,9 @@ class Presenter
             'start' => Input::iso($e->start()), 'end' => Input::iso($e->end()), 'teamSize' => $e->participations->count()];
     }
 
-    public function company(Company $c): array
+    public function company(Company $c, ?User $user = null): array
     {
+        $perms = $this->perms($c, $user);
         $events = $this->planning->companyEvents($c);
         $cancelled = [];
         foreach ($c->shows as $s) {
@@ -53,11 +89,11 @@ class Presenter
         }
 
         return [
-            'id' => $c->id, 'name' => $c->name, 'notes' => $c->notes,
+            'id' => $c->id, 'name' => $c->name, 'notes' => $c->notes, 'permissions' => $perms,
             'shows' => $c->shows->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'description' => $s->description,
                 'eventCount' => $s->events->count()])->getValues(),
-            'people' => $c->people->map(fn (Person $p) => $this->person($p))->getValues(),
-            'events' => array_map(function (Event $e) use ($events) {
+            'people' => $c->people->map(fn (Person $p) => $this->personFor($p, $perms))->getValues(),
+            'events' => array_map(function (Event $e) use ($events, $perms) {
                 $overlaps = array_values(array_filter($events, fn (Event $o) => $e->overlaps($o)));
                 $mine = $e->participations->map(fn ($p) => $p->person->id)->toArray();
                 $conflicts = [];
@@ -73,15 +109,17 @@ class Presenter
                     'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue], $overlaps),
                     'conflicts' => array_values($conflicts),
                     'team' => $this->team($e),
-                    'readiness' => $this->readiness->compute($e),
+                    'readiness' => $this->readinessFor($e, $perms),
                 ];
             }, $events),
             'cancelledEvents' => array_map(fn (Event $e) => $this->eventSummary($e), $cancelled),
         ];
     }
 
-    public function event(Event $e): array
+    public function event(Event $e, ?User $user = null): array
     {
+        $perms = $this->perms($e->show->company, $user);
+        $finance = in_array('finance.view', $perms, true);
         $conflicts = $this->planning->personConflicts($e);
         $used = [];
         foreach ($e->participations as $p) {
@@ -89,7 +127,8 @@ class Presenter
         }
         $dec = fn (string $x) => (float) $x;
 
-        return $this->eventSummary($e) + [
+        $data = $this->eventSummary($e) + [
+            'permissions' => $perms,
             'companyId' => $e->show->company->id, 'companyName' => $e->show->company->name,
             'address' => $e->address, 'venueContact' => $e->venueContact, 'notes' => $e->notes,
             'techArrival' => Input::iso($e->techArrival), 'artisticArrival' => Input::iso($e->artisticArrival),
@@ -98,7 +137,7 @@ class Presenter
                 'truckRate' => $dec($e->truckRate), 'vatRate' => $dec($e->vatRate), 'fee' => $dec($e->fee)],
             'dates' => array_map(fn ($d) => $d->format('Y-m-d'), $e->spanDates()),
             'participations' => $e->participations->map(fn ($p) => [
-                'id' => $p->id, 'person' => $this->person($p->person), 'role' => $p->role, 'roomType' => $p->roomType,
+                'id' => $p->id, 'person' => $this->personFor($p->person, $perms), 'role' => $p->role, 'roomType' => $p->roomType,
                 'departureCity' => $p->departureCity, 'lodgingId' => $p->lodging?->id, 'note' => $p->note,
                 'days' => array_combine(
                     $p->days->map(fn ($d) => $d->day->format('Y-m-d'))->getValues(),
@@ -106,12 +145,12 @@ class Presenter
                 ) ?: new \stdClass(),
                 'legs' => $p->legs->map(fn ($l) => ['id' => $l->id, 'direction' => $l->direction, 'day' => Input::iso($l->day),
                     'origin' => $l->origin, 'destination' => $l->destination, 'depTime' => $l->depTime, 'arrTime' => $l->arrTime,
-                    'mode' => $l->mode, 'reference' => $l->reference, 'price' => (float) $l->price,
+                    'mode' => $l->mode, 'reference' => $l->reference, 'price' => $finance ? (float) $l->price : null,
                     'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note, 'bookingUrl' => $l->bookingUrl])->getValues(),
                 'conflicts' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue],
                     $conflicts[$p->person->id] ?? []),
             ])->getValues(),
-            'availablePeople' => array_values(array_map(fn (Person $p) => $this->person($p),
+            'availablePeople' => array_values(array_map(fn (Person $p) => $this->personFor($p, $perms),
                 array_filter($e->show->company->people->toArray(), fn (Person $p) => !isset($used[$p->id])))),
             'lodgings' => $e->lodgings->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'address' => $l->address,
                 'phone' => $l->phone, 'details' => $l->details])->getValues(),
@@ -124,11 +163,17 @@ class Presenter
                 'label' => $s->label])->getValues(),
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
             'team' => $this->team($e),
-            'readiness' => $this->readiness->compute($e),
-            'share' => ['token' => $e->shareToken, 'sharedAt' => $e->sharedAt?->format(\DATE_ATOM),
-                'emails' => array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues()))],
+            'readiness' => $this->readinessFor($e, $perms),
+            'share' => ['token' => in_array('share.manage', $perms, true) ? $e->shareToken : null, 'sharedAt' => $e->sharedAt?->format(\DATE_ATOM),
+                'emails' => in_array('people.view', $perms, true) ? array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues())) : []],
             'quote' => $this->quotes->compute($e),
             'personCosts' => $this->quotes->personCosts($e),
         ];
+        if (!$finance) {
+            unset($data['rates'], $data['quote'], $data['personCosts']);
+            [$data['trucks'], $data['extras']] = [[], []];
+        }
+
+        return $data;
     }
 }

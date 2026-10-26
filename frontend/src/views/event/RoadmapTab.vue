@@ -4,7 +4,7 @@ import { post, put, del, toast } from '../../api.js'
 import { fdate } from '../../format.js'
 import Icon from '../../components/Icon.vue'
 
-const { ev, apply } = inject('event')
+const { ev, apply, allowed } = inject('event')
 const slots = reactive({})
 const sections = reactive({})
 const newSlot = ref({})
@@ -25,7 +25,7 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
 
 <template>
   <div class="two-cols">
-    <div class="main-col">
+    <fieldset class="main-col" :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;min-width:0">
       <section class="card">
         <h2 style="margin-bottom:12px">Planning sur place</h2>
         <form v-for="s in ev.schedule" :key="s.id" class="actions" style="margin-bottom:8px" @submit.prevent="saved(put(url('schedule', s.id), slots[s.id]))">
@@ -66,7 +66,7 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
           <button class="btn" style="align-self:flex-start"><Icon name="plus" :size="16" />Ajouter le bloc</button>
         </form>
       </section>
-    </div>
+    </fieldset>
 
     <aside class="side-col">
       <section class="card dark">
@@ -81,7 +81,7 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
       <section class="card">
         <h3 style="margin-bottom:8px">Autres documents</h3>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <RouterLink v-for="[doc, label] in [['contacts', 'Coordonnées de l\'équipe'], ['rooming', 'Rooming-list'], ['perdiem', 'Défraiements'], ['travelcost', 'Suivi des frais de voyage'], ['quote', 'Devis']]"
+          <RouterLink v-for="[doc, label] in [['contacts', 'Coordonnées de l\'équipe', 'people.view'], ['rooming', 'Rooming-list', 'company.view'], ['perdiem', 'Défraiements', 'finance.view'], ['travelcost', 'Suivi des frais de voyage', 'finance.view'], ['quote', 'Devis', 'finance.view']].filter((d) => allowed(d[2]))"
             :key="doc" :to="`/events/${ev.id}/print/${doc}`" target="_blank">{{ label }} (PDF)</RouterLink>
         </div>
       </section>

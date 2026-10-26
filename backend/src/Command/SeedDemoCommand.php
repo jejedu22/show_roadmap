@@ -4,6 +4,8 @@ namespace App\Command;
 
 use App\Entity\Company;
 use App\Entity\Event;
+use App\Entity\Group;
+use App\Security\Permissions;
 use App\Entity\ExtraCost;
 use App\Entity\Leg;
 use App\Entity\Lodging;
@@ -42,9 +44,16 @@ class SeedDemoCommand extends Command
         }
         $d = fn (string $s) => new \DateTimeImmutable($s);
         $c = new Company('Compagnie Démo');
+        // Tous les comptes existants reçoivent tous les droits sur la compagnie de démonstration
+        $team = $this->em->getRepository(Group::class)->findOneBy(['name' => 'Équipe Compagnie Démo']) ?? new Group('Équipe Compagnie Démo', array_keys(Permissions::COMPANY));
+        $team->description = 'Tous les droits sur Compagnie Démo.';
+        $team->companies->add($c);
         foreach ($this->em->getRepository(User::class)->findAll() as $u) {
-            $u->companies->add($c);
+            if (!$team->users->contains($u)) {
+                $team->users->add($u);
+            }
         }
+        $this->em->persist($team);
         $murmure = new Show($c, 'Le Murmure des songes');
         $prelude = new Show($c, 'Prélude');
         $people = [];

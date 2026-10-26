@@ -1,6 +1,6 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
-import { get, post, put, del, showError, toast, setCompany } from '../api.js'
+import { can, get, post, put, del, showError, toast, setCompany } from '../api.js'
 import { daysFrom, fperiod } from '../format.js'
 import Icon from '../components/Icon.vue'
 import NewEventDialog from '../components/NewEventDialog.vue'
@@ -37,9 +37,9 @@ async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh)
         <div class="card-head" style="margin-bottom:6px">
           <div><h2>{{ s.title }}</h2><p v-if="s.description" class="muted" style="margin:4px 0 0">{{ s.description }}</p></div>
           <div class="actions">
-            <button class="btn btn-sm btn-primary" @click="newDateFor = s.id"><Icon name="plus" :size="16" />Nouvelle date</button>
-            <button class="btn btn-sm btn-icon" :aria-label="`Modifier ${s.title}`" @click="startEdit(s)"><Icon name="edit" :size="16" /></button>
-            <button v-if="!s.eventCount" class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ${s.title}`" @click="remove(s)"><Icon name="trash" :size="16" /></button>
+            <button v-if="can('events.edit', company.permissions)" class="btn btn-sm btn-primary" @click="newDateFor = s.id"><Icon name="plus" :size="16" />Nouvelle date</button>
+            <button v-if="can('shows.edit', company.permissions)" class="btn btn-sm btn-icon" :aria-label="`Modifier ${s.title}`" @click="startEdit(s)"><Icon name="edit" :size="16" /></button>
+            <button v-if="!s.eventCount && can('shows.edit', company.permissions)" class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ${s.title}`" @click="remove(s)"><Icon name="trash" :size="16" /></button>
           </div>
         </div>
         <ul v-if="eventsOf(s).length" style="list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:4px">
@@ -51,7 +51,7 @@ async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh)
         <p v-else class="muted small" style="margin:8px 0 0">Aucune date pour l'instant.</p>
       </template>
     </article>
-    <form class="card" @submit.prevent="add">
+    <form v-if="can('shows.edit', company.permissions)" class="card" @submit.prevent="add">
       <h2 style="margin-bottom:14px">Nouveau spectacle</h2>
       <div class="form-grid">
         <label class="field">Titre<input v-model="fresh.title" required></label>

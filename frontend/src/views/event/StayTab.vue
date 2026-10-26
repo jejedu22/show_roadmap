@@ -4,7 +4,7 @@ import { post, put, del, toast } from '../../api.js'
 import { fdate } from '../../format.js'
 import Icon from '../../components/Icon.vue'
 
-const { ev, apply } = inject('event')
+const { ev, apply, allowed } = inject('event')
 const GRIDS = [['night', 'Nuitées', 1, 'Nuit du jour au lendemain'], ['meals', 'Repas', 2, 'Midi + soir : 0 à 2 par jour'], ['breakfast', 'Petits-déjeuners', 1, '']]
 const grid = reactive({})
 const lodgings = reactive({})
@@ -45,7 +45,7 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
           </div>
         </div>
         <p v-if="!ev.participations.length" class="empty">Ajoutez d'abord des personnes à l'étape Équipe.</p>
-        <form v-else @submit.prevent="save">
+        <form v-else @submit.prevent="save"><fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;min-width:0">
           <p class="muted small" style="margin:0 0 8px">{{ GRIDS.find((g) => g[0] === kind)[3] }}</p>
           <div class="table-wrap">
             <table class="table">
@@ -63,12 +63,12 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
             </table>
           </div>
           <div class="actions" style="margin-top:14px">
-            <button class="btn btn-primary">Enregistrer les grilles</button>
-            <button type="button" class="btn" @click="reset">Recalculer depuis les dates</button>
+            <button v-if="allowed('events.edit')" class="btn btn-primary">Enregistrer les grilles</button>
+            <button v-if="allowed('events.edit')" type="button" class="btn" @click="reset">Recalculer depuis les dates</button>
             <RouterLink class="btn btn-ghost" :to="`/events/${ev.id}/print/rooming`" target="_blank">Rooming-list PDF</RouterLink>
-            <RouterLink class="btn btn-ghost" :to="`/events/${ev.id}/print/perdiem`" target="_blank">Défraiements PDF</RouterLink>
+            <RouterLink v-if="allowed('finance.view')" class="btn btn-ghost" :to="`/events/${ev.id}/print/perdiem`" target="_blank">Défraiements PDF</RouterLink>
           </div>
-        </form>
+        </fieldset></form>
       </section>
     </div>
 
@@ -86,14 +86,14 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
         </form>
         <template v-else>
           <div class="card-head" style="margin-bottom:4px"><h3><Icon name="bed" :size="16" /> {{ l.name }}</h3>
-            <span class="actions"><button class="btn btn-sm btn-icon" :aria-label="`Modifier ${l.name}`" @click="editing = l.id"><Icon name="edit" :size="16" /></button>
+            <span v-if="allowed('events.edit')" class="actions"><button class="btn btn-sm btn-icon" :aria-label="`Modifier ${l.name}`" @click="editing = l.id"><Icon name="edit" :size="16" /></button>
               <button class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ${l.name}`" @click="removeLodging(l)"><Icon name="trash" :size="16" /></button></span></div>
           <p class="muted small" style="margin:0">{{ [l.address, l.phone].filter(Boolean).join(' · ') }}</p>
           <p v-if="l.details" class="small" style="margin:6px 0 0;white-space:pre-wrap">{{ l.details }}</p>
           <p class="small" style="margin:8px 0 0"><b>{{ guests(l).length ? guests(l).join(', ') : 'Personne attribué' }}</b></p>
         </template>
       </article>
-      <form class="card" style="display:flex;flex-direction:column;gap:10px" @submit.prevent="addLodging">
+      <form v-if="allowed('events.edit')" class="card" style="display:flex;flex-direction:column;gap:10px" @submit.prevent="addLodging">
         <h3>Nouvel hébergement</h3>
         <label class="field">Nom<input v-model="fresh.name" required placeholder="Hôtel, appartement du théâtre…"></label>
         <label class="field">Adresse<input v-model="fresh.address"></label>

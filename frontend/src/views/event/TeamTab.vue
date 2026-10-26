@@ -4,7 +4,7 @@ import { post, put, del, toast, showError } from '../../api.js'
 import Avatar from '../../components/Avatar.vue'
 import Icon from '../../components/Icon.vue'
 
-const { ev, apply } = inject('event')
+const { ev, apply, allowed } = inject('event')
 const rows = reactive({})
 const selected = ref([])
 const query = ref('')
@@ -40,14 +40,14 @@ async function createAndAdd() {
 
 <template>
   <div class="two-cols">
-    <form class="main-col" @submit.prevent="save">
-      <div class="page-head"><h2>Équipe de la date</h2><button v-if="ev.participations.length" class="btn btn-primary">Enregistrer</button></div>
+    <form class="main-col" @submit.prevent="save"><fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div class="page-head"><h2>Équipe de la date</h2><button v-if="ev.participations.length && allowed('events.edit')" class="btn btn-primary">Enregistrer</button></div>
       <article v-for="p in ev.participations" :key="p.id" class="card" :class="{ warn: p.conflicts.length }">
         <div class="person-head">
           <Avatar :id="p.person.id" :initials="(p.person.firstName.charAt(0) + p.person.lastName.charAt(0)).toUpperCase()" :name="p.person.fullName" />
           <span class="who"><b>{{ p.person.fullName }}</b><span class="muted small">{{ p.person.phone || p.person.email || 'Pas de coordonnées' }}</span></span>
           <span v-if="p.conflicts.length" class="chip bad">Aussi sur <RouterLink v-for="o in p.conflicts" :key="o.id" :to="`/events/${o.id}`" style="color:inherit">{{ o.showTitle }}</RouterLink></span>
-          <button type="button" class="btn btn-sm btn-icon btn-danger status" :aria-label="`Retirer ${p.person.fullName}`" @click="remove(p)"><Icon name="trash" :size="16" /></button>
+          <button v-if="allowed('events.edit')" type="button" class="btn btn-sm btn-icon btn-danger status" :aria-label="`Retirer ${p.person.fullName}`" @click="remove(p)"><Icon name="trash" :size="16" /></button>
         </div>
         <div class="form-grid" style="margin-top:12px">
           <label class="field">Fonction sur cette date<input v-model="rows[p.id].role"></label>
@@ -58,11 +58,11 @@ async function createAndAdd() {
         </div>
       </article>
       <div v-if="!ev.participations.length" class="card empty"><h3>Personne n'est encore affecté</h3><p>Choisissez les membres de l'équipe dans la colonne de droite.</p></div>
-      <div v-if="ev.participations.length" class="actions"><button class="btn btn-primary">Enregistrer l'équipe</button>
+      <div v-if="ev.participations.length" class="actions"><button v-if="allowed('events.edit')" class="btn btn-primary">Enregistrer l'équipe</button>
         <RouterLink class="btn" :to="`/events/${ev.id}/stay`">Étape suivante : séjour →</RouterLink></div>
-    </form>
+    </fieldset></form>
 
-    <aside class="side-col">
+    <aside v-if="allowed('events.edit')" class="side-col">
       <div class="card">
         <h2 style="margin-bottom:12px">Ajouter</h2>
         <label v-if="ev.availablePeople.length > 6" class="field" style="margin-bottom:8px"><span class="sr-only">Rechercher</span><input v-model="query" type="search" placeholder="Rechercher…"></label>
@@ -73,7 +73,7 @@ async function createAndAdd() {
         <p v-if="!ev.availablePeople.length" class="muted small" style="margin:0">Tout l'annuaire est déjà sur cette date.</p>
         <div class="actions" style="margin-top:12px">
           <button type="button" class="btn btn-primary" :disabled="!selected.length" @click="add">Ajouter {{ selected.length || '' }}</button>
-          <button type="button" class="btn" @click="creating = !creating"><Icon name="plus" :size="16" />Nouvelle personne</button>
+          <button v-if="allowed('people.edit')" type="button" class="btn" @click="creating = !creating"><Icon name="plus" :size="16" />Nouvelle personne</button>
         </div>
         <form v-if="creating" style="display:flex;flex-direction:column;gap:10px;margin-top:14px" @submit.prevent="createAndAdd">
           <label class="field">Nom<input v-model="person.lastName" required></label>

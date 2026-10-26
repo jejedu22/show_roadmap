@@ -6,11 +6,11 @@ use App\Entity\Company;
 use App\Entity\Event;
 use App\Entity\Person;
 use App\Entity\Show;
-use App\Security\Access;
+use App\Entity\Group;
+use App\Security\Permissions;
 use App\Service\Input;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -22,18 +22,24 @@ class CompanyController extends ApiController
     public function list(): JsonResponse
     {
         $me = $this->me();
-        $companies = $me->isAdmin ? $this->em->getRepository(Company::class)->findBy([], ['name' => 'ASC']) : $me->companies->toArray();
-        usort($companies, fn ($a, $b) => strcasecmp($a->name, $b->name));
 
-        return $this->json(array_map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name, 'showCount' => $c->shows->count()], $companies));
+        return $this->json(array_map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name, 'showCount' => $c->shows->count(),
+            'permissions' => $this->authz->companyPerms($me, $c)], $this->authz->visibleCompanies($me)));
     }
 
     #[Route('/api/companies', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
+        $this->authz->global($this->me(), 'companies.create');
         $company = new Company(Input::str($this->body($request), 'name') ?: 'Nouvelle compagnie');
         $this->em->persist($company);
-        $this->me()->companies->add($company);
+        // Le créateur reçoit tous les droits sur sa compagnie, via un groupe « Équipe » dédié
+        $group = new Group($this->uniqueGroupName('Équipe '.$company->name), array_keys(Permissions::COMPANY));
+        $group->description = 'Tous les droits sur '.$company->name.'.';
+        $group->companies->add($company);
+        $group->users->add($this->me());
+        $this->em->persist($group);
+        $this->audit->log('company.create', $company->name, ['group' => $group->name]);
 
         return $this->savedCompany($company);
     }
@@ -41,13 +47,13 @@ class CompanyController extends ApiController
     #[Route('/api/companies/{id<\d+>}', methods: ['GET'])]
     public function show(int $id): JsonResponse
     {
-        return $this->json($this->presenter->company($this->company($id)));
+        return $this->json($this->presenter->company($this->company($id), $this->me()));
     }
 
     #[Route('/api/companies/{id<\d+>}', methods: ['PUT'])]
     public function update(int $id, Request $request): JsonResponse
     {
-        $company = $this->company($id);
+        $company = $this->company($id, 'company.manage');
         $d = $this->body($request);
         $company->name = Input::str($d, 'name') ?: $company->name;
         $company->notes = Input::text($d, 'notes');
@@ -59,13 +65,12 @@ class CompanyController extends ApiController
     #[Route('/api/companies/{id<\d+>}', methods: ['DELETE'])]
     public function delete(int $id, Request $request): JsonResponse
     {
-        if (!$this->me()->isAdmin) {
-            throw new AccessDeniedHttpException('Seul un administrateur peut supprimer une compagnie.');
-        }
+        $this->authz->global($this->me(), 'companies.delete');
         $company = $this->company($id);
         if (Input::str($this->body($request), 'confirmName') !== $company->name) {
             throw new BadRequestHttpException('Pour confirmer, saisissez exactement le nom de la compagnie.');
         }
+        $this->audit->log('company.delete', $company->name);
         $this->em->remove($company);
         $this->em->flush();
 
@@ -77,7 +82,7 @@ class CompanyController extends ApiController
     #[Route('/api/companies/{id<\d+>}/shows', methods: ['POST'])]
     public function createShow(int $id, Request $request): JsonResponse
     {
-        $company = $this->company($id);
+        $company = $this->company($id, 'shows.edit');
         $d = $this->body($request);
         $show = new Show($company, Input::str($d, 'title') ?: throw new BadRequestHttpException('Titre obligatoire'));
         $show->description = Input::text($d, 'description');
@@ -89,7 +94,7 @@ class CompanyController extends ApiController
     #[Route('/api/shows/{id<\d+>}', methods: ['PUT'])]
     public function updateShow(int $id, Request $request): JsonResponse
     {
-        $show = $this->showOr404($id);
+        $show = $this->showOr404($id, 'shows.edit');
         $d = $this->body($request);
         $show->title = Input::str($d, 'title') ?: $show->title;
         $show->description = Input::text($d, 'description');
@@ -100,7 +105,7 @@ class CompanyController extends ApiController
     #[Route('/api/shows/{id<\d+>}', methods: ['DELETE'])]
     public function deleteShow(int $id): JsonResponse
     {
-        $show = $this->showOr404($id);
+        $show = $this->showOr404($id, 'shows.edit');
         if (!$show->events->isEmpty()) {
             throw new ConflictHttpException('Supprimez d\'abord les dates de ce spectacle.');
         }
@@ -114,7 +119,7 @@ class CompanyController extends ApiController
     #[Route('/api/companies/{id<\d+>}/people', methods: ['POST'])]
     public function createPerson(int $id, Request $request): JsonResponse
     {
-        $company = $this->company($id);
+        $company = $this->company($id, 'people.edit');
         $person = new Person($company);
         $this->fillPerson($person, $this->body($request));
         $this->em->persist($person);
@@ -125,7 +130,7 @@ class CompanyController extends ApiController
     #[Route('/api/people/{id<\d+>}', methods: ['PUT'])]
     public function updatePerson(int $id, Request $request): JsonResponse
     {
-        $person = $this->personOr404($id);
+        $person = $this->personOr404($id, 'people.edit');
         $this->fillPerson($person, $this->body($request));
 
         return $this->savedCompany($person->company);
@@ -134,7 +139,7 @@ class CompanyController extends ApiController
     #[Route('/api/people/{id<\d+>}', methods: ['DELETE'])]
     public function deletePerson(int $id): JsonResponse
     {
-        $person = $this->personOr404($id);
+        $person = $this->personOr404($id, 'people.edit');
         $this->em->remove($person);
 
         return $this->savedCompany($person->company);
@@ -145,7 +150,7 @@ class CompanyController extends ApiController
     #[Route('/api/shows/{id<\d+>}/events', methods: ['POST'])]
     public function createEvent(int $id, Request $request): JsonResponse
     {
-        $show = $this->showOr404($id);
+        $show = $this->showOr404($id, 'events.edit');
         $d = $this->body($request);
         $first = Input::date($d, 'firstDate') ?? throw new BadRequestHttpException('Date de 1re représentation obligatoire');
         $last = Input::date($d, 'lastDate') ?? $first;
@@ -161,20 +166,31 @@ class CompanyController extends ApiController
         return $this->savedEvent($event);
     }
 
-    private function showOr404(int $id): Show
+    private function showOr404(int $id, string $perm): Show
     {
         $show = $this->em->find(Show::class, $id) ?? throw new NotFoundHttpException('Spectacle introuvable');
-        Access::company($this->me(), $show->company);
+        $this->authz->company($this->me(), $show->company, $perm);
 
         return $show;
     }
 
-    private function personOr404(int $id): Person
+    private function personOr404(int $id, string $perm): Person
     {
         $person = $this->em->find(Person::class, $id) ?? throw new NotFoundHttpException('Personne introuvable');
-        Access::company($this->me(), $person->company);
+        $this->authz->company($this->me(), $person->company, $perm);
 
         return $person;
+    }
+
+    private function uniqueGroupName(string $name): string
+    {
+        $name = mb_substr($name, 0, 110);
+        $candidate = $name;
+        for ($i = 2; $this->em->getRepository(Group::class)->findOneBy(['name' => $candidate]); ++$i) {
+            $candidate = "$name ($i)";
+        }
+
+        return $candidate;
     }
 
     private function fillPerson(Person $p, array $d): void

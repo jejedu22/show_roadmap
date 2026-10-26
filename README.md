@@ -23,7 +23,6 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
   coordonnées) et export Excel d'une date.
 - **Lien de réservation** sur chaque trajet : il devient un bouton « Billet ↗ » cliquable dans la feuille de route PDF,
   pour que chaque intervenant récupère son billet lui-même.
-- Multi-compagnies : chaque utilisateur ne voit que les compagnies que l'administrateur lui a attribuées.
 - Connexion par mot de passe ou Google (comptes créés par un administrateur uniquement).
 - Recherche de trains directs dans l'onglet Voyages, à partir des horaires SNCF en open data (sans clé).
 
@@ -121,9 +120,29 @@ et pré-remplit départ, arrivée, heures, mode et numéro de train. Prix et ré
 
 Seuls les comptes déjà créés par un administrateur (même e-mail, vérifié par Google) peuvent se connecter.
 
+## Utilisateurs, groupes et droits
+
+- **Droits** : une liste fixe d'actions. Sur les compagnies : consulter, organiser les dates, gérer les voyages,
+  voir / gérer les coordonnées, voir / modifier les montants, gérer les spectacles, partager la feuille de route,
+  paramètres. Administration : gérer les utilisateurs, les groupes, créer / supprimer des compagnies.
+- **Groupes** : des droits + un périmètre (toutes les compagnies ou certaines) + des membres. Les droits de plusieurs
+  groupes s'additionnent. Groupes fournis : « Équipe <compagnie> » (tous les droits sur une compagnie, repris des anciens
+  accès), « Régie et logistique », « Consultation », « Administration ».
+- **Super-administrateur** : tous les droits (le compte créé au premier démarrage).
+- Le serveur vérifie chaque action et **ne transmet pas** ce qui n'est pas autorisé (montants, coordonnées).
+- **Invitations** : un compte est créé sans mot de passe ; un lien personnel (7 jours, usage unique) permet à la personne
+  de choisir le sien. **Mot de passe oublié** : l'administrateur génère un lien de réinitialisation (24 h).
+  Aucun e-mail n'est envoyé par l'application : le lien est à transmettre (bouton « Envoyer par e-mail »).
+- **Garde-fous** : seul un super-administrateur attribue des droits d'administration ou un accès à toutes les compagnies ;
+  un gestionnaire de groupes ne donne accès qu'aux compagnies qu'il voit ; impossible de se désactiver ou de supprimer
+  le dernier super-administrateur.
+- **Journal** : connexions (réussies et échouées), invitations, changements de droits, suppressions.
+
 ## Sécurité
 
-- Mots de passe hachés par Symfony (`auto`), session par cookie `HttpOnly` / `SameSite=Lax` / `Secure` en HTTPS.
+- Mots de passe hachés par Symfony (`auto`) : 12 caractères minimum, robustesse au moins moyenne, sans l'adresse e-mail.
+  Changer de mot de passe ferme les autres sessions. Les jetons des liens ne sont stockés qu'en empreinte SHA-256.
+- Session par cookie `HttpOnly` / `SameSite=Lax` / `Secure` en HTTPS.
 - Protection CSRF : toute écriture sur l'API exige l'en-tête `X-Requested-With`.
 - Limitation des tentatives de connexion (8 par 5 minutes).
 - Cloisonnement strict entre compagnies.

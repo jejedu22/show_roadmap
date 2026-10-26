@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { get, post, showError, lastCompany, toast } from '../api.js'
+import { get, post, showError, lastCompany, toast, can } from '../api.js'
 
 const props = defineProps({ stay: Boolean })
 const route = useRoute()
@@ -40,7 +40,8 @@ async function create() {
       <span class="big">{{ c.name }}</span>
     </RouterLink>
   </div>
-  <form class="card" @submit.prevent="create">
+  <p v-if="companies && !companies.length" class="card empty">Vous n'avez encore accès à aucune compagnie. Demandez à un administrateur de vous ajouter à un groupe.</p>
+  <form v-if="can('companies.create')" class="card" @submit.prevent="create">
     <h2 style="margin-bottom:14px">Nouvelle compagnie</h2>
     <div class="actions">
       <label class="field" style="flex:1 1 280px">Nom<input ref="nameInput" v-model="name" required placeholder="Nom de la compagnie"></label>

@@ -16,7 +16,7 @@ class SncfController extends ApiController
     #[Route('/places', methods: ['GET'])]
     public function places(int $id, Request $request, SncfTimetable $sncf): JsonResponse
     {
-        $this->event($id);
+        $this->event($id, 'travel.edit');
         $q = trim((string) $request->query->get('q', ''));
 
         return $this->call(fn () => mb_strlen($q) >= 2 ? $sncf->places($q) : []);
@@ -26,7 +26,7 @@ class SncfController extends ApiController
     #[Route('/pair', methods: ['GET'])]
     public function pair(int $id, Request $request, SncfTimetable $sncf): JsonResponse
     {
-        $this->event($id);
+        $this->event($id, 'travel.edit');
 
         return $this->call(fn () => $sncf->bestPair(trim((string) $request->query->get('from', '')), trim((string) $request->query->get('to', ''))));
     }
@@ -34,7 +34,7 @@ class SncfController extends ApiController
     #[Route('/journeys', methods: ['GET'])]
     public function journeys(int $id, Request $request, SncfTimetable $sncf): JsonResponse
     {
-        $this->event($id);
+        $this->event($id, 'travel.edit');
         $q = $request->query;
 
         return $this->call(fn () => $sncf->journeys((string) $q->get('origin'), (string) $q->get('dest'),
@@ -44,7 +44,7 @@ class SncfController extends ApiController
     #[Route('/connect', methods: ['GET'])]
     public function connect(int $id, Request $request, SncfTimetable $sncf): RedirectResponse
     {
-        $this->event($id);
+        $this->event($id, 'travel.edit');
         $q = $request->query;
 
         return $this->redirect($sncf->connectUrl((string) $q->get('origin', ''), (string) $q->get('dest', ''), (string) $q->get('day', '')));

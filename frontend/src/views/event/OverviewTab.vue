@@ -5,7 +5,7 @@ import { put, post, del, showError, toast } from '../../api.js'
 import { money } from '../../format.js'
 import Icon from '../../components/Icon.vue'
 
-const { ev, apply } = inject('event')
+const { ev, apply, allowed } = inject('event')
 const router = useRouter()
 const FIELDS = ['venue', 'city', 'address', 'firstDate', 'lastDate', 'performances', 'techArrival', 'artisticArrival', 'departure', 'status', 'venueContact', 'notes']
 const form = reactive({})
@@ -25,7 +25,7 @@ async function remove() {
 <template>
   <div class="two-cols">
     <div class="main-col">
-      <form class="card" @submit.prevent="save">
+      <form class="card" @submit.prevent="save"><fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0">
         <h2 style="margin-bottom:16px">Le lieu et les dates</h2>
         <div class="form-grid">
           <label class="field">Lieu / théâtre<input v-model="form.venue" required></label>
@@ -41,8 +41,8 @@ async function remove() {
           <label class="field wide">Contacts du lieu (accueil, technique…)<textarea v-model="form.venueContact" placeholder="Accueil : Prénom Nom — 06 …" /></label>
           <label class="field wide">Notes internes<textarea v-model="form.notes" /></label>
         </div>
-        <div class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
-      </form>
+        <div v-if="allowed('events.edit')" class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
+      </fieldset></form>
     </div>
     <aside class="side-col">
       <div class="card">
@@ -52,18 +52,18 @@ async function remove() {
         </div>
         <p v-else class="muted" style="margin:0">Tout est prêt pour cette date.</p>
       </div>
-      <div class="card">
+      <div v-if="ev.quote" class="card">
         <div class="tiles" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
           <div><span class="muted small">Total HT</span><br><b style="font-family:var(--display);font-size:20px">{{ money(ev.quote.totalHt) }}</b></div>
           <div><span class="muted small">Total TTC</span><br><b style="font-family:var(--display);font-size:20px">{{ money(ev.quote.totalTtc) }}</b></div>
         </div>
       </div>
-      <div class="card">
+      <div v-if="allowed('finance.view') || allowed('events.edit')" class="card">
         <h3 style="margin-bottom:10px">Autres actions</h3>
         <div class="actions">
-          <a class="btn btn-sm" :href="`/api/events/${ev.id}/export.xlsx`"><Icon name="download" :size="16" />Export Excel</a>
-          <button class="btn btn-sm" @click="duplicate"><Icon name="copy" :size="16" />Dupliquer</button>
-          <button class="btn btn-sm btn-danger" @click="remove"><Icon name="trash" :size="16" />Supprimer</button>
+          <a v-if="allowed('finance.view')" class="btn btn-sm" :href="`/api/events/${ev.id}/export.xlsx`"><Icon name="download" :size="16" />Export Excel</a>
+          <button v-if="allowed('events.edit')" class="btn btn-sm" @click="duplicate"><Icon name="copy" :size="16" />Dupliquer</button>
+          <button v-if="allowed('events.edit')" class="btn btn-sm btn-danger" @click="remove"><Icon name="trash" :size="16" />Supprimer</button>
         </div>
       </div>
     </aside>

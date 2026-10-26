@@ -1,7 +1,8 @@
 import { reactive } from 'vue'
 
 /** État global minimal : utilisateur connecté et options du serveur. */
-export const session = reactive({ user: null, google: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: null })
+const storedCompany = () => { try { return Number(localStorage.getItem('companyId')) || null } catch { return null } }
+export const session = reactive({ user: null, google: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: storedCompany() })
 
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
@@ -45,6 +46,12 @@ export function toast(text, kind = 'ok') {
 }
 
 export const showError = (e) => toast(e?.message || String(e), 'error')
+
+/**
+ * Droits : globaux (session.user.permissions) ou sur une compagnie / une date (liste « permissions » renvoyée par l'API).
+ * Le serveur vérifie toujours : côté écran, cela ne sert qu'à masquer ce qui serait refusé.
+ */
+export const can = (perm, perms = session.user?.permissions) => !!session.user?.isAdmin || (perms || []).includes(perm)
 
 /** Compagnie affichée dans le menu : mémorisée pour revenir dessus à la prochaine visite. */
 export function setCompany(id) {

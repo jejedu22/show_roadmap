@@ -5,6 +5,8 @@ namespace App\Command;
 use App\Entity\Company;
 use App\Entity\Day;
 use App\Entity\Event;
+use App\Entity\Group;
+use App\Security\Permissions;
 use App\Entity\ExtraCost;
 use App\Entity\Leg;
 use App\Entity\Lodging;
@@ -83,9 +85,25 @@ class ImportSqliteCommand extends Command
 
                 return $c;
             });
+            // Accès par compagnie de l'ancienne version → un groupe « Équipe <compagnie> » avec tous les droits
+            $teams = [];
             foreach ($this->rows('user_company') as $r) {
-                if (isset($users[$r['user_id']], $companies[$r['company_id']]) && !$users[$r['user_id']]->companies->contains($companies[$r['company_id']])) {
-                    $users[$r['user_id']]->companies->add($companies[$r['company_id']]);
+                if (!isset($users[$r['user_id']], $companies[$r['company_id']])) {
+                    continue;
+                }
+                $company = $companies[$r['company_id']];
+                if (!isset($teams[$r['company_id']])) {
+                    $name = 'Équipe '.$company->name;
+                    for ($i = 2; $this->em->getRepository(Group::class)->findOneBy(['name' => $name]) || in_array($name, array_map(fn ($g) => $g->name, $teams), true); ++$i) {
+                        $name = 'Équipe '.$company->name." ($i)";
+                    }
+                    $teams[$r['company_id']] = $g = new Group(mb_substr($name, 0, 120), array_keys(Permissions::COMPANY));
+                    $g->description = 'Tous les droits sur '.$company->name.' (repris de l\'ancienne version).';
+                    $g->companies->add($company);
+                    $this->em->persist($g);
+                }
+                if (!$teams[$r['company_id']]->users->contains($users[$r['user_id']])) {
+                    $teams[$r['company_id']]->users->add($users[$r['user_id']]);
                 }
             }
             $shows = $this->map('shows', function (array $r) use ($companies) {

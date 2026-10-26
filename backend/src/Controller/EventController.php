@@ -30,13 +30,13 @@ class EventController extends ApiController
     #[Route('', methods: ['GET'])]
     public function show(int $id): JsonResponse
     {
-        return $this->json($this->presenter->event($this->event($id)));
+        return $this->json($this->presenter->event($this->event($id), $this->me()));
     }
 
     #[Route('', methods: ['PUT'])]
     public function update(int $id, Request $request): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $d = $this->body($request);
         $ev->venue = Input::str($d, 'venue') ?: $ev->venue;
         $ev->city = Input::str($d, 'city', 120);
@@ -60,7 +60,7 @@ class EventController extends ApiController
     #[Route('', methods: ['DELETE'])]
     public function delete(int $id): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $companyId = $ev->show->company->id;
         $this->em->remove($ev);
         $this->em->flush();
@@ -72,7 +72,7 @@ class EventController extends ApiController
     #[Route('/duplicate', methods: ['POST'])]
     public function duplicate(int $id, Planning $planning): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $new = new Event($ev->show, $ev->venue.' (copie)', $ev->firstDate, $ev->lastDate);
         foreach (['city', 'address', 'venueContact', 'status', 'techArrival', 'artisticArrival', 'departure', 'performances', 'notes',
             'mealRate', 'breakfastRate', 'nightRate', 'truckRate', 'vatRate', 'fee'] as $f) {
@@ -97,7 +97,7 @@ class EventController extends ApiController
     #[Route('/rates', methods: ['PUT'])]
     public function rates(int $id, Request $request): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'finance.edit');
         $d = $this->body($request);
         foreach (['mealRate', 'breakfastRate', 'nightRate', 'truckRate', 'vatRate', 'fee'] as $f) {
             $ev->$f = Input::decimal($d, $f);
@@ -111,7 +111,7 @@ class EventController extends ApiController
     #[Route('/participations', methods: ['POST'])]
     public function addPeople(int $id, Request $request, Planning $planning): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $existing = $ev->participations->map(fn ($p) => $p->person->id)->toArray();
         foreach ((array) ($this->body($request)['personIds'] ?? []) as $pid) {
             $person = $this->em->find(Person::class, (int) $pid);
@@ -130,7 +130,7 @@ class EventController extends ApiController
     #[Route('/participations', methods: ['PUT'])]
     public function updateTeam(int $id, Request $request): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $rows = [];
         foreach ((array) ($this->body($request)['participations'] ?? []) as $row) {
             $rows[(int) ($row['id'] ?? 0)] = (array) $row;
@@ -154,7 +154,7 @@ class EventController extends ApiController
     #[Route('/participations/{pid<\d+>}', methods: ['DELETE'])]
     public function removePerson(int $id, int $pid): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $ev->participations->removeElement($this->participation($ev, $pid));
 
         return $this->savedEvent($ev);
@@ -166,7 +166,7 @@ class EventController extends ApiController
     #[Route('/days', methods: ['PUT'])]
     public function saveDays(int $id, Request $request): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         $grid = (array) ($this->body($request)['days'] ?? []);
         $dates = $ev->spanDates();
         foreach ($ev->participations as $p) {
@@ -193,7 +193,7 @@ class EventController extends ApiController
     #[Route('/days/reset', methods: ['POST'])]
     public function resetDays(int $id, Planning $planning): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'events.edit');
         foreach ($ev->participations as $p) {
             $p->days->clear();
         }
@@ -209,10 +209,21 @@ class EventController extends ApiController
 
     private const KINDS = ['lodging', 'leg', 'truck', 'extra', 'section', 'schedule'];
 
+    /** Droit nécessaire pour modifier un type de ligne. */
+    private static function itemPerm(string $kind): string
+    {
+        return match ($kind) {
+            'leg' => 'travel.edit',
+            'truck', 'extra' => 'finance.edit',
+            'lodging', 'section', 'schedule' => 'events.edit',
+            default => throw new NotFoundHttpException(),
+        };
+    }
+
     #[Route('/items/{kind}', methods: ['POST'])]
     public function createItem(int $id, string $kind, Request $request): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, self::itemPerm($kind));
         $d = $this->body($request);
         $item = match ($kind) {
             'lodging' => new Lodging($ev),
@@ -243,7 +254,7 @@ class EventController extends ApiController
     #[Route('/items/{kind}/{itemId<\d+>}', methods: ['PUT'])]
     public function updateItem(int $id, string $kind, int $itemId, Request $request): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, self::itemPerm($kind));
         $this->fill($this->item($ev, $kind, $itemId), $this->body($request));
 
         return $this->savedEvent($ev);
@@ -252,7 +263,7 @@ class EventController extends ApiController
     #[Route('/items/{kind}/{itemId<\d+>}', methods: ['DELETE'])]
     public function deleteItem(int $id, string $kind, int $itemId): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, self::itemPerm($kind));
         $item = $this->item($ev, $kind, $itemId);
         if ($item instanceof Lodging) {
             foreach ($ev->participations as $p) {
@@ -276,11 +287,11 @@ class EventController extends ApiController
     #[Route('/export.xlsx', methods: ['GET'])]
     public function export(int $id, XlsxExporter $exporter): Response
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'finance.view');
         $name = str_replace([' ', '/'], ['_', '-'], $ev->show->title.'_'.$ev->venue).'.xlsx';
         $ascii = preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'export.xlsx';
 
-        return new Response($exporter->export($ev), 200, [
+        return new Response($exporter->export($ev, $this->authz->can($this->me(), 'people.view', $ev->show->company)), 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $name, $ascii),
         ]);
@@ -290,7 +301,7 @@ class EventController extends ApiController
     #[Route('/share', methods: ['POST'])]
     public function share(int $id): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'share.manage');
         $ev->shareToken ??= bin2hex(random_bytes(32));
         $ev->sharedAt = new \DateTimeImmutable();
 
@@ -301,7 +312,7 @@ class EventController extends ApiController
     #[Route('/share', methods: ['DELETE'])]
     public function unshare(int $id): JsonResponse
     {
-        $ev = $this->event($id);
+        $ev = $this->event($id, 'share.manage');
         [$ev->shareToken, $ev->sharedAt] = [null, null];
 
         return $this->savedEvent($ev);
@@ -311,15 +322,15 @@ class EventController extends ApiController
     #[Route('/pdf/{doc}', methods: ['GET'])]
     public function pdf(int $id, string $doc, Request $request, PdfRenderer $renderer): Response
     {
-        $ev = $this->event($id);
         if (!isset(PdfRenderer::DOCS[$doc])) {
             throw new NotFoundHttpException('Document inconnu');
         }
+        $ev = $this->event($id, PdfRenderer::PERMS[$doc]);
         $name = PdfRenderer::filename($ev, $doc);
         $ascii = preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'document.pdf';
         $disposition = $request->query->getBoolean('download') ? HeaderUtils::DISPOSITION_ATTACHMENT : HeaderUtils::DISPOSITION_INLINE;
 
-        return new Response($renderer->render($ev, $doc), 200, [
+        return new Response($renderer->render($ev, $doc, $this->me()), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => HeaderUtils::makeDisposition($disposition, $name, $ascii),
         ]);
