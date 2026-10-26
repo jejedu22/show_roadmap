@@ -15,6 +15,7 @@ services:
       PUBLIC_URL: https://${APP_HOST}
       TRUSTED_PROXIES: private_ranges
       GTFS_URL: ${GTFS_URL:-https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip}
+      GTFS_IDF_URL: ${GTFS_IDF_URL-https://eu.ftp.opendatasoft.com/sncf/gtfs/transilien-gtfs.zip}
       SNCF_CONNECT_URL: ${SNCF_CONNECT_URL:-https://www.sncf-connect.com/}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

@@ -50,6 +50,30 @@ class SncfTimetableTest extends ApiTestCase
                 ."S3,1,1,1,1,1,0,0,20261116,20261120\n",
             'calendar_dates.txt' => "service_id,date,exception_type\nS1,20261118,1\nS2,20261117,1\nS3,20261118,2\n",
         ];
+        return self::zip($files);
+    }
+
+    /** Petite archive Transilien (format IDFM) : Herblay → Gare du Nord, plus un TER en double du fichier national. */
+    public static function idfZip(): string
+    {
+        return self::zip([
+            'agency.txt' => "agency_id,agency_name,agency_url,agency_timezone\nIDFM:1046,Transilien,https://idf.test,Europe/Paris\nIDFM:93,TER,https://idf.test,Europe/Paris\n",
+            'routes.txt' => "route_id,agency_id,route_short_name,route_long_name,route_desc,route_type\nIDFM:H,IDFM:1046,H,H,,2\nIDFM:TER,IDFM:93,TER,TER Hauts-de-France,,2\n",
+            'stops.txt' => "stop_id,stop_code,stop_name,stop_desc,stop_lon,stop_lat,zone_id,stop_url,location_type,parent_station\n"
+                ."IDFM:71410,,Gare du Nord,,2.3505,48.8805,1,,1,\n"     // à 60 m de Paris Gare du Nord : même gare
+                ."IDFM:471,,Gare du Nord,,2.3505,48.8805,1,,0,IDFM:71410\n"
+                ."IDFM:65897,,Herblay,,2.1615,48.9906,4,,1,\n"
+                ."IDFM:470659,,Herblay,,2.1615,48.9906,4,,0,IDFM:65897\n",
+            'trips.txt' => "route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id\nIDFM:H,IDFM:TN:1,H-1,POPI,135001-135002,0\nIDFM:TER,IDFM:TN:1,TER-1,X,847407,0\n",
+            'stop_times.txt' => "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type\n"
+                ."H-1,07:00:00,07:00:00,IDFM:470659,1,0,1\nH-1,07:20:00,07:20:00,IDFM:471,2,1,0\n"
+                ."TER-1,07:37:00,07:37:00,IDFM:471,1,0,1\nTER-1,08:51:00,08:51:00,IDFM:470659,2,1,0\n",
+            'calendar_dates.txt' => "service_id,date,exception_type\nIDFM:TN:1,20261118,1\n",
+        ]);
+    }
+
+    private static function zip(array $files): string
+    {
         $path = tempnam(sys_get_temp_dir(), 'gtfs').'.zip';
         $zip = new \ZipArchive();
         $zip->open($path, \ZipArchive::CREATE);
@@ -129,6 +153,30 @@ class SncfTimetableTest extends ApiTestCase
 
         $q(self::A, self::B, 'pas-une-date');
         self::assertSame(400, $this->code());
+    }
+
+    public function testTransilienStationsAndConnections(): void
+    {
+        $ev = $this->event();
+        $national = tempnam(sys_get_temp_dir(), 'gtfs');
+        $idf = tempnam(sys_get_temp_dir(), 'gtfs');
+        file_put_contents($national, self::gtfsZip());
+        file_put_contents($idf, self::idfZip());
+        $tester = $this->importCommand(['--file' => [$national, $idf]]);
+        unlink($national);
+        unlink($idf);
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('4 gares, 8 trains', $tester->getDisplay(), 'Gare du Nord fusionnée, TER en double ignoré');
+
+        self::assertSame([['id' => 'IDFM:65897', 'name' => 'Herblay']], $this->call('GET', "/api/events/$ev/sncf/places?q=herblay"));
+        $q = fn (string $day) => $this->call('GET', "/api/events/$ev/sncf/journeys?".http_build_query(['origin' => 'IDFM:65897', 'dest' => self::B, 'day' => $day]));
+        $j = $q('2026-11-18');
+        self::assertSame(['7h00', '8h51', 'Transilien H + TER', '135001 + 847407'], [$j[0]['depTime'], $j[0]['arrTime'], $j[0]['mode'], $j[0]['numbers']]);
+        self::assertSame(['Herblay', 'Paris Gare du Nord'], [$j[0]['segments'][0]['from'], $j[0]['segments'][0]['to']]);
+
+        $res = $q('2026-12-02');
+        self::assertSame(422, $this->code());
+        self::assertStringContainsString('un mois à l’avance (actuellement jusqu’au 18/11/2026)', $res['error']);
     }
 
     public function testDownloadAndFailedImportKeepsData(): void

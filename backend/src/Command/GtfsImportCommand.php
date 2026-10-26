@@ -20,13 +20,15 @@ class GtfsImportCommand extends Command
         private GtfsImporter $importer,
         private HttpClientInterface $http,
         #[Autowire(env: 'GTFS_URL')] private string $url,
+        /** Horaires complémentaires (Transilien et RER : gares d'Île-de-France absentes du fichier national) ; vide = désactivé */
+        #[Autowire(env: 'default::GTFS_IDF_URL')] private ?string $idfUrl = null,
     ) {
         parent::__construct();
     }
 
     protected function configure(): void
     {
-        $this->addOption('file', null, InputOption::VALUE_REQUIRED, 'Archive GTFS locale (au lieu de la télécharger)')
+        $this->addOption('file', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Archive GTFS locale (au lieu de la télécharger) ; répétable : fichier national puis complémentaires')
             ->addOption('if-older-than', null, InputOption::VALUE_REQUIRED, 'Ne fait rien si le dernier import a moins de N heures');
     }
 
@@ -41,24 +43,17 @@ class GtfsImportCommand extends Command
             return Command::SUCCESS;
         }
 
-        $file = $input->getOption('file');
-        $temp = null;
+        $files = $input->getOption('file');
+        $temps = [];
         try {
-            if (!$file) {
-                $io->writeln("Téléchargement de {$this->url}");
-                $file = $temp = tempnam(sys_get_temp_dir(), 'gtfs');
-                $response = $this->http->request('GET', $this->url, ['timeout' => 60, 'max_duration' => 600]);
-                $out = fopen($temp, 'w');
-                foreach ($this->http->stream($response) as $chunk) {
-                    fwrite($out, $chunk->getContent());
-                }
-                fclose($out);
-                if (200 !== $response->getStatusCode()) {
-                    throw new \RuntimeException('Téléchargement refusé (HTTP '.$response->getStatusCode().')');
+            if (!$files) {
+                foreach (array_filter([$this->url, $this->idfUrl]) as $url) {
+                    $io->writeln("Téléchargement de $url");
+                    $files[] = $temps[] = $this->download($url);
                 }
             }
             $started = microtime(true);
-            $stats = $this->importer->import($file);
+            $stats = $this->importer->import($files);
         } catch (GtfsImportInProgress $e) {
             $io->note($e->getMessage().' Les horaires seront disponibles à la fin de cet import (environ une minute).');
 
@@ -68,13 +63,31 @@ class GtfsImportCommand extends Command
 
             return Command::FAILURE;
         } finally {
-            if ($temp) {
-                @unlink($temp);
-            }
+            array_map(fn ($f) => @unlink($f), $temps);
         }
         $io->success(sprintf('%d gares, %d trains, %d horaires de passage, du %s au %s (%.0f s).', $stats['stations'], $stats['trips'],
             $stats['stopTimes'], $stats['firstDay'], $stats['lastDay'], microtime(true) - $started));
 
         return Command::SUCCESS;
+    }
+
+    private function download(string $url): string
+    {
+        $file = tempnam(sys_get_temp_dir(), 'gtfs');
+        $response = $this->http->request('GET', $url, ['timeout' => 60, 'max_duration' => 600]);
+        $out = fopen($file, 'w');
+        try {
+            foreach ($this->http->stream($response) as $chunk) {
+                fwrite($out, $chunk->getContent());
+            }
+        } finally {
+            fclose($out);
+        }
+        if (200 !== $response->getStatusCode()) {
+            @unlink($file);
+            throw new \RuntimeException("Téléchargement refusé (HTTP {$response->getStatusCode()}) : $url");
+        }
+
+        return $file;
     }
 }

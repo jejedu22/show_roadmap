@@ -124,6 +124,10 @@ class SncfTimetable
             'mode' => $r['mode'], 'number' => (string) $r['number'],
         ]], $rows);
         $journeys = array_merge($journeys, $this->withConnection($from, $to, $day, $after));
+        if (!$journeys && $day > ($idfLast = $this->idfLastDay()) && '' !== $idfLast && (self::isIdf($from) || self::isIdf($to))) {
+            throw new SncfException(sprintf('Les horaires Transilien et RER ne sont publiés qu’environ un mois à l’avance (actuellement jusqu’au %s) : '
+                .'cherchez plus près de la date, ou saisissez ce trajet à la main.', \DateTimeImmutable::createFromFormat('!Y-m-d', $idfLast)->format('d/m/Y')), 422);
+        }
 
         // On écarte un trajet quand un autre part au moins aussi tard et arrive au moins aussi tôt (à égalité : le moins de changements).
         $key = fn (array $j) => [$j[0]['dep'], end($j)['arr'], count($j)];
@@ -213,6 +217,17 @@ class SncfTimetable
         }
 
         return array_values($best);
+    }
+
+    private function idfLastDay(): string
+    {
+        return (string) $this->db->fetchOne("SELECT value FROM gtfs_meta WHERE name = 'idfLastDay'");
+    }
+
+    /** Gare connue seulement des horaires Transilien / RER (pas d'équivalent dans le fichier national). */
+    private static function isIdf(string $stopId): bool
+    {
+        return !str_starts_with($stopId, 'StopArea:OCE');
     }
 
     /** @return array<string, string> nom des gares par identifiant */

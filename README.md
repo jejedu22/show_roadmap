@@ -122,15 +122,21 @@ Après une modification d'entité : `php bin/console doctrine:migrations:diff` p
 
 ## Horaires SNCF (open data)
 
-L'onglet **Voyages** propose les **trains directs et avec une correspondance** entre deux gares à une date donnée (TER, Intercités, TGV INOUI, OUIGO, cars TER…)
-et pré-remplit départ, arrivée, heures, mode et numéro de train. Prix et référence de billet restent à saisir.
+L'onglet **Voyages** propose les **trains directs et avec une correspondance** entre deux gares à une date donnée
+(TGV INOUI, OUIGO, Intercités, TER, Transilien, RER, cars…) et pré-remplit départ, arrivée, heures, mode et numéro de train.
+Un trajet avec correspondance crée un trajet par tronçon. Prix et référence de billet restent à saisir.
 
-- Source : [horaires théoriques SNCF](https://www.data.gouv.fr/datasets/horaires-sncf), publiés en open data, **sans clé**,
-  pour les mois à venir (environ 5 Mo à télécharger, 15 s d'import).
-- Le conteneur les charge au premier démarrage puis les rafraîchit chaque nuit, en arrière-plan.
-  Import manuel : `docker compose exec app php bin/console app:gtfs-import`.
-- Si la SNCF déplace le fichier, renseignez la nouvelle adresse dans `GTFS_URL` (`.env`).
-- Les correspondances ne sont pas calculées : cherchez chaque tronçon séparément.
+- Sources, publiées en open data **sans clé** :
+  - [horaires SNCF nationaux](https://www.data.gouv.fr/datasets/horaires-sncf) (TGV, Intercités, TER) pour les mois à venir, `GTFS_URL` ;
+  - [horaires Transilien et RER](https://ressources.data.sncf.com/explore/dataset/sncf-transilien-gtfs/) pour les gares
+    d'Île-de-France (Herblay, Argenteuil…), `GTFS_IDF_URL`. Ils ne sont publiés qu'**un mois à l'avance environ** :
+    au-delà, l'écran le signale. Laissez `GTFS_IDF_URL` vide pour ne pas les charger.
+- Les gares communes aux deux fichiers sont fusionnées (Paris Saint-Lazare, Gare du Nord…). Les correspondances se font
+  dans la même gare, ou d'une gare à l'autre à Paris, Lyon et Lille. Les trajets à deux correspondances ou plus ne sont pas
+  proposés : cherchez-les tronçon par tronçon.
+- Le conteneur charge les horaires au premier démarrage puis les rafraîchit chaque nuit, en arrière-plan (environ 15 Mo
+  à télécharger, 40 s d'import). Import manuel : `docker compose exec app php bin/console app:gtfs-import`.
+- Si la SNCF déplace un fichier, renseignez la nouvelle adresse dans `GTFS_URL` ou `GTFS_IDF_URL` (`.env`).
 - Le bouton « Ouvrir SNCF Connect » ouvre `SNCF_CONNECT_URL` (placeholders `{origin}`, `{destination}`, `{date}`).
 
 ## Connexion avec Google
