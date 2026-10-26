@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{{ title }} — {{ ev.showTitle }}</title>
+<style>
+  @page { margin: 20mm 13mm 17mm 13mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "DejaVu Sans", sans-serif; font-size: 9.2pt; color: #1b1b3a; line-height: 1.38; }
+  a { color: #5b2eff; }
+
+  /* Bandeau et pied répétés sur chaque page */
+  #band { position: fixed; top: -14mm; left: 0; right: 0; height: 8mm; font-size: 7.5pt; color: #5b2eff; border-bottom: 1.2pt solid #5b2eff; }
+  #band b { color: #ff5a5f; }
+  #foot { position: fixed; bottom: -11mm; left: 0; right: 0; font-size: 7pt; color: #8a86a8; }
+
+  /* Couverture */
+  .hero { position: relative; background: #5b2eff; color: #fff; border-radius: 16pt; padding: 18pt 22pt 20pt; margin-bottom: 14pt; overflow: hidden; }
+  .hero .blob1 { position: absolute; right: -30pt; top: -40pt; width: 150pt; height: 150pt; border-radius: 75pt; background: #ff5a5f; }
+  .hero .blob2 { position: absolute; right: 95pt; bottom: -38pt; width: 70pt; height: 70pt; border-radius: 35pt; background: #ffc93c; }
+  .hero .blob3 { position: absolute; right: 150pt; top: 14pt; width: 22pt; height: 22pt; border-radius: 11pt; background: #00c2a8; }
+  .kicker { position: relative; font-size: 8.5pt; font-weight: bold; letter-spacing: 2pt; color: #ffc93c; text-transform: uppercase; }
+  .hero h1 { position: relative; font-size: 24pt; margin: 4pt 0 2pt; line-height: 1.1; }
+  .hero .where { position: relative; font-size: 11pt; }
+  .chip { display: inline-block; position: relative; margin-top: 9pt; padding: 3pt 10pt; border-radius: 10pt; background: #1b1b3a; color: #ffc93c; font-weight: bold; font-size: 9pt; }
+  .hero .contact { position: relative; margin-top: 8pt; font-size: 8.5pt; color: #e6e0ff; }
+
+  /* Titres de section */
+  .sec { margin: 16pt 0 7pt; font-size: 12.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: .6pt; page-break-after: avoid; }
+  .sec .dot { display: inline-block; width: 12pt; height: 12pt; border-radius: 6pt; margin-right: 7pt; vertical-align: -1pt; }
+  .mint { background: #00c2a8; } .coral { background: #ff5a5f; } .violet { background: #5b2eff; } .sun { background: #ffc93c; color: #1b1b3a !important; } .ink { background: #1b1b3a; }
+
+  .day { display: inline-block; margin: 6pt 0 4pt; padding: 2pt 9pt; border-radius: 8pt; background: #ffc93c; font-weight: bold; font-size: 8.8pt; page-break-after: avoid; }
+
+  /* Trajets */
+  table.trips { width: 100%; border-collapse: separate; border-spacing: 0 3pt; }
+  table.trips td { background: #f4f1ff; padding: 5pt 6pt; vertical-align: middle; }
+  table.trips td.who { border-left: 4pt solid #5b2eff; font-weight: bold; width: 16%; }
+  table.trips.back td.who { border-left-color: #ff5a5f; }
+  table.trips.back .arrow { color: #5b2eff; }
+  table.trips.back td { background: #fff1f1; }
+  table.trips td.last { border-radius: 0 6pt 6pt 0; text-align: right; width: 14%; }
+  .arrow { color: #ff5a5f; font-weight: bold; }
+  .time { font-weight: bold; white-space: nowrap; }
+  .badge { display: inline-block; padding: 1pt 6pt; border-radius: 7pt; background: #1b1b3a; color: #fff; font-size: 7.3pt; font-weight: bold; }
+  .ref { font-family: "DejaVu Sans Mono", monospace; font-size: 8pt; color: #5b2eff; }
+  a.btn { display: inline-block; padding: 2pt 8pt; border-radius: 8pt; background: #ff5a5f; color: #fff; font-weight: bold; font-size: 7.8pt; text-decoration: none; }
+  .muted { color: #8a86a8; }
+
+  /* Cartes */
+  .card { border-radius: 0 10pt 10pt 0; padding: 9pt 12pt; margin-bottom: 7pt; page-break-inside: avoid; }
+  .card.lodging { background: #efeaff; border-left: 5pt solid #5b2eff; }
+  .card.info { background: #fff7ea; border-left: 5pt solid #ffc93c; }
+  .card h3 { margin: 0 0 3pt; font-size: 10.5pt; }
+  .card .who { margin-top: 4pt; font-size: 8.5pt; color: #5b2eff; font-weight: bold; }
+  .pre { white-space: pre-wrap; }
+
+  table.slots { width: 100%; border-collapse: collapse; }
+  table.slots td { padding: 3pt 6pt; border-bottom: .6pt dashed #d9d3f5; }
+  table.slots td.h { width: 22%; font-weight: bold; color: #5b2eff; }
+
+  /* Tableaux */
+  table.grid { width: 100%; border-collapse: collapse; margin-top: 4pt; }
+  table.grid th { background: #5b2eff; color: #fff; font-size: 7.8pt; text-align: left; padding: 5pt 6pt; }
+  table.grid th:first-child { border-radius: 6pt 0 0 0; } table.grid th:last-child { border-radius: 0 6pt 0 0; }
+  table.grid td { padding: 4.5pt 6pt; border-bottom: .6pt solid #ebe7fb; }
+  table.grid tr:nth-child(even) td { background: #faf8ff; }
+  table.grid td.r, table.grid th.r { text-align: right; }
+  table.grid td.c, table.grid th.c { text-align: center; }
+  table.grid tfoot td { background: #ffc93c !important; font-weight: bold; border: none; }
+  .total { margin-top: 10pt; padding: 10pt 14pt; border-radius: 12pt; background: #1b1b3a; color: #fff; }
+  .total td { padding: 2pt 0; } .total .big { font-size: 15pt; color: #ffc93c; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="band"><b>{{ title|upper }}</b> · {{ ev.showTitle }} · {{ ev.venue }}{% if ev.city %} ({{ ev.city }}){% endif %}</div>
+<div id="foot">Show Roadmap — {{ ev.companyName }} — édité le {{ generatedAt }}</div>
+
+<div class="hero">
+  <div class="blob1"></div><div class="blob2"></div><div class="blob3"></div>
+  <div class="kicker">{{ title }}</div>
+  <h1>{{ ev.showTitle }}</h1>
+  <div class="where">{{ ev.venue }}{% if ev.city %} · {{ ev.city }}{% endif %}</div>
+  <div class="chip">{{ ev.firstDate|fperiod(ev.lastDate) }}{% if ev.performances > 1 %} · {{ ev.performances }} représentations{% endif %}</div>
+  {% block hero_extra %}{% endblock %}
+</div>
+
+{% block body %}{% endblock %}
+</body>
+</html>

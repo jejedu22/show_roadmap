@@ -185,4 +185,46 @@ class ApiTest extends ApiTestCase
         self::assertSame([['Aller', '31/05/2026', ''], ['Aller', '01/06/2026', '9h05'], ['Aller', '01/06/2026', '10h00'], ['Retour', '03/06/2026', '18h00']],
             array_map(fn ($r) => [$r[1], $r[2], (string) $r[5]], array_slice($rows, 1)));
     }
+
+    public function testPdfDocumentsWithBookingLinks(): void
+    {
+        $this->login();
+        [$cid, [$a]] = $this->buildCompany();
+        $ev = $this->call('POST', "/api/shows/$a/events", ['venue' => 'Théâtre X', 'firstDate' => '2026-06-02']);
+        $ev = $this->call('POST', "/api/events/{$ev['id']}/participations", ['personIds' => array_column($ev['availablePeople'], 'id')]);
+        $pid = $ev['participations'][0]['id'];
+        $leg = ['participationId' => $pid, 'day' => '2026-06-01', 'origin' => 'Paris', 'destination' => 'Beauvais'];
+
+        // lien de réservation : http(s) uniquement
+        foreach (['javascript:alert(1)', 'data:text/html,x', 'ftp://x.fr/b', 'https://exemple.fr/"><script>'] as $bad) {
+            $this->call('POST', "/api/events/{$ev['id']}/items/leg", $leg + ['bookingUrl' => $bad]);
+            self::assertSame(400, $this->code(), $bad);
+        }
+        $ev = $this->call('POST', "/api/events/{$ev['id']}/items/leg", $leg + ['bookingUrl' => 'https://www.sncf-connect.com/app/trips/ABC']);
+        self::assertSame('https://www.sncf-connect.com/app/trips/ABC', $ev['participations'][0]['legs'][0]['bookingUrl']);
+
+        foreach (['roadmap', 'rooming', 'perdiem', 'travelcost', 'contacts', 'quote'] as $doc) {
+            $this->client->request('GET', "/api/events/{$ev['id']}/pdf/$doc");
+            $res = $this->client->getResponse();
+            self::assertSame(200, $res->getStatusCode(), $doc);
+            self::assertSame('application/pdf', $res->headers->get('content-type'));
+            self::assertStringStartsWith('inline;', $res->headers->get('content-disposition'));
+            $pdf = (string) $this->client->getInternalResponse()->getContent();
+            self::assertStringStartsWith('%PDF-', $pdf);
+            if (in_array($doc, ['roadmap', 'travelcost'], true)) {
+                self::assertStringContainsString('/URI (https://www.sncf-connect.com/app/trips/ABC)', $pdf, "lien cliquable dans $doc");
+            }
+        }
+        $this->client->request('GET', "/api/events/{$ev['id']}/pdf/roadmap?download=1");
+        self::assertStringStartsWith('attachment;', $this->client->getResponse()->headers->get('content-disposition'));
+        $this->call('GET', "/api/events/{$ev['id']}/pdf/inconnu");
+        self::assertSame(404, $this->code());
+
+        // cloisonnement
+        $this->call('POST', '/api/admin/users', ['email' => 'eve@test.io', 'password' => 'eve-password-123']);
+        $this->call('POST', '/api/logout');
+        $this->login('eve@test.io', 'eve-password-123');
+        $this->call('GET', "/api/events/{$ev['id']}/pdf/roadmap");
+        self::assertSame(404, $this->code());
+    }
 }

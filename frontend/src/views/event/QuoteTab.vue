@@ -71,7 +71,8 @@ async function addExtra() { if (await apply(post(url('extra'), newExtra.value)))
           <tr><td><b>Total TTC</b></td><td class="r"><b>{{ money(ev.quote.totalTtc) }}</b></td></tr>
         </table>
         <p class="muted small">Les billets de l'onglet Voyages ({{ money(ev.quote.travelTickets) }}) et les repas/petits-déjeuners/nuitées des grilles alimentent automatiquement le devis.</p>
-        <div class="actions"><RouterLink class="btn" target="_blank" :to="`/events/${ev.id}/print/quote`">Version imprimable</RouterLink></div>
+        <div class="actions"><RouterLink class="btn" target="_blank" :to="`/events/${ev.id}/print/quote`">Devis (PDF)</RouterLink>
+          <a class="btn sec" :href="`/api/events/${ev.id}/pdf/quote?download=1`">⬇ Télécharger</a></div>
       </div>
     </div>
   </div>

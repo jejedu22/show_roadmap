@@ -21,6 +21,20 @@ final class Input
         return is_scalar($v) ? (string) $v : '';
     }
 
+    /** Lien http(s) uniquement : un « javascript: » ou « data: » serait exécutable depuis la page ou le PDF. */
+    public static function url(array $d, string $k): string
+    {
+        $v = self::str($d, $k, 1000);
+        if ('' === $v) {
+            return '';
+        }
+        if (!preg_match('~^https?://[^\s<>"]+$~i', $v) || false === filter_var($v, FILTER_VALIDATE_URL)) {
+            throw new BadRequestHttpException("Lien invalide (il doit commencer par https://) : $v");
+        }
+
+        return $v;
+    }
+
     public static function date(array $d, string $k): ?\DateTimeImmutable
     {
         $v = trim((string) ($d[$k] ?? ''));

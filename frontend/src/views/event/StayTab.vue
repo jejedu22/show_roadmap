@@ -67,7 +67,7 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
     <div class="actions"><button>Ajouter</button></div>
   </form>
   <div class="actions">
-    <RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/rooming`">Rooming-list</RouterLink>
-    <RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/perdiem`">Défraiements</RouterLink>
+    <RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/rooming`">Rooming-list (PDF)</RouterLink>
+    <RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/perdiem`">Défraiements (PDF)</RouterLink>
   </div>
 </template>

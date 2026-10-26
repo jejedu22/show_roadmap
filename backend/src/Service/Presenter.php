@@ -85,7 +85,7 @@ class Presenter
                 'legs' => $p->legs->map(fn ($l) => ['id' => $l->id, 'direction' => $l->direction, 'day' => Input::iso($l->day),
                     'origin' => $l->origin, 'destination' => $l->destination, 'depTime' => $l->depTime, 'arrTime' => $l->arrTime,
                     'mode' => $l->mode, 'reference' => $l->reference, 'price' => (float) $l->price,
-                    'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note])->getValues(),
+                    'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note, 'bookingUrl' => $l->bookingUrl])->getValues(),
                 'conflicts' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue],
                     $conflicts[$p->person->id] ?? []),
             ])->getValues(),

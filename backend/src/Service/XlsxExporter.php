@@ -46,10 +46,10 @@ class XlsxExporter
                 <=> [$b->direction !== 'outbound', $b->day, self::minutes($b->depTime)]);
             foreach ($legs as $l) {
                 $rows[] = [$p->person->fullName(), 'return' === $l->direction ? 'Retour' : 'Aller', $l->day->format('d/m/Y'),
-                    $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, $l->reference, (float) $l->price];
+                    $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, $l->reference, (float) $l->price, $l->bookingUrl];
             }
         }
-        $this->sheet($book, 'Voyages', ['Nom', 'Sens', 'Date', 'De', 'À', 'Départ', 'Arrivée', 'Mode', 'Référence', 'Prix (€)'], $rows);
+        $this->sheet($book, 'Voyages', ['Nom', 'Sens', 'Date', 'De', 'À', 'Départ', 'Arrivée', 'Mode', 'Référence', 'Prix (€)', 'Lien billet'], $rows);
 
         $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
             $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues());

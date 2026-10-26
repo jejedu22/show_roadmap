@@ -1,0 +1,38 @@
+{% extends 'pdf/layout.html.twig' %}
+{% block hero_extra %}
+  {% if ev.address or ev.venueContact %}<div class="contact">{% if ev.address %}⌂ {{ ev.address }}<br>{% endif %}{{ ev.venueContact|nl2br }}</div>{% endif %}
+{% endblock %}
+{% block body %}
+  <div class="sec"><span class="dot mint"></span>Voyages aller</div>
+  {% include 'pdf/_trips.html.twig' with { days: outbound, back: false } %}
+
+  <div class="sec"><span class="dot violet"></span>Hébergement</div>
+  {% for l in ev.lodgings %}
+    <div class="card lodging">
+      <h3>{{ l.name }}</h3>
+      {% if l.address %}<div>{{ l.address }}</div>{% endif %}
+      {% if l.phone %}<div>☎ {{ l.phone }}</div>{% endif %}
+      {% if l.details %}<div class="pre" style="margin-top:3pt">{{ l.details }}</div>{% endif %}
+      {% set guests = ev.participations|filter(p => p.lodgingId == l.id)|map(p => p.person.firstName ?: p.person.lastName) %}
+      {% if guests|length %}<div class="who">♥ {{ guests|join(', ') }}</div>{% endif %}
+    </div>
+  {% else %}
+    <p class="muted">Aucun hébergement renseigné.</p>
+  {% endfor %}
+
+  {% if schedule|length %}
+    <div class="sec"><span class="dot sun"></span>Planning</div>
+    {% for day, slots in schedule %}
+      <div class="day">{{ day|fday }}</div>
+      <table class="slots">{% for s in slots %}<tr><td class="h">{{ s.time }}</td><td>{{ s.label }}</td></tr>{% endfor %}</table>
+    {% endfor %}
+  {% endif %}
+
+  {% for s in ev.sections %}
+    {% if loop.first %}<div class="sec"><span class="dot coral"></span>Infos pratiques</div>{% endif %}
+    <div class="card info"><h3>{{ s.title }}</h3><div class="pre">{{ s.body }}</div></div>
+  {% endfor %}
+
+  <div class="sec"><span class="dot coral"></span>Voyages retour</div>
+  {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
+{% endblock %}

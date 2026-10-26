@@ -1,0 +1,16 @@
+{% extends 'pdf/layout.html.twig' %}
+{% block body %}
+  <table class="grid">
+    <thead><tr><th>Nom</th><th>Ville de départ</th><th class="r">Aller</th><th class="r">Retour</th><th class="r">Total</th></tr></thead>
+    <tbody>{% for c in ev.personCosts %}
+      <tr><td><b>{{ c.name }}</b></td><td>{{ c.departureCity }}</td><td class="r">{{ c.outbound|money }}</td><td class="r">{{ c.return|money }}</td><td class="r"><b>{{ (c.outbound + c.return)|money }}</b></td></tr>
+    {% endfor %}</tbody>
+    <tfoot><tr><td colspan="2">Total</td><td class="r">{{ ev.personCosts|reduce((s, c) => s + c.outbound, 0)|money }}</td>
+      <td class="r">{{ ev.personCosts|reduce((s, c) => s + c.return, 0)|money }}</td><td class="r">{{ ev.quote.travelTickets|money }}</td></tr></tfoot>
+  </table>
+
+  <div class="sec"><span class="dot mint"></span>Détail des billets aller</div>
+  {% include 'pdf/_trips.html.twig' with { days: outbound, back: false } %}
+  <div class="sec"><span class="dot coral"></span>Détail des billets retour</div>
+  {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
+{% endblock %}

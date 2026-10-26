@@ -20,8 +20,9 @@ const url = (kind, id = '') => `/events/${ev.value.id}/items/${kind}${id ? '/' +
 
 <template>
   <div class="actions" style="margin-bottom:12px">
-    <RouterLink class="btn" target="_blank" :to="`/events/${ev.id}/print/roadmap`">Voir / imprimer la feuille de route</RouterLink>
-    <RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/contacts`">Coordonnées de l'équipe</RouterLink>
+    <RouterLink class="btn" target="_blank" :to="`/events/${ev.id}/print/roadmap`">Feuille de route (PDF)</RouterLink>
+    <a class="btn sec" :href="`/api/events/${ev.id}/pdf/roadmap?download=1`">⬇ Télécharger</a>
+    <RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/contacts`">Coordonnées de l'équipe (PDF)</RouterLink>
   </div>
   <p class="muted">La feuille de route est générée à partir des voyages, des hébergements, de l'équipe et des blocs ci-dessous.</p>
 

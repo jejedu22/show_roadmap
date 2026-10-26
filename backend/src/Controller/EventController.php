@@ -13,6 +13,7 @@ use App\Entity\RoadmapSection;
 use App\Entity\ScheduleItem;
 use App\Entity\TruckLeg;
 use App\Service\Input;
+use App\Service\PdfRenderer;
 use App\Service\Planning;
 use App\Service\XlsxExporter;
 use Symfony\Component\HttpFoundation\HeaderUtils;
@@ -285,6 +286,24 @@ class EventController extends ApiController
         ]);
     }
 
+    /** PDF d'un document ; ?download=1 pour l'enregistrer plutôt que l'afficher. */
+    #[Route('/pdf/{doc}', methods: ['GET'])]
+    public function pdf(int $id, string $doc, Request $request, PdfRenderer $renderer): Response
+    {
+        $ev = $this->event($id);
+        if (!isset(PdfRenderer::DOCS[$doc])) {
+            throw new NotFoundHttpException('Document inconnu');
+        }
+        $name = PdfRenderer::filename($ev, $doc);
+        $ascii = preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'document.pdf';
+        $disposition = $request->query->getBoolean('download') ? HeaderUtils::DISPOSITION_ATTACHMENT : HeaderUtils::DISPOSITION_INLINE;
+
+        return new Response($renderer->render($ev, $doc), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => HeaderUtils::makeDisposition($disposition, $name, $ascii),
+        ]);
+    }
+
     private function participation(Event $ev, int $pid): Participation
     {
         return $ev->participations->findFirst(fn ($k, $p) => $p->id === $pid) ?? throw new NotFoundHttpException('Participant introuvable');
@@ -340,5 +359,6 @@ class EventController extends ApiController
         $leg->price = Input::decimal($d, 'price');
         $leg->bookedOn = Input::date($d, 'bookedOn');
         $leg->note = Input::str($d, 'note');
+        $leg->bookingUrl = Input::url($d, 'bookingUrl');
     }
 }

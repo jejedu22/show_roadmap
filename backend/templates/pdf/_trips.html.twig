@@ -1,0 +1,18 @@
+{# Trajets d'un sens, groupés par jour : days, back (bool) #}
+{% for day, items in days %}
+  <div class="day">{{ day|fday }}</div>
+  <table class="trips{{ back ? ' back' }}">
+    {% for it in items %}{% set l = it.l %}
+      <tr>
+        <td class="who">{{ it.p.person.firstName ?: it.p.person.lastName }}</td>
+        <td>{{ l.origin }} <span class="arrow">→</span> {{ l.destination }}</td>
+        <td class="time">{{ l.depTime }}{% if l.arrTime %} – {{ l.arrTime }}{% endif %}</td>
+        <td>{% if l.mode %}<span class="badge">{{ l.mode }}</span>{% endif %}{% if l.reference %} <span class="ref">{{ l.reference }}</span>{% endif %}
+          {% if l.note %}<div class="muted">{{ l.note }}</div>{% endif %}</td>
+        <td class="last">{% if l.bookingUrl %}<a class="btn" href="{{ l.bookingUrl }}">Billet ↗</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="muted">Aucun trajet {{ back ? 'retour' : 'aller' }} saisi.</p>
+{% endfor %}

@@ -5,7 +5,7 @@ import { money, sum, byDeparture, DIRECTIONS } from '../../format.js'
 import SncfSearch from '../../components/SncfSearch.vue'
 
 const { ev, apply } = inject('event')
-const blank = (pid, direction) => ({ _key: `new-${pid}-${direction}`, participationId: pid, direction, day: '', origin: '', destination: '', depTime: '', arrTime: '', mode: 'Train', reference: '', price: '', bookedOn: '', note: '' })
+const blank = (pid, direction) => ({ _key: `new-${pid}-${direction}`, participationId: pid, direction, day: '', origin: '', destination: '', depTime: '', arrTime: '', mode: 'Train', reference: '', price: '', bookedOn: '', note: '', bookingUrl: '' })
 const legs = reactive({})
 const fresh = reactive({})
 const opened = reactive({})
@@ -18,7 +18,8 @@ watch(ev, (e) => {
 
 const MODES = ['Train', 'TER', 'TGV', 'Avion', 'Véhicule perso', 'Bus', 'Taxi']
 const FIELDS = [['day', 'Date', 'date'], ['origin', 'De'], ['destination', 'À'], ['depTime', 'Départ', 'text', '14h27'], ['arrTime', 'Arrivée', 'text', '17h25'],
-  ['mode', 'Mode'], ['reference', 'Référence'], ['price', 'Prix (€)'], ['bookedOn', 'Réservé le', 'date'], ['note', 'Note']]
+  ['mode', 'Mode'], ['reference', 'Référence'], ['price', 'Prix (€)'], ['bookedOn', 'Réservé le', 'date'], ['note', 'Note'],
+  ['bookingUrl', 'Lien réservation / billet', 'url', 'https://…']]
 
 const save = (l) => apply(put(`/events/${ev.value.id}/items/leg/${l.id}`, legs[l.id]))
 const remove = (l) => apply(del(`/events/${ev.value.id}/items/leg/${l.id}`))
@@ -33,7 +34,8 @@ const pick = (target, values) => Object.assign(target, Object.fromEntries(Object
 </script>
 
 <template>
-  <p class="muted">Un trajet = une ligne de billet. Un prix négatif correspond à un échange ou une annulation.</p>
+  <p class="muted">Un trajet = une ligne de billet. Un prix négatif correspond à un échange ou une annulation.
+    Le lien de réservation apparaît sous forme de bouton « Billet » dans la feuille de route PDF : chacun récupère son billet sans passer par vous.</p>
   <datalist id="modes"><option v-for="m in MODES" :key="m">{{ m }}</option></datalist>
   <div v-if="!ev.participations.length" class="alert">Ajoutez d'abord des personnes dans l'onglet Équipe.</div>
   <div v-for="p in ev.participations" :key="p.id" class="card">
@@ -44,7 +46,8 @@ const pick = (target, values) => Object.assign(target, Object.fromEntries(Object
         <div><label>Sens</label><select v-model="legs[l.id].direction"><option value="outbound">Aller</option><option value="return">Retour</option></select></div>
         <div v-for="[f, flabel, type, ph] in FIELDS" :key="f"><label>{{ flabel }}</label>
           <input v-model="legs[l.id][f]" :type="type || 'text'" :placeholder="ph" :list="f === 'mode' ? 'modes' : null" :required="f === 'day'"></div>
-        <div class="actions"><button class="sec">OK</button><button type="button" class="danger" @click="remove(l)">✕</button></div>
+        <div class="actions"><button class="sec">OK</button><button type="button" class="danger" @click="remove(l)">✕</button>
+          <a v-if="l.bookingUrl" class="btn sec" :href="l.bookingUrl" target="_blank" rel="noopener noreferrer" title="Ouvrir la réservation">Billet ↗</a></div>
       </form>
       <details :open="opened[`${p.id}-${dir}`] ?? openByDefault(p, dir)" @toggle="opened[`${p.id}-${dir}`] = $event.target.open">
         <summary>Ajouter un trajet {{ label.toLowerCase() }}</summary>
@@ -68,5 +71,5 @@ const pick = (target, values) => Object.assign(target, Object.fromEntries(Object
         <td class="r">{{ money(ev.quote.travelTickets) }}</td></tr></tfoot>
     </table>
   </div>
-  <div class="actions"><RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/travelcost`">Suivi des frais de voyage</RouterLink></div>
+  <div class="actions"><RouterLink class="btn sec" target="_blank" :to="`/events/${ev.id}/print/travelcost`">Suivi des frais de voyage (PDF)</RouterLink></div>
 </template>

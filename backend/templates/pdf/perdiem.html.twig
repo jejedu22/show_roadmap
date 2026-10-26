@@ -1,0 +1,13 @@
+{% extends 'pdf/layout.html.twig' %}
+{% block hero_extra %}<div class="contact">Base repas {{ ev.rates.mealRate|money }} · petit-déjeuner {{ ev.rates.breakfastRate|money }}</div>{% endblock %}
+{% block body %}
+  <table class="grid">
+    <thead><tr><th>Nom</th><th class="c">Repas</th><th class="r">Montant repas</th><th class="c">Petits-déj.</th><th class="r">Montant PDJ</th><th class="r">Total</th></tr></thead>
+    <tbody>{% for c in ev.personCosts %}
+      <tr><td><b>{{ c.name }}</b></td><td class="c">{{ c.meals }}</td><td class="r">{{ (c.meals * ev.rates.mealRate)|money }}</td>
+        <td class="c">{{ c.breakfasts }}</td><td class="r">{{ (c.breakfasts * ev.rates.breakfastRate)|money }}</td><td class="r"><b>{{ c.perDiem|money }}</b></td></tr>
+    {% endfor %}</tbody>
+    <tfoot><tr><td>Total</td><td class="c">{{ ev.quote.mealsCount }}</td><td class="r">{{ ev.quote.meals|money }}</td><td class="c">{{ ev.quote.breakfastsCount }}</td>
+      <td class="r">{{ ev.quote.breakfasts|money }}</td><td class="r">{{ (ev.quote.meals + ev.quote.breakfasts)|money }}</td></tr></tfoot>
+  </table>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'pdf/layout.html.twig' %}
+{% block body %}
+  <table class="grid">
+    <thead><tr><th>Poste</th><th class="r">Montant HT</th></tr></thead>
+    <tbody>
+      <tr><td><b>Cachet</b> ({{ ev.performances }} représentation{{ ev.performances > 1 ? 's' }})</td><td class="r"><b>{{ ev.quote.fee|money }}</b></td></tr>
+      {% for l in ev.quote.lines|filter(l => l.amount != 0) %}<tr><td>{{ l.label }}</td><td class="r">{{ l.amount|money }}</td></tr>{% endfor %}
+      {% for x in ev.extras|filter(x => x.kind != 'team_transport') %}<tr><td class="muted">   dont {{ x.label }}</td><td class="r muted">{{ x.amount|money }}</td></tr>{% endfor %}
+    </tbody>
+    <tfoot><tr><td>Total frais annexes</td><td class="r">{{ ev.quote.annexTotal|money }}</td></tr></tfoot>
+  </table>
+  <div class="total">
+    <table style="width:100%">
+      <tr><td>Total HT</td><td style="text-align:right">{{ ev.quote.totalHt|money }}</td></tr>
+      <tr><td>TVA {{ ev.rates.vatRate|num }} %</td><td style="text-align:right">{{ ev.quote.vat|money }}</td></tr>
+      <tr><td class="big">Total TTC</td><td class="big" style="text-align:right">{{ ev.quote.totalTtc|money }}</td></tr>
+    </table>
+  </div>
+{% endblock %}

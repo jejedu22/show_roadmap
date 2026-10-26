@@ -1,0 +1,10 @@
+{% extends 'pdf/layout.html.twig' %}
+{% block body %}
+  <table class="grid">
+    <thead><tr><th>Nom</th><th>Fonction</th><th>Téléphone</th><th>E-mail</th><th>Régime alimentaire</th></tr></thead>
+    <tbody>{% for p in ev.participations %}
+      <tr><td><b>{{ p.person.fullName }}</b></td><td>{{ p.role }}</td><td>{{ p.person.phone }}</td>
+        <td>{% if p.person.email %}<a href="mailto:{{ p.person.email }}">{{ p.person.email }}</a>{% endif %}</td><td>{{ p.person.diet }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+{% endblock %}

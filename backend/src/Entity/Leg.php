@@ -50,6 +50,10 @@ class Leg
     #[ORM\Column(length: 255)]
     public string $note = '';
 
+    /** Lien vers la réservation ou le billet (SNCF Connect, compagnie aérienne, PDF partagé…) */
+    #[ORM\Column(length: 1000)]
+    public string $bookingUrl = '';
+
     public function __construct(Participation $participation, \DateTimeImmutable $day)
     {
         $this->participation = $participation;

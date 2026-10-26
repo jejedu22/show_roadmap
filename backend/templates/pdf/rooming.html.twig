@@ -1,0 +1,16 @@
+{% extends 'pdf/layout.html.twig' %}
+{% block body %}
+  <table class="grid">
+    <thead><tr><th>Nom</th><th>Fonction</th><th>Chambre</th><th>Hébergement</th>{% for d in ev.dates %}<th class="c">{{ d|ddmm }}</th>{% endfor %}<th class="c">Total</th></tr></thead>
+    <tbody>
+    {% for p in ev.participations %}
+      <tr><td><b>{{ p.person.fullName }}</b></td><td>{{ p.role }}</td><td>{{ p.roomType }}</td><td>{{ lodgingNames[p.lodgingId] ?? '' }}</td>
+        {% for d in ev.dates %}{% set n = p.days[d].night ?? 0 %}<td class="c">{{ n ? '●' : '' }}</td>{% endfor %}
+        <td class="c"><b>{{ ev.personCosts[loop.index0].nights }}</b></td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="4">Nuitées prises en charge par l'organisateur</td>
+      {% for d in ev.dates %}<td class="c">{{ ev.participations|reduce((s, p) => s + (p.days[d].night ?? 0), 0) }}</td>{% endfor %}
+      <td class="c">{{ ev.quote.nightsCount }}</td></tr></tfoot>
+  </table>
+{% endblock %}

@@ -12,7 +12,10 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - **Compagnie** → **spectacles** (plusieurs possibles, y compris sur les mêmes dates) et **annuaire** de personnes.
 - **Date de tournée** (un spectacle × un lieu × une période) : équipe, voyages, nuitées/repas/petits-déjeuners, hébergements, devis, feuille de route.
 - Une personne engagée sur deux dates qui se chevauchent est signalée dans le planning et sur la fiche équipe.
-- Documents imprimables (PDF via le navigateur) et export Excel d'une date.
+- Documents en **vrais PDF** générés par le serveur (feuille de route, devis, rooming-list, défraiements, suivi des frais,
+  coordonnées) et export Excel d'une date.
+- **Lien de réservation** sur chaque trajet : il devient un bouton « Billet ↗ » cliquable dans la feuille de route PDF,
+  pour que chaque intervenant récupère son billet lui-même.
 - Multi-compagnies : chaque utilisateur ne voit que les compagnies que l'administrateur lui a attribuées.
 - Connexion par mot de passe ou Google (comptes créés par un administrateur uniquement).
 - Recherche de trains directs dans l'onglet Voyages, à partir des horaires SNCF en open data (sans clé).

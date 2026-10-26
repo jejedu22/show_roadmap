@@ -51,3 +51,7 @@ td input,td select{padding:4px 6px}
 .leg-group{margin-top:10px}
 .leg-group h4{margin:6px 0 2px;font-size:.95rem}
 .leg-group + .leg-group{border-top:1px dashed var(--line);padding-top:8px}
+.pdf-page{display:flex;flex-direction:column;height:100vh;background:#2b2b3a}
+.pdf-page .docbar{max-width:none;margin:0;padding:10px 16px;align-items:center;background:var(--card);border-bottom:1px solid var(--line)}
+.pdf-title{flex:1;color:var(--ink);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pdf-frame{flex:1;width:100%;border:0;background:#2b2b3a}
