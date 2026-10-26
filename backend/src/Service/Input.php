@@ -1,0 +1,67 @@
+<?php
+
+namespace App\Service;
+
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+
+/** Lecture tolérante des valeurs envoyées par le front (virgule décimale, chaînes vides…). */
+final class Input
+{
+    public static function str(array $d, string $k, int $max = 255): string
+    {
+        $v = $d[$k] ?? '';
+
+        return mb_substr(trim(is_scalar($v) ? (string) $v : ''), 0, $max);
+    }
+
+    public static function text(array $d, string $k): string
+    {
+        $v = $d[$k] ?? '';
+
+        return is_scalar($v) ? (string) $v : '';
+    }
+
+    public static function date(array $d, string $k): ?\DateTimeImmutable
+    {
+        $v = trim((string) ($d[$k] ?? ''));
+        if ('' === $v) {
+            return null;
+        }
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $v);
+        if (!$date || $date->format('Y-m-d') !== $v) {
+            throw new BadRequestHttpException("Date invalide : $v");
+        }
+
+        return $date;
+    }
+
+    public static function decimal(array $d, string $k, int $scale = 2): string
+    {
+        return number_format(self::float($d, $k), $scale, '.', '');
+    }
+
+    public static function float(array $d, string $k): float
+    {
+        $v = str_replace([',', ' ', "\u{a0}"], ['.', '', ''], trim((string) ($d[$k] ?? '')));
+        if ('' === $v) {
+            return 0.0;
+        }
+        if (!is_numeric($v)) {
+            throw new BadRequestHttpException("Nombre invalide : $v");
+        }
+
+        return (float) $v;
+    }
+
+    public static function int(array $d, string $k, int $default = 0): int
+    {
+        $v = $d[$k] ?? null;
+
+        return (null === $v || '' === $v) ? $default : (int) self::float($d, $k);
+    }
+
+    public static function iso(?\DateTimeInterface $d): ?string
+    {
+        return $d?->format('Y-m-d');
+    }
+}

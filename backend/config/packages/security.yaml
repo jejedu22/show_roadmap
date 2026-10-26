@@ -1,0 +1,45 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+
+    providers:
+        app_users:
+            entity: { class: App\Entity\User, property: email }
+
+    firewalls:
+        dev:
+            pattern: ^/(_profiler|_wdt)/
+            security: false
+        main:
+            lazy: true
+            provider: app_users
+            user_checker: App\Security\UserChecker
+            json_login:
+                check_path: api_login
+                username_path: email
+                password_path: password
+                failure_handler: App\Security\LoginFailureHandler
+            login_throttling:
+                max_attempts: 8
+                interval: '5 minutes'
+            logout:
+                path: api_logout
+            entry_point: App\Security\JsonEntryPoint
+
+    access_control:
+        - { path: ^/api/(login|config|auth/google), roles: PUBLIC_ACCESS }
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
+        - { path: ^/api, roles: ROLE_USER }
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10
+        firewalls:
+            main:
+                login_throttling:
+                    max_attempts: 3

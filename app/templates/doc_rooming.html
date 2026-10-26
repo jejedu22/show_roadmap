@@ -1,9 +1,0 @@
-{% extends "doc_base.html" %}{% block title %}Rooming-list{% endblock %}{% block h1 %}Rooming-list{% endblock %}
-{% block body %}
-<table>
-<thead><tr><th>Nom</th><th>Fonction</th><th>Chambre</th><th>Hébergement</th>{% for d in dates %}<th>{{ d.strftime('%d/%m') }}</th>{% endfor %}<th>Total</th></tr></thead>
-<tbody>{% for p in ev.participations %}<tr><td>{{ p.person.full_name }}</td><td>{{ p.role }}</td><td>{{ p.room_type }}</td><td>{{ p.lodging.name if p.lodging }}</td>
-{% for d in dates %}<td>{{ (p.day(d).night if p.day(d) else 0) or '' }}</td>{% endfor %}<td><b>{{ p.days|sum(attribute='night') }}</b></td></tr>{% endfor %}</tbody>
-<tfoot><tr><td colspan="4">Nuitées prises en charge par l'organisateur</td>{% for d in dates %}<td>{{ ev.participations|map(attribute='days')|sum(start=[])|selectattr('day','equalto',d)|sum(attribute='night') }}</td>{% endfor %}<td>{{ q.nights_count }}</td></tr></tfoot>
-</table>
-{% endblock %}

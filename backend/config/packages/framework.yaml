@@ -1,0 +1,26 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+    secret: '%env(APP_SECRET)%'
+    # Derrière Traefik : schéma et IP client réels via X-Forwarded-*
+    trusted_proxies: '%env(TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+
+    session:
+        name: roadmap_session
+        cookie_secure: auto
+        cookie_httponly: true
+        cookie_samesite: lax
+        gc_maxlifetime: 43200
+
+    http_client:
+        default_options:
+            timeout: 10
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file
+        # Aucun appel réseau réel en test : réponses simulées (SNCF, Google)
+        http_client:
+            mock_response_factory: App\Tests\FakeHttp

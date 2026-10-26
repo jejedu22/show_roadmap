@@ -1,9 +1,0 @@
-{% extends "doc_base.html" %}{% block title %}Défraiements{% endblock %}{% block h1 %}Défraiements{% endblock %}
-{% block body %}
-<p>Base repas : {{ ev.meal_rate|money }} · petit-déjeuner : {{ ev.breakfast_rate|money }}</p>
-<table>
-<thead><tr><th>Nom</th><th>Repas</th><th>Montant repas</th><th>Petits-déj.</th><th>Montant PDJ</th><th>Total</th></tr></thead>
-<tbody>{% for c in costs %}<tr><td>{{ c.part.person.full_name }}</td><td>{{ c.meals }}</td><td>{{ (c.meals * ev.meal_rate)|money }}</td><td>{{ c.breakfasts }}</td><td>{{ (c.breakfasts * ev.breakfast_rate)|money }}</td><td><b>{{ c.per_diem|money }}</b></td></tr>{% endfor %}</tbody>
-<tfoot><tr><td>Total</td><td>{{ costs|sum(attribute='meals') }}</td><td>{{ q.meals|money }}</td><td>{{ costs|sum(attribute='breakfasts') }}</td><td>{{ q.breakfasts|money }}</td><td>{{ (q.meals + q.breakfasts)|money }}</td></tr></tfoot>
-</table>
-{% endblock %}

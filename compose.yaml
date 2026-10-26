@@ -1,0 +1,55 @@
+services:
+  app:
+    build: .
+    image: show-roadmap:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_SECRET: ${APP_SECRET:?APP_SECRET manquant}
+      DATABASE_URL: mysql://roadmap:${DB_PASSWORD:?DB_PASSWORD manquant}@db:3306/roadmap?serverVersion=11.4.0-MariaDB&charset=utf8mb4
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DEFAULT_URI: https://${APP_HOST}
+      PUBLIC_URL: https://${APP_HOST}
+      TRUSTED_PROXIES: private_ranges
+      SNCF_API_TOKEN: ${SNCF_API_TOKEN:-}
+      SNCF_CONNECT_URL: ${SNCF_CONNECT_URL:-https://www.sncf-connect.com/}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    networks: [traefik, internal]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.roadmap.rule=Host(`${APP_HOST:?APP_HOST manquant}`)
+      - traefik.http.routers.roadmap.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.roadmap.tls=true
+      - traefik.http.routers.roadmap.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.roadmap.loadbalancer.server.port=8080
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: roadmap
+      MARIADB_USER: roadmap
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD manquant}
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+volumes:
+  db-data:
+
+networks:
+  traefik:
+    name: ${TRAEFIK_NETWORK:-traefik}
+    external: true
+  internal:

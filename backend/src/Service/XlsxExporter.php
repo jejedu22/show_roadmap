@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Service;
+
+use App\Entity\Event;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
+/** Export Excel d'une date : devis, rooming, défraiements, voyages, coordonnées. */
+class XlsxExporter
+{
+    public function __construct(private QuoteCalculator $quotes)
+    {
+    }
+
+    public function export(Event $ev): string
+    {
+        $book = new Spreadsheet();
+        $book->removeSheetByIndex(0);
+        $q = $this->quotes->compute($ev);
+        $rows = [['Cachet', $q['fee']]];
+        foreach ($q['lines'] as $l) {
+            $rows[] = [$l['label'], $l['amount']];
+        }
+        array_push($rows, ['Total frais annexes', $q['annexTotal']], ['Total HT', $q['totalHt']],
+            ['TVA '.(float) $ev->vatRate.' %', $q['vat']], ['Total TTC', $q['totalTtc']]);
+        $this->sheet($book, 'Devis', ['Poste', 'Montant HT (€)'], $rows);
+
+        $dates = $ev->spanDates();
+        $rows = [];
+        foreach ($ev->participations as $p) {
+            $nights = array_map(fn ($d) => $p->day($d)?->night ?? 0, $dates);
+            $rows[] = [$p->person->fullName(), $p->role, $p->roomType, $p->lodging?->name ?? '', ...$nights, array_sum($nights)];
+        }
+        $this->sheet($book, 'Rooming', ['Nom', 'Fonction', 'Chambre', 'Hébergement', ...array_map(fn ($d) => $d->format('d/m'), $dates), 'Total'], $rows);
+
+        $this->sheet($book, 'Défraiements', ['Nom', 'Repas', 'Petits-déj.', 'Total (€)'],
+            array_map(fn ($c) => [$c['name'], $c['meals'], $c['breakfasts'], $c['perDiem']], $this->quotes->personCosts($ev)));
+
+        $rows = [];
+        foreach ($ev->participations as $p) {
+            foreach ($p->legs as $l) {
+                $rows[] = [$p->person->fullName(), 'return' === $l->direction ? 'Retour' : 'Aller', $l->day->format('d/m/Y'),
+                    $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, $l->reference, (float) $l->price];
+            }
+        }
+        $this->sheet($book, 'Voyages', ['Nom', 'Sens', 'Date', 'De', 'À', 'Départ', 'Arrivée', 'Mode', 'Référence', 'Prix (€)'], $rows);
+
+        $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
+            $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues());
+
+        $book->setActiveSheetIndex(0);
+        ob_start();
+        (new Xlsx($book))->save('php://output');
+
+        return (string) ob_get_clean();
+    }
+
+    private function sheet(Spreadsheet $book, string $title, array $header, array $rows): void
+    {
+        $ws = $book->createSheet();
+        $ws->setTitle($title);
+        // Écriture explicite : une saisie commençant par « = » ne doit jamais devenir une formule.
+        foreach ([$header, ...$rows] as $r => $row) {
+            foreach (array_values($row) as $c => $v) {
+                $cell = [$c + 1, $r + 1];
+                is_int($v) || is_float($v)
+                    ? $ws->setCellValueExplicit($cell, $v, DataType::TYPE_NUMERIC)
+                    : $ws->setCellValueExplicit($cell, (string) $v, DataType::TYPE_STRING);
+            }
+        }
+        $ws->getStyle('1:1')->getFont()->setBold(true);
+        foreach ($ws->getColumnIterator() as $col) {
+            $ws->getColumnDimension($col->getColumnIndex())->setAutoSize(true);
+        }
+    }
+}
