@@ -23,6 +23,19 @@ abstract class ApiTestCase extends WebTestCase
         $meta = $em->getMetadataFactory()->getAllMetadata();
         $tool->dropSchema($meta);
         $tool->createSchema($meta);
+        // Tables des horaires SNCF (hors ORM) : créées par la migration, vidées ici
+        $db = $em->getConnection();
+        if (false === $db->fetchOne("SHOW TABLES LIKE 'gtfs_meta'")) {
+            require_once dirname(__DIR__).'/migrations/Version20261026120000.php';
+            $migration = new \DoctrineMigrations\Version20261026120000($db, new \Psr\Log\NullLogger());
+            $migration->up(new \Doctrine\DBAL\Schema\Schema());
+            foreach ($migration->getSql() as $q) {
+                $db->executeStatement($q->getStatement());
+            }
+        }
+        foreach (['gtfs_stop', 'gtfs_trip', 'gtfs_stop_time', 'gtfs_service_date', 'gtfs_meta'] as $t) {
+            $db->executeStatement("DELETE FROM $t");
+        }
         $this->createUser('admin@test.io', 'admin-password-123', true);
     }
 

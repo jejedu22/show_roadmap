@@ -14,4 +14,12 @@ done
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 php bin/console app:bootstrap-admin
 
+# Horaires SNCF (open data) : chargés au premier démarrage puis rafraîchis chaque nuit, en arrière-plan.
+(
+	while true; do
+		php bin/console app:gtfs-import --if-older-than=20 --no-interaction || true
+		sleep 3600
+	done
+) &
+
 exec "$@"

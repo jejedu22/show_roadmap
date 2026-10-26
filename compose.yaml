@@ -14,7 +14,7 @@ services:
       DEFAULT_URI: https://${APP_HOST}
       PUBLIC_URL: https://${APP_HOST}
       TRUSTED_PROXIES: private_ranges
-      SNCF_API_TOKEN: ${SNCF_API_TOKEN:-}
+      GTFS_URL: ${GTFS_URL:-https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip}
       SNCF_CONNECT_URL: ${SNCF_CONNECT_URL:-https://www.sncf-connect.com/}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}

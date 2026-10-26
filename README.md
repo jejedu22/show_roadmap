@@ -15,7 +15,7 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - Documents imprimables (PDF via le navigateur) et export Excel d'une date.
 - Multi-compagnies : chaque utilisateur ne voit que les compagnies que l'administrateur lui a attribuées.
 - Connexion par mot de passe ou Google (comptes créés par un administrateur uniquement).
-- Recherche d'horaires SNCF dans l'onglet Voyages (avec un jeton API).
+- Recherche de trains directs dans l'onglet Voyages, à partir des horaires SNCF en open data (sans clé).
 
 ## Déploiement Docker + Traefik
 
@@ -90,14 +90,18 @@ php vendor/bin/phpunit
 
 Après une modification d'entité : `php bin/console doctrine:migrations:diff` puis `migrate`.
 
-## Recherche d'horaires SNCF
+## Horaires SNCF (open data)
 
-Renseignez `SNCF_API_TOKEN` (jeton gratuit sur https://numerique.sncf.com/startup/api/token-developpeur/).
-« Rechercher un train » pré-remplit départ, arrivée, heures et mode ; prix et référence restent à saisir.
-Le bouton « Ouvrir SNCF Connect » ouvre `SNCF_CONNECT_URL` (placeholders `{origin}`, `{destination}`, `{date}`).
+L'onglet **Voyages** propose les **trains directs** entre deux gares à une date donnée (TER, Intercités, TGV INOUI, OUIGO, cars TER…)
+et pré-remplit départ, arrivée, heures, mode et numéro de train. Prix et référence de billet restent à saisir.
 
-En cas de problème : `docker compose exec app php bin/console app:sncf-check` teste le jeton et l'accès réseau
-depuis le conteneur, et indique la cause. Après une modification de `.env`, recréez le conteneur avec `docker compose up -d`.
+- Source : [horaires théoriques SNCF](https://www.data.gouv.fr/datasets/horaires-sncf), publiés en open data, **sans clé**,
+  pour les mois à venir (environ 5 Mo à télécharger, 15 s d'import).
+- Le conteneur les charge au premier démarrage puis les rafraîchit chaque nuit, en arrière-plan.
+  Import manuel : `docker compose exec app php bin/console app:gtfs-import`.
+- Si la SNCF déplace le fichier, renseignez la nouvelle adresse dans `GTFS_URL` (`.env`).
+- Les correspondances ne sont pas calculées : cherchez chaque tronçon séparément.
+- Le bouton « Ouvrir SNCF Connect » ouvre `SNCF_CONNECT_URL` (placeholders `{origin}`, `{destination}`, `{date}`).
 
 ## Connexion avec Google
 

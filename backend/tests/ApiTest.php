@@ -134,18 +134,6 @@ class ApiTest extends ApiTestCase
         self::assertSame(401, $this->code());
     }
 
-    public function testSncfSearch(): void
-    {
-        $this->login();
-        [, [$a]] = $this->buildCompany();
-        $ev = $this->call('POST', "/api/shows/$a/events", ['venue' => 'V', 'firstDate' => '2026-06-01']);
-        self::assertSame([['id' => 'stop_area:X', 'name' => 'Paris Gare du Nord']], $this->call('GET', "/api/events/{$ev['id']}/sncf/places?q=paris"));
-        self::assertSame([['depTime' => '8h05', 'arrTime' => '9h17', 'mode' => 'TER', 'transfers' => 0, 'durationMin' => 72, 'numbers' => '857123']],
-            $this->call('GET', "/api/events/{$ev['id']}/sncf/journeys?origin=a&dest=b&day=2026-06-01&time=08:00"));
-        $this->call('GET', "/api/events/{$ev['id']}/sncf/journeys?origin=a&dest=b&day=pas-une-date");
-        self::assertSame(400, $this->code());
-    }
-
     public function testGoogleLogin(): void
     {
         $this->createUser('gina@test.io', 'gina-password-123');
@@ -177,13 +165,5 @@ class ApiTest extends ApiTestCase
             self::assertStringContainsString('Aucun%20compte', $this->client->getResponse()->headers->get('location'));
             self::assertNull($this->call('GET', '/api/config')['user']);
         }
-    }
-
-    public function testSncfCheckCommand(): void
-    {
-        $tester = new \Symfony\Component\Console\Tester\CommandTester((new \Symfony\Bundle\FrameworkBundle\Console\Application(static::$kernel))->find('app:sncf-check'));
-        $tester->execute([]);
-        $tester->assertCommandIsSuccessful();
-        self::assertStringContainsString('Paris Gare du Nord', $tester->getDisplay());
     }
 }

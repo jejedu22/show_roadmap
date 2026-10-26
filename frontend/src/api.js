@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
 /** État global minimal : utilisateur connecté et options du serveur. */
-export const session = reactive({ user: null, google: false, sncf: false, loaded: false, error: '' })
+export const session = reactive({ user: null, google: false, sncf: false, sncfCoverage: null, loaded: false, error: '' })
 
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
@@ -34,7 +34,7 @@ export const del = (p) => api(p, { method: 'DELETE', body: {} })
 
 export async function loadConfig() {
   const c = await get('/config')
-  Object.assign(session, { user: c.user, google: c.google, sncf: c.sncf, loaded: true })
+  Object.assign(session, { user: c.user, google: c.google, sncf: c.sncf, sncfCoverage: c.sncfCoverage, loaded: true })
 }
 
 /** Affiche brièvement une erreur (utilisé par les écrans pour les échecs d'enregistrement). */

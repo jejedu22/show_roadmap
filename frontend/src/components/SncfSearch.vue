@@ -1,8 +1,9 @@
 <script setup>
 import { ref } from 'vue'
 import { get, session } from '../api.js'
+import { fdate } from '../format.js'
 
-/** Recherche d'horaires SNCF : émet `pick` avec les champs à pré-remplir dans le trajet. */
+/** Recherche de trains directs dans les horaires SNCF (open data) : émet `pick` avec les champs à pré-remplir. */
 const props = defineProps({ eventId: Number, leg: Object })
 const emit = defineEmits(['pick'])
 const open = ref(false)
@@ -40,7 +41,10 @@ async function search() {
   try {
     const q = new URLSearchParams({ origin: ids.get(from.value), dest: ids.get(to.value), day: props.leg.day, time: time.value })
     results.value = await get(`/events/${props.eventId}/sncf/journeys?${q}`)
-    message.value = results.value.length ? '' : 'Aucun itinéraire trouvé.'
+    const [first, last] = session.sncfCoverage || []
+    message.value = results.value.length ? ''
+      : last && (props.leg.day > last || props.leg.day < first) ? `Les horaires SNCF publiés couvrent du ${fdate(first)} au ${fdate(last)}.`
+      : 'Aucun train direct ce jour-là après cette heure. Avec correspondance : cherchez chaque tronçon séparément.'
   } catch (e) { message.value = e.message }
 }
 
@@ -57,7 +61,7 @@ const duration = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')
 <template>
   <div style="grid-column:1/-1">
     <div class="actions" style="margin-top:0">
-      <button v-if="session.sncf" type="button" class="sec" @click="toggle">🔎 Rechercher un train (SNCF)</button>
+      <button v-if="session.sncf" type="button" class="sec" @click="toggle">🔎 Rechercher un train direct (horaires SNCF)</button>
       <a class="btn sec" target="_blank" rel="noopener" :href="connectHref()">Ouvrir SNCF Connect ↗</a>
     </div>
     <div v-if="open">

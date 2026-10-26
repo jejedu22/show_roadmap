@@ -7,6 +7,8 @@ doctrine:
         #server_version: '16'
 
         profiling_collect_backtrace: '%kernel.debug%'
+        # Tables des horaires SNCF (open data) : gérées en SQL par GtfsImporter, hors ORM
+        schema_filter: ~^(?!gtfs_)~
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true

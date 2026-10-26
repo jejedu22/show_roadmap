@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use App\Service\SncfClient;
+use App\Service\SncfTimetable;
 use App\Service\SncfException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class SncfController extends ApiController
 {
     #[Route('/places', methods: ['GET'])]
-    public function places(int $id, Request $request, SncfClient $sncf): JsonResponse
+    public function places(int $id, Request $request, SncfTimetable $sncf): JsonResponse
     {
         $this->event($id);
         $q = trim((string) $request->query->get('q', ''));
@@ -23,7 +23,7 @@ class SncfController extends ApiController
     }
 
     #[Route('/journeys', methods: ['GET'])]
-    public function journeys(int $id, Request $request, SncfClient $sncf): JsonResponse
+    public function journeys(int $id, Request $request, SncfTimetable $sncf): JsonResponse
     {
         $this->event($id);
         $q = $request->query;
@@ -33,7 +33,7 @@ class SncfController extends ApiController
     }
 
     #[Route('/connect', methods: ['GET'])]
-    public function connect(int $id, Request $request, SncfClient $sncf): RedirectResponse
+    public function connect(int $id, Request $request, SncfTimetable $sncf): RedirectResponse
     {
         $this->event($id);
         $q = $request->query;

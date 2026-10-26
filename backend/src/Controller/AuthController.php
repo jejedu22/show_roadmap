@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Service\GoogleOAuth;
 use App\Service\Input;
-use App\Service\SncfClient;
+use App\Service\SncfTimetable;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,11 +33,12 @@ class AuthController extends ApiController
     }
 
     #[Route('/api/config', methods: ['GET'])]
-    public function config(GoogleOAuth $google, SncfClient $sncf): JsonResponse
+    public function config(GoogleOAuth $google, SncfTimetable $sncf): JsonResponse
     {
         $user = $this->getUser();
 
         return $this->json(['google' => $google->enabled(), 'sncf' => $sncf->enabled(),
+            'sncfCoverage' => $sncf->enabled() ? $sncf->coverage() : null,
             'user' => $user instanceof User ? $this->presenter->user($user) : null]);
     }
 
