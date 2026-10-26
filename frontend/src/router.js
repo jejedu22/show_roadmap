@@ -14,6 +14,7 @@ const routes = [
   { path: '/companies/:id/calendar', component: () => import('./views/CalendarView.vue'), props: true },
   { path: '/companies/:id/shows', component: () => import('./views/ShowsView.vue'), props: true },
   { path: '/companies/:id/people', component: () => import('./views/PeopleView.vue'), props: true },
+  { path: '/companies/:id/import', component: () => import('./views/ImportView.vue'), props: true },
   { path: '/companies/:id/settings', component: () => import('./views/SettingsView.vue'), props: true },
   { path: '/events/:id/print/:doc', component: () => import('./views/PrintView.vue'), props: true, meta: { bare: true } },
   {

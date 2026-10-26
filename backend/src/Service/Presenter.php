@@ -143,10 +143,10 @@ class Presenter
                     $p->days->map(fn ($d) => $d->day->format('Y-m-d'))->getValues(),
                     $p->days->map(fn ($d) => ['night' => $d->night, 'meals' => $d->meals, 'breakfast' => $d->breakfast])->getValues(),
                 ) ?: new \stdClass(),
-                'legs' => $p->legs->map(fn ($l) => ['id' => $l->id, 'direction' => $l->direction, 'day' => Input::iso($l->day),
+                'legs' => array_map(fn ($l) => ['id' => $l->id, 'direction' => $l->direction, 'day' => Input::iso($l->day),
                     'origin' => $l->origin, 'destination' => $l->destination, 'depTime' => $l->depTime, 'arrTime' => $l->arrTime,
                     'mode' => $l->mode, 'reference' => $l->reference, 'price' => $finance ? (float) $l->price : null,
-                    'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note, 'bookingUrl' => $l->bookingUrl])->getValues(),
+                    'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note, 'bookingUrl' => $l->bookingUrl], self::byTime($p->legs->toArray(), 'depTime')),
                 'conflicts' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue],
                     $conflicts[$p->person->id] ?? []),
             ])->getValues(),
@@ -159,8 +159,8 @@ class Presenter
                 'kind' => $x->kind])->getValues(),
             'sections' => $e->sections->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'body' => $s->body,
                 'position' => $s->position])->getValues(),
-            'schedule' => $e->schedule->map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
-                'label' => $s->label])->getValues(),
+            'schedule' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
+                'label' => $s->label], self::byTime($e->schedule->toArray(), 'time')),
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
             'team' => $this->team($e),
             'readiness' => $this->readinessFor($e, $perms),
@@ -175,5 +175,13 @@ class Presenter
         }
 
         return $data;
+    }
+
+    /** Par jour puis heure réelle (« 9h10 » avant « 11h02 »), l'ordre de saisie départageant les ex æquo. */
+    private static function byTime(array $items, string $field): array
+    {
+        usort($items, fn ($a, $b) => [$a->day, Input::minutes($a->$field)] <=> [$b->day, Input::minutes($b->$field)]);
+
+        return $items;
     }
 }

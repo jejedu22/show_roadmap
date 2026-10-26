@@ -69,6 +69,27 @@ docker compose exec app php bin/console app:import-sqlite /tmp/app.db
   affiché une seule fois à la fin de l'import, à transmettre aux personnes. La connexion Google fonctionne directement.
 - Gardez l'ancien volume tant que vous n'avez pas vérifié les données ; supprimez-le ensuite (`docker volume rm <projet>_roadmap-data`).
 
+## Import des classeurs Excel (devis)
+
+Menu **Importer des devis** (droits « Modifier les dates » et « Modifier l'annuaire ») : déposez un ou plusieurs
+classeurs `Devis_<Spectacle>_<Ville>.xlsx` (20 fichiers de 10 Mo au plus). Rien n'est enregistré avant validation.
+
+- **Onglet DEVIS** : lieu, dates, distribution, villes de départ, prix des billets aller/retour, rooming, repas,
+  petits-déjeuners, cachet, TVA, camion.
+- **Coordonnées** : téléphone, e-mail, régime. L'annuaire est complété, jamais écrasé.
+- **Feuille de route** : trajets (aller/retour, horaires, références), hébergements avec leurs occupants,
+  rubriques pratiques (repas, transferts, wifi…) et planning.
+
+Chaque fichier est contrôlé avant import :
+- nom de fichier qui ne correspond pas au contenu (copie pas encore remplie) ;
+- fichiers du lot portant sur le même lieu aux mêmes dates ;
+- date déjà présente dans l'application ;
+- feuille de route restée sur une autre date (elle n'est alors pas reprise par défaut) ;
+- dates d'arrivée et de départ incohérentes (recalculées d'après le rooming).
+
+Tout se corrige à l'écran avant d'importer.
+Sans feuille de route, le prix des billets du devis est porté sur un trajet aller et un trajet retour « à compléter ».
+
 ## Développement
 
 Prérequis : PHP 8.3 (pdo_mysql, intl, zip, gd), Composer, Node 22, MariaDB.

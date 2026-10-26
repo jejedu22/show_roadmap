@@ -78,4 +78,10 @@ final class Input
     {
         return $d?->format('Y-m-d');
     }
+
+    /** « 9h10 », « 14h », « 9:05 – 13h » → minutes depuis minuit (heures absentes en dernier), pour trier sans ordre alphabétique. */
+    public static function minutes(string $t): int
+    {
+        return preg_match('/^\s*(\d{1,2})\s*[h:]\s*(\d{0,2})/i', $t, $m) ? (int) $m[1] * 60 + (int) ($m[2] ?: 0) : 1440;
+    }
 }

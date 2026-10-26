@@ -28,6 +28,18 @@ export async function api(path, { method = 'GET', body } = {}) {
   return data
 }
 
+/** Envoi de fichiers (multipart) : même en-tête anti-CSRF, sans Content-Type (le navigateur pose la frontière). */
+export async function upload(path, field, files) {
+  const form = new FormData()
+  for (const f of files) form.append(`${field}[]`, f)
+  const res = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: form })
+  const data = await res.json().catch(() => ({}))
+  if (res.status === 401) { session.user = null; onUnauthorized() }
+  if (res.status === 413) throw new ApiError('Envoi trop volumineux : importez les fichiers en plusieurs fois.', 413)
+  if (!res.ok) throw new ApiError(data.error || `Erreur ${res.status}`, res.status)
+  return data
+}
+
 export const get = (p) => api(p)
 export const post = (p, body = {}) => api(p, { method: 'POST', body })
 export const put = (p, body = {}) => api(p, { method: 'PUT', body })

@@ -51,7 +51,10 @@ const greeting = computed(() => (session.user.name || '').split(' ')[0] || 'à v
         <h1>Bonjour {{ greeting }}</h1>
         <p>{{ company.name }} · {{ allUpcoming.length }} date{{ allUpcoming.length > 1 ? 's' : '' }} à venir<template v-if="todo.length"> · {{ todo.length }} point{{ todo.length > 1 ? 's' : '' }} à régler</template></p>
       </div>
-      <button v-if="can('events.edit', company.permissions)" class="btn btn-primary" @click="creating = true"><Icon name="plus" />Nouvelle date</button>
+      <div class="actions">
+        <RouterLink v-if="can('events.edit', company.permissions) && can('people.edit', company.permissions)" class="btn" :to="`/companies/${company.id}/import`"><Icon name="upload" />Importer des devis</RouterLink>
+        <button v-if="can('events.edit', company.permissions)" class="btn btn-primary" @click="creating = true"><Icon name="plus" />Nouvelle date</button>
+      </div>
     </header>
 
     <section v-if="company.events.length" class="tiles" aria-label="Points d'attention">
@@ -77,7 +80,10 @@ const greeting = computed(() => (session.user.name || '').split(' ')[0] || 'à v
     <div v-if="!company.shows.length" class="card empty">
       <h3>Bienvenue dans {{ company.name }}</h3>
       <p>Commencez par créer une date : vous pourrez y ajouter un nouveau spectacle au passage.</p>
-      <button v-if="can('events.edit', company.permissions)" class="btn btn-primary" @click="creating = true"><Icon name="plus" />Créer une première date</button>
+      <div class="actions" style="justify-content:center">
+        <button v-if="can('events.edit', company.permissions)" class="btn btn-primary" @click="creating = true"><Icon name="plus" />Créer une première date</button>
+        <RouterLink v-if="can('events.edit', company.permissions) && can('people.edit', company.permissions)" class="btn" :to="`/companies/${company.id}/import`"><Icon name="upload" />Importer des devis Excel</RouterLink>
+      </div>
     </div>
 
     <div v-else class="two-cols">
