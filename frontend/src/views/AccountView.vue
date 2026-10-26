@@ -1,29 +1,26 @@
 <script setup>
-import { reactive, ref } from 'vue'
-import { put, session } from '../api.js'
+import { reactive } from 'vue'
+import { put, session, toast, showError } from '../api.js'
 
 const form = reactive({ name: session.user.name, currentPassword: '', newPassword: '' })
-const msg = ref('')
-const error = ref('')
 
 async function save() {
-  msg.value = error.value = ''
   try {
     session.user = await put('/me', form)
-    msg.value = form.newPassword ? 'Mot de passe modifié.' : 'Profil mis à jour.'
+    toast(form.newPassword ? 'Mot de passe modifié' : 'Profil mis à jour')
     form.currentPassword = form.newPassword = ''
-  } catch (e) { error.value = e.message }
+  } catch (e) { showError(e) }
 }
 </script>
 
 <template>
-  <h1>Mon compte</h1>
-  <div v-if="msg" class="ok-msg">{{ msg }}</div><div v-if="error" class="alert">{{ error }}</div>
-  <form class="card grid g2" @submit.prevent="save">
-    <div><label>E-mail</label><input :value="session.user.email" disabled></div>
-    <div><label>Nom affiché</label><input v-model="form.name"></div>
-    <div><label>Mot de passe actuel</label><input v-model="form.currentPassword" type="password" autocomplete="current-password"></div>
-    <div><label>Nouveau mot de passe (10 caractères min.)</label><input v-model="form.newPassword" type="password" autocomplete="new-password"></div>
-    <div><button>Enregistrer</button></div>
+  <div class="page-head"><div><h1>Mon compte</h1><p>{{ session.user.email }}</p></div></div>
+  <form class="card" @submit.prevent="save">
+    <div class="form-grid">
+      <label class="field">Nom affiché<input v-model="form.name"></label>
+      <label class="field">Mot de passe actuel<input v-model="form.currentPassword" type="password" autocomplete="current-password"></label>
+      <label class="field">Nouveau mot de passe (10 caractères min.)<input v-model="form.newPassword" type="password" autocomplete="new-password"></label>
+    </div>
+    <div class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
   </form>
 </template>

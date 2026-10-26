@@ -1,56 +1,71 @@
 <script setup>
 import { inject, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { put, post, del, showError } from '../../api.js'
-import { fperiod, money } from '../../format.js'
+import { put, post, del, showError, toast } from '../../api.js'
+import { money } from '../../format.js'
+import Icon from '../../components/Icon.vue'
 
 const { ev, apply } = inject('event')
 const router = useRouter()
 const FIELDS = ['venue', 'city', 'address', 'firstDate', 'lastDate', 'performances', 'techArrival', 'artisticArrival', 'departure', 'status', 'venueContact', 'notes']
 const form = reactive({})
 watch(ev, (e) => FIELDS.forEach((f) => { form[f] = e[f] ?? '' }), { immediate: true })
+const PATHS = { info: '', team: '/team', stay: '/stay', travel: '/travel', quote: '/quote', roadmap: '/roadmap' }
 
-const conflictNames = () => ev.value.participations.filter((p) => p.conflicts.length).map((p) => p.person.fullName)
-const save = () => apply(put(`/events/${ev.value.id}`, form))
+async function save() { if (await apply(put(`/events/${ev.value.id}`, form))) toast('Informations enregistrées') }
 async function duplicate() {
-  try { const copy = await post(`/events/${ev.value.id}/duplicate`); router.push(`/events/${copy.id}`) } catch (e) { showError(e) }
+  try { const copy = await post(`/events/${ev.value.id}/duplicate`); toast('Date dupliquée'); router.push(`/events/${copy.id}`) } catch (e) { showError(e) }
 }
 async function remove() {
-  if (!confirm('Supprimer définitivement cette date ?')) return
-  try { const r = await del(`/events/${ev.value.id}`); router.push(`/companies/${r.companyId}`) } catch (e) { showError(e) }
+  if (!confirm('Supprimer définitivement cette date, son équipe, ses voyages et son devis ?')) return
+  try { const r = await del(`/events/${ev.value.id}`); toast('Date supprimée'); router.push(`/companies/${r.companyId}`) } catch (e) { showError(e) }
 }
 </script>
 
 <template>
-  <div v-if="ev.overlaps.length" class="alert">⚠ Cette date chevauche
-    <template v-for="(o, i) in ev.overlaps" :key="o.id"><RouterLink :to="`/events/${o.id}`">{{ o.showTitle }} — {{ o.venue }} ({{ fperiod(o.firstDate, o.lastDate) }})</RouterLink>{{ i < ev.overlaps.length - 1 ? ', ' : '' }}</template>.
-    <template v-if="conflictNames().length"> Personnes engagées sur les deux : <b>{{ conflictNames().join(', ') }}</b>.</template>
-    <template v-else> Aucune personne en commun pour l'instant.</template>
-  </div>
-  <div class="kpis">
-    <div class="kpi"><span class="muted small">Équipe</span><b>{{ ev.participations.length }}</b></div>
-    <div class="kpi"><span class="muted small">Total HT</span><b>{{ money(ev.quote.totalHt) }}</b></div>
-    <div class="kpi"><span class="muted small">Total TTC</span><b>{{ money(ev.quote.totalTtc) }}</b></div>
-    <div class="kpi"><span class="muted small">Nuitées</span><b>{{ ev.quote.nightsCount }}</b></div>
-  </div>
-  <form class="card grid g3" @submit.prevent="save">
-    <div><label>Lieu / théâtre</label><input v-model="form.venue" required></div>
-    <div><label>Ville</label><input v-model="form.city"></div>
-    <div><label>Adresse</label><input v-model="form.address"></div>
-    <div><label>1re représentation</label><input v-model="form.firstDate" type="date" required></div>
-    <div><label>Dernière représentation</label><input v-model="form.lastDate" type="date" required></div>
-    <div><label>Nb de représentations</label><input v-model="form.performances" type="number" min="1"></div>
-    <div><label>Arrivée équipe technique</label><input v-model="form.techArrival" type="date"></div>
-    <div><label>Arrivée équipe artistique</label><input v-model="form.artisticArrival" type="date"></div>
-    <div><label>Départ équipe</label><input v-model="form.departure" type="date"></div>
-    <div><label>Statut</label><select v-model="form.status"><option value="confirmed">Confirmé</option><option value="option">Option</option><option value="cancelled">Annulé</option></select></div>
-    <div style="grid-column:1/-1"><label>Contacts du lieu (accueil, technique…)</label><textarea v-model="form.venueContact" /></div>
-    <div style="grid-column:1/-1"><label>Notes internes</label><textarea v-model="form.notes" /></div>
-    <div class="actions"><button>Enregistrer</button></div>
-  </form>
-  <div class="actions">
-    <a class="btn sec" :href="`/api/events/${ev.id}/export.xlsx`">⬇ Export Excel</a>
-    <button class="sec" @click="duplicate">Dupliquer cette date</button>
-    <button class="danger" @click="remove">Supprimer</button>
+  <div class="two-cols">
+    <div class="main-col">
+      <form class="card" @submit.prevent="save">
+        <h2 style="margin-bottom:16px">Le lieu et les dates</h2>
+        <div class="form-grid">
+          <label class="field">Lieu / théâtre<input v-model="form.venue" required></label>
+          <label class="field">Ville<input v-model="form.city"></label>
+          <label class="field wide">Adresse<input v-model="form.address" placeholder="3 place Georges Brassens, 60000 Beauvais"></label>
+          <label class="field">1re représentation<input v-model="form.firstDate" type="date" required></label>
+          <label class="field">Dernière représentation<input v-model="form.lastDate" type="date" required :min="form.firstDate"></label>
+          <label class="field">Représentations<input v-model="form.performances" type="number" min="1"></label>
+          <label class="field">Arrivée équipe technique<input v-model="form.techArrival" type="date"></label>
+          <label class="field">Arrivée équipe artistique<input v-model="form.artisticArrival" type="date"></label>
+          <label class="field">Départ de l'équipe<input v-model="form.departure" type="date"></label>
+          <label class="field">Statut<select v-model="form.status"><option value="confirmed">Confirmé</option><option value="option">Option</option><option value="cancelled">Annulé</option></select></label>
+          <label class="field wide">Contacts du lieu (accueil, technique…)<textarea v-model="form.venueContact" placeholder="Accueil : Prénom Nom — 06 …" /></label>
+          <label class="field wide">Notes internes<textarea v-model="form.notes" /></label>
+        </div>
+        <div class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
+      </form>
+    </div>
+    <aside class="side-col">
+      <div class="card">
+        <h2 style="margin-bottom:10px">Reste à faire</h2>
+        <div v-if="ev.readiness.todo.length" class="todo">
+          <RouterLink v-for="(t, i) in ev.readiness.todo" :key="i" :to="`/events/${ev.id}${PATHS[t.step]}`"><span class="dot" aria-hidden="true" /><span>{{ t.label }}</span></RouterLink>
+        </div>
+        <p v-else class="muted" style="margin:0">Tout est prêt pour cette date.</p>
+      </div>
+      <div class="card">
+        <div class="tiles" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+          <div><span class="muted small">Total HT</span><br><b style="font-family:var(--display);font-size:20px">{{ money(ev.quote.totalHt) }}</b></div>
+          <div><span class="muted small">Total TTC</span><br><b style="font-family:var(--display);font-size:20px">{{ money(ev.quote.totalTtc) }}</b></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:10px">Autres actions</h3>
+        <div class="actions">
+          <a class="btn btn-sm" :href="`/api/events/${ev.id}/export.xlsx`"><Icon name="download" :size="16" />Export Excel</a>
+          <button class="btn btn-sm" @click="duplicate"><Icon name="copy" :size="16" />Dupliquer</button>
+          <button class="btn btn-sm btn-danger" @click="remove"><Icon name="trash" :size="16" />Supprimer</button>
+        </div>
+      </div>
+    </aside>
   </div>
 </template>

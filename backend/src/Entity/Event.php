@@ -58,6 +58,13 @@ class Event
     #[ORM\Column(type: Types::TEXT)]
     public string $notes = '';
 
+    /** Lien public (non devinable) vers la feuille de route PDF, partagé avec l'équipe ; null = pas de partage */
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
+    public ?string $shareToken = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $sharedAt = null;
+
     // Tarifs et montants du devis (HT)
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     public string $mealRate = '20.70';

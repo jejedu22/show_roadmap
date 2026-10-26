@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { get } from '../api.js'
+import Icon from '../components/Icon.vue'
 
 /** Aperçu d'un document PDF généré par le serveur, avec téléchargement. */
 const props = defineProps({ id: String, doc: String })
@@ -15,10 +16,10 @@ const pdf = (download = false) => `/api/events/${props.id}/pdf/${props.doc}${dow
 
 <template>
   <div class="pdf-page">
-    <div class="docbar">
-      <RouterLink class="btn sec" style="background:#fff" :to="`/events/${id}`">← Retour</RouterLink>
+    <div class="pdf-bar">
+      <RouterLink class="btn btn-sm" :to="`/events/${id}`"><Icon name="left" :size="16" />Retour</RouterLink>
       <b v-if="ev" class="pdf-title">{{ TITLES[doc] }} · {{ ev.showTitle }} · {{ ev.venue }}</b>
-      <a class="btn" :href="pdf(true)">⬇ Télécharger le PDF</a>
+      <a class="btn btn-sm btn-primary" :href="pdf(true)"><Icon name="download" :size="16" />Télécharger le PDF</a>
     </div>
     <iframe :src="pdf()" :title="TITLES[doc]" class="pdf-frame" />
   </div>

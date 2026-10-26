@@ -2,29 +2,32 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { session, loadConfig, setUnauthorizedHandler } from './api.js'
 
 const routes = [
-  { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
+  { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true, bare: true } },
   { path: '/', component: () => import('./views/HomeView.vue') },
   { path: '/companies', component: () => import('./views/HomeView.vue'), props: { stay: true } },
   { path: '/account', component: () => import('./views/AccountView.vue') },
   { path: '/admin/users', component: () => import('./views/AdminUsersView.vue') },
-  { path: '/companies/:id', component: () => import('./views/CompanyView.vue'), props: true },
+  { path: '/companies/:id', component: () => import('./views/DashboardView.vue'), props: true },
+  { path: '/companies/:id/calendar', component: () => import('./views/CalendarView.vue'), props: true },
+  { path: '/companies/:id/shows', component: () => import('./views/ShowsView.vue'), props: true },
   { path: '/companies/:id/people', component: () => import('./views/PeopleView.vue'), props: true },
+  { path: '/companies/:id/settings', component: () => import('./views/SettingsView.vue'), props: true },
   { path: '/events/:id/print/:doc', component: () => import('./views/PrintView.vue'), props: true, meta: { bare: true } },
   {
     path: '/events/:id', component: () => import('./views/EventView.vue'), props: true,
     children: [
-      { path: '', component: () => import('./views/event/OverviewTab.vue') },
-      { path: 'team', component: () => import('./views/event/TeamTab.vue') },
-      { path: 'stay', component: () => import('./views/event/StayTab.vue') },
-      { path: 'travel', component: () => import('./views/event/TravelTab.vue') },
-      { path: 'quote', component: () => import('./views/event/QuoteTab.vue') },
-      { path: 'roadmap', component: () => import('./views/event/RoadmapTab.vue') },
+      { path: '', component: () => import('./views/event/OverviewTab.vue'), meta: { step: 'info' } },
+      { path: 'team', component: () => import('./views/event/TeamTab.vue'), meta: { step: 'team' } },
+      { path: 'stay', component: () => import('./views/event/StayTab.vue'), meta: { step: 'stay' } },
+      { path: 'travel', component: () => import('./views/event/TravelTab.vue'), meta: { step: 'travel' } },
+      { path: 'quote', component: () => import('./views/event/QuoteTab.vue'), meta: { step: 'quote' } },
+      { path: 'roadmap', component: () => import('./views/event/RoadmapTab.vue'), meta: { step: 'roadmap' } },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
-const router = createRouter({ history: createWebHistory(), routes })
+const router = createRouter({ history: createWebHistory(), routes, scrollBehavior: () => ({ top: 0 }) })
 
 router.beforeEach(async (to) => {
   if (!session.loaded) await loadConfig()

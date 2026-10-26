@@ -32,3 +32,32 @@ export function timeKey(t) {
 export const byDeparture = (a, b) => (a.day || '').localeCompare(b.day || '') || timeKey(a.depTime) - timeKey(b.depTime)
 
 export const DIRECTIONS = [['outbound', 'Aller', '→'], ['return', 'Retour', '←']]
+
+/** Date du jour au format AAAA-MM-JJ (heure locale). */
+export function todayIso() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Nombre de jours entre aujourd'hui et une date (négatif si passée). */
+export const daysFrom = (iso) => Math.round((parse(iso) - parse(todayIso())) / 86400000)
+
+export function relative(iso) {
+  const n = daysFrom(iso)
+  return n === 0 ? "aujourd'hui" : n === 1 ? 'demain' : n > 0 ? `dans ${n} jours` : n === -1 ? 'hier' : `il y a ${-n} jours`
+}
+
+const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+export const monthLabel = (iso) => { const d = parse(iso); return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}` }
+
+/** Bloc date : « 18–22 » + « janv. » (ou deux mois). */
+export function dateBox(a, b) {
+  const x = parse(a), y = parse(b || a)
+  if (a === b || !b) return [String(x.getDate()), MONTHS[x.getMonth()]]
+  if (x.getMonth() === y.getMonth()) return [`${x.getDate()}–${y.getDate()}`, MONTHS[x.getMonth()]]
+  return [`${x.getDate()}–${y.getDate()}`, `${MONTHS[x.getMonth()]}/${MONTHS[y.getMonth()]}`]
+}
+
+const AVATAR_COLORS = ['#ffc93c', '#00c2a8', '#ffb3b5', '#cfc4ff', '#b8f0e7', '#ffe08a', '#a8d8ff']
+export const avatarColor = (id) => AVATAR_COLORS[(Number(id) || 0) % AVATAR_COLORS.length]
+export const initials = (first, last) => `${(first || '').charAt(0)}${(last || '').charAt(0)}`.toUpperCase() || '?'

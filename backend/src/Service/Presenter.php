@@ -10,8 +10,15 @@ use App\Entity\User;
 /** Représentation JSON des entités pour le front. */
 class Presenter
 {
-    public function __construct(private Planning $planning, private QuoteCalculator $quotes)
+    public function __construct(private Planning $planning, private QuoteCalculator $quotes, private Readiness $readiness)
     {
+    }
+
+    /** Membres de l'équipe d'une date, pour les pastilles (initiales). */
+    private function team(Event $e): array
+    {
+        return $e->participations->map(fn ($p) => ['id' => $p->person->id, 'name' => trim($p->person->firstName.' '.$p->person->lastName),
+            'initials' => mb_strtoupper(mb_substr($p->person->firstName, 0, 1).mb_substr($p->person->lastName, 0, 1))])->getValues();
     }
 
     public function user(User $u): array
@@ -50,10 +57,25 @@ class Presenter
             'shows' => $c->shows->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'description' => $s->description,
                 'eventCount' => $s->events->count()])->getValues(),
             'people' => $c->people->map(fn (Person $p) => $this->person($p))->getValues(),
-            'events' => array_map(fn (Event $e) => $this->eventSummary($e) + [
-                'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue],
-                    array_values(array_filter($events, fn (Event $o) => $e->overlaps($o)))),
-            ], $events),
+            'events' => array_map(function (Event $e) use ($events) {
+                $overlaps = array_values(array_filter($events, fn (Event $o) => $e->overlaps($o)));
+                $mine = $e->participations->map(fn ($p) => $p->person->id)->toArray();
+                $conflicts = [];
+                foreach ($overlaps as $o) {
+                    foreach ($o->participations as $p) {
+                        if (in_array($p->person->id, $mine, true)) {
+                            $conflicts[$p->person->id] = $p->person->firstName ?: $p->person->lastName;
+                        }
+                    }
+                }
+
+                return $this->eventSummary($e) + [
+                    'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue], $overlaps),
+                    'conflicts' => array_values($conflicts),
+                    'team' => $this->team($e),
+                    'readiness' => $this->readiness->compute($e),
+                ];
+            }, $events),
             'cancelledEvents' => array_map(fn (Event $e) => $this->eventSummary($e), $cancelled),
         ];
     }
@@ -101,6 +123,10 @@ class Presenter
             'schedule' => $e->schedule->map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
                 'label' => $s->label])->getValues(),
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
+            'team' => $this->team($e),
+            'readiness' => $this->readiness->compute($e),
+            'share' => ['token' => $e->shareToken, 'sharedAt' => $e->sharedAt?->format(\DATE_ATOM),
+                'emails' => array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues()))],
             'quote' => $this->quotes->compute($e),
             'personCosts' => $this->quotes->personCosts($e),
         ];

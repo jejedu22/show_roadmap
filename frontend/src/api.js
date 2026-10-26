@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
 /** État global minimal : utilisateur connecté et options du serveur. */
-export const session = reactive({ user: null, google: false, sncf: false, sncfCoverage: null, loaded: false, error: '' })
+export const session = reactive({ user: null, google: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: null })
 
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
@@ -37,9 +37,20 @@ export async function loadConfig() {
   Object.assign(session, { user: c.user, google: c.google, sncf: c.sncf, sncfCoverage: c.sncfCoverage, loaded: true })
 }
 
-/** Affiche brièvement une erreur (utilisé par les écrans pour les échecs d'enregistrement). */
-export function showError(e) {
-  session.error = e?.message || String(e)
-  clearTimeout(showError.t)
-  showError.t = setTimeout(() => { session.error = '' }, 5000)
+/** Notification brève : succès (« Enregistré ») ou erreur. */
+export function toast(text, kind = 'ok') {
+  session.toast = { text, kind }
+  clearTimeout(toast.t)
+  toast.t = setTimeout(() => { session.toast = null }, kind === 'error' ? 6000 : 2500)
+}
+
+export const showError = (e) => toast(e?.message || String(e), 'error')
+
+/** Compagnie affichée dans le menu : mémorisée pour revenir dessus à la prochaine visite. */
+export function setCompany(id) {
+  session.companyId = id
+  try { localStorage.setItem('companyId', String(id)) } catch { /* stockage indisponible */ }
+}
+export function lastCompany() {
+  try { return Number(localStorage.getItem('companyId')) || null } catch { return null }
 }

@@ -22,6 +22,15 @@ class SncfController extends ApiController
         return $this->call(fn () => mb_strlen($q) >= 2 ? $sncf->places($q) : []);
     }
 
+    /** Paire de gares la mieux reliée entre deux villes saisies. */
+    #[Route('/pair', methods: ['GET'])]
+    public function pair(int $id, Request $request, SncfTimetable $sncf): JsonResponse
+    {
+        $this->event($id);
+
+        return $this->call(fn () => $sncf->bestPair(trim((string) $request->query->get('from', '')), trim((string) $request->query->get('to', ''))));
+    }
+
     #[Route('/journeys', methods: ['GET'])]
     public function journeys(int $id, Request $request, SncfTimetable $sncf): JsonResponse
     {

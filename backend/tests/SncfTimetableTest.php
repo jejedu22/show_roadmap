@@ -96,6 +96,12 @@ class SncfTimetableTest extends ApiTestCase
         self::assertSame('Paris Gare du Nord', $this->call('GET', "/api/events/$ev/sncf/places?q=gare+du+nord")[0]['name']);
         self::assertSame([], $this->call('GET', "/api/events/$ev/sncf/places?q=".rawurlencode('Gare sans')), 'gare sans aucun train ignorée');
 
+        // « Paris » : seule la gare reliée à Beauvais doit être retenue
+        $pair = $this->call('GET', "/api/events/$ev/sncf/pair?from=Paris&to=Beauvais");
+        self::assertSame(['id' => self::A, 'name' => 'Paris Gare du Nord'], $pair['from']);
+        self::assertSame(self::B, $pair['to']['id']);
+        self::assertNull($this->call('GET', "/api/events/$ev/sncf/pair?from=Nulle+part&to=Beauvais")['from']);
+
         $q = fn (string $from, string $to, string $day, string $time = '') => $this->call('GET', "/api/events/$ev/sncf/journeys?".
             http_build_query(['origin' => $from, 'dest' => $to, 'day' => $day, 'time' => $time]));
         self::assertSame([

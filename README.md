@@ -9,6 +9,13 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 
 ## Fonctionnalités
 
+- **Tableau de bord** : prochaine date, trajets sans billet, conflits de planning, dates par mois avec leur avancement,
+  liste « À faire » calculée automatiquement. **Calendrier** mensuel des présences.
+- **Fiche d'une date en 6 étapes** (Infos, Équipe, Séjour, Voyages, Devis, Feuille de route), chacune avec son avancement.
+- **Voyages** : une carte par personne, ajout de l'aller ou du retour pré-rempli (villes, date) avec les trains directs SNCF ;
+  les gares les mieux reliées sont choisies automatiquement (Paris → Beauvais : Paris Gare du Nord).
+- **Envoyer à l'équipe** : lien secret et révocable vers la feuille de route PDF, à copier ou à envoyer par la messagerie.
+
 - **Compagnie** → **spectacles** (plusieurs possibles, y compris sur les mêmes dates) et **annuaire** de personnes.
 - **Date de tournée** (un spectacle × un lieu × une période) : équipe, voyages, nuitées/repas/petits-déjeuners, hébergements, devis, feuille de route.
 - Une personne engagée sur deux dates qui se chevauchent est signalée dans le planning et sur la fiche équipe.

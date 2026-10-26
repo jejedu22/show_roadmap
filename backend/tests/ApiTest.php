@@ -250,4 +250,47 @@ class ApiTest extends ApiTestCase
         self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM person p JOIN company c ON c.id = p.company_id WHERE c.name = ?', ['Cie Une']));
         self::assertSame(['Cie 2'], array_column($this->call('GET', '/api/companies'), 'name'));
     }
+
+    public function testReadinessAndShareLink(): void
+    {
+        $this->login();
+        [$cid, [$a]] = $this->buildCompany();
+        $ev = $this->call('POST', "/api/shows/$a/events", ['venue' => 'Théâtre X', 'firstDate' => '2026-06-02']);
+        $id = $ev['id'];
+        self::assertSame(0, $ev['readiness']['done']);
+        self::assertSame('Composer l\'équipe', $ev['readiness']['todo'][1]['label']);
+
+        $ev = $this->call('POST', "/api/events/$id/participations", ['personIds' => array_column($ev['availablePeople'], 'id')]);
+        $steps = array_column($ev['readiness']['steps'], null, 'key');
+        self::assertTrue($steps['team']['done']);
+        self::assertSame('0 / 4 trajets', $steps['travel']['detail']);
+        self::assertFalse($steps['stay']['done']);
+        $pid = $ev['participations'][0]['id'];
+        $ev = $this->call('POST', "/api/events/$id/items/leg", ['participationId' => $pid, 'direction' => 'outbound', 'day' => '2026-06-01']);
+        self::assertSame(1, $ev['readiness']['legsCovered']);
+        self::assertContains('Réserver le retour de Anna', array_column($ev['readiness']['todo'], 'label'));
+        self::assertNotContains('Réserver l\'aller de Anna', array_column($ev['readiness']['todo'], 'label'));
+        $company = $this->call('GET', "/api/companies/$cid");
+        self::assertSame(1, $company['events'][0]['readiness']['legsCovered']);
+        self::assertSame('AD', $company['events'][0]['team'][0]['initials']);
+
+        // partage : lien public, puis révocation
+        $this->client->request('GET', '/partage/'.str_repeat('a', 64));
+        self::assertSame(404, $this->code());
+        $ev = $this->call('POST', "/api/events/$id/share");
+        $token = $ev['share']['token'];
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $token);
+        self::assertTrue(array_column($ev['readiness']['steps'], null, 'key')['roadmap']['done']);
+        self::assertSame($token, $this->call('POST', "/api/events/$id/share")['share']['token'], 'le lien reste le même');
+        $this->call('POST', '/api/logout');
+        $this->client->request('GET', "/partage/$token");
+        self::assertSame(200, $this->code(), 'accessible sans compte');
+        self::assertSame('application/pdf', $this->client->getResponse()->headers->get('content-type'));
+        self::assertStringContainsString('no-store', $this->client->getResponse()->headers->get('cache-control'));
+        $this->login();
+        $this->call('DELETE', "/api/events/$id/share");
+        $this->call('POST', '/api/logout');
+        $this->client->request('GET', "/partage/$token");
+        self::assertSame(404, $this->code(), 'lien révoqué');
+    }
 }

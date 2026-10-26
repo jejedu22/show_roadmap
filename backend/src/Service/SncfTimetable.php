@@ -52,6 +52,32 @@ class SncfTimetable
         );
     }
 
+    /**
+     * Gares les mieux reliées entre deux villes : « Paris » → « Beauvais » donne Paris Gare du Nord, pas Paris Est.
+     * Parmi les gares correspondant à chaque saisie, retient la paire qui a le plus de trains directs.
+     *
+     * @return array{from: ?array{id: string, name: string}, to: ?array{id: string, name: string}}
+     */
+    public function bestPair(string $from, string $to): array
+    {
+        $a = array_column($this->places($from), 'name', 'id');
+        $b = array_column($this->places($to), 'name', 'id');
+        if (!$a || !$b) {
+            return ['from' => $a ? ['id' => array_key_first($a), 'name' => reset($a)] : null, 'to' => $b ? ['id' => array_key_first($b), 'name' => reset($b)] : null];
+        }
+        $in = fn (array $ids) => implode(',', array_fill(0, count($ids), '?'));
+        $best = $this->db->fetchAssociative(
+            'SELECT x.stop_id AS a, y.stop_id AS b, COUNT(DISTINCT x.trip_id) AS n FROM gtfs_stop_time x
+             JOIN gtfs_stop_time y ON y.trip_id = x.trip_id AND y.seq > x.seq AND y.can_alight = 1
+             WHERE x.can_board = 1 AND x.stop_id IN ('.$in($a).') AND y.stop_id IN ('.$in($b).')
+             GROUP BY x.stop_id, y.stop_id ORDER BY n DESC LIMIT 1',
+            [...array_keys($a), ...array_keys($b)],
+        );
+        $pick = fn (array $list, ?string $id) => null !== $id && isset($list[$id]) ? ['id' => $id, 'name' => $list[$id]] : ['id' => array_key_first($list), 'name' => reset($list)];
+
+        return ['from' => $pick($a, $best['a'] ?? null), 'to' => $pick($b, $best['b'] ?? null)];
+    }
+
     /** Trains directs de $from à $to partant le jour $day (AAAA-MM-JJ) à partir de $time (HH:MM). */
     public function journeys(string $from, string $to, string $day, string $time): array
     {

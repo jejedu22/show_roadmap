@@ -286,6 +286,27 @@ class EventController extends ApiController
         ]);
     }
 
+    /** Active le lien public de la feuille de route (créé une seule fois, conservé ensuite) et note la date d'envoi. */
+    #[Route('/share', methods: ['POST'])]
+    public function share(int $id): JsonResponse
+    {
+        $ev = $this->event($id);
+        $ev->shareToken ??= bin2hex(random_bytes(32));
+        $ev->sharedAt = new \DateTimeImmutable();
+
+        return $this->savedEvent($ev);
+    }
+
+    /** Révoque le lien : l'ancienne adresse ne fonctionne plus. */
+    #[Route('/share', methods: ['DELETE'])]
+    public function unshare(int $id): JsonResponse
+    {
+        $ev = $this->event($id);
+        [$ev->shareToken, $ev->sharedAt] = [null, null];
+
+        return $this->savedEvent($ev);
+    }
+
     /** PDF d'un document ; ?download=1 pour l'enregistrer plutôt que l'afficher. */
     #[Route('/pdf/{doc}', methods: ['GET'])]
     public function pdf(int $id, string $doc, Request $request, PdfRenderer $renderer): Response
