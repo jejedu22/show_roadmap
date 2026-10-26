@@ -22,12 +22,22 @@ security:
             login_throttling:
                 max_attempts: 8
                 interval: '5 minutes'
+            # « Rester connecté sur cet appareil » : 30 jours sans utilisation, jetons hachés et révocables (Mon compte)
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 2592000
+                token_provider:
+                    service: App\Security\TrustedDevices
+                token_verifier: App\Security\TrustedDevices
+                secure: auto
+                httponly: true
+                samesite: lax
             logout:
                 path: api_logout
             entry_point: App\Security\JsonEntryPoint
 
     access_control:
-        - { path: ^/api/(login|config|auth/google|auth/token/), roles: PUBLIC_ACCESS }
+        - { path: ^/api/(login|config|auth/google|auth/token/|auth/forgot), roles: PUBLIC_ACCESS }
         # /api/admin : droits vérifiés finement dans AdminController (gestion des utilisateurs, des groupes)
         - { path: ^/api, roles: ROLE_USER }
 

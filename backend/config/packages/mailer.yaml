@@ -1,0 +1,13 @@
+framework:
+    mailer:
+        # smtp://utilisateur:motdepasse@smtp.exemple.fr:587 ; null://null = envoi désactivé
+        dsn: '%env(MAILER_DSN)%'
+        envelope:
+            sender: '%env(MAILER_FROM)%'
+        headers:
+            From: '%env(MAILER_FROM)%'
+
+when@test:
+    framework:
+        mailer:
+            dsn: 'null://null'

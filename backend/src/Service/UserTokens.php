@@ -15,14 +15,17 @@ class UserTokens
     {
     }
 
-    /** Crée un lien et invalide les précédents du même type ; renvoie le jeton en clair (affiché une seule fois). */
-    public function issue(User $user, string $type): string
+    /**
+     * Crée un lien et invalide les précédents du même type ; renvoie le jeton en clair (affiché une seule fois).
+     * $validity remplace la durée par défaut (« +1 hour » pour un lien envoyé par e-mail).
+     */
+    public function issue(User $user, string $type, ?string $validity = null): string
     {
         foreach ($this->em->getRepository(UserToken::class)->findBy(['user' => $user, 'type' => $type, 'usedAt' => null]) as $old) {
             $old->usedAt = new \DateTimeImmutable();
         }
         $token = bin2hex(random_bytes(32));
-        $this->em->persist(new UserToken($user, $type, hash('sha256', $token), new \DateTimeImmutable(self::VALIDITY[$type])));
+        $this->em->persist(new UserToken($user, $type, hash('sha256', $token), new \DateTimeImmutable($validity ?? self::VALIDITY[$type])));
 
         return $token;
     }

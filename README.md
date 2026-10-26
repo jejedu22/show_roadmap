@@ -180,13 +180,29 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
   le dernier super-administrateur.
 - **Journal** : connexions (réussies et échouées), invitations, changements de droits, suppressions.
 
+## Mot de passe oublié et appareils de confiance
+
+- **Mot de passe oublié :** sur la page de connexion, l'utilisateur saisit son adresse et reçoit un lien de
+  réinitialisation, valable 1 heure et à usage unique. La réponse est la même que le compte existe ou non. Les demandes
+  sont limitées à 5 par 15 minutes par adresse IP et à 3 par heure par adresse e-mail. Réinitialiser le mot de passe
+  révoque tous les appareils de confiance.
+  - **Configuration :** il faut un serveur d'envoi dans `.env` : `MAILER_DSN=smtp://utilisateur:motdepasse@smtp.exemple.fr:587`
+    et `MAILER_FROM="Show Roadmap <no-reply@votre-domaine.fr>"`. Encodez les caractères spéciaux du mot de passe (`@` → `%40`).
+  - **Sans configuration** (`null://null`), le lien est masqué et un administrateur génère les liens depuis « Utilisateurs ».
+- **Appareils de confiance :** la case « Rester connecté sur cet appareil » garde la session ouverte 30 jours après la
+  dernière utilisation.
+  - **Sécurité du jeton :** il change à chaque reprise de session et n'est stocké qu'en empreinte. Un ancien jeton
+    réutilisé plus tard est considéré comme volé : l'appareil est alors révoqué.
+  - **Révocation :** chaque appareil est révocable dans « Mon compte ». Tous sont révoqués au changement de mot de passe
+    et à la désactivation du compte.
+
 ## Sécurité
 
 - Mots de passe hachés par Symfony (`auto`) : 12 caractères minimum, robustesse au moins moyenne, sans l'adresse e-mail.
   Changer de mot de passe ferme les autres sessions. Les jetons des liens ne sont stockés qu'en empreinte SHA-256.
 - Session par cookie `HttpOnly` / `SameSite=Lax` / `Secure` en HTTPS.
 - Protection CSRF : toute écriture sur l'API exige l'en-tête `X-Requested-With`.
-- Limitation des tentatives de connexion (8 par 5 minutes).
+- Limitation des tentatives de connexion (8 par 5 minutes) et des demandes de lien de réinitialisation.
 - Cloisonnement strict entre compagnies.
 - Un compte désactivé perd sa session immédiatement.
 - L'export Excel écrit les textes en chaînes explicites : une saisie commençant par « = » ne devient jamais une formule.

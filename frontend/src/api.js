@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 
 /** État global minimal : utilisateur connecté et options du serveur. */
 const storedCompany = () => { try { return Number(localStorage.getItem('companyId')) || null } catch { return null } }
-export const session = reactive({ user: null, google: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: storedCompany() })
+export const session = reactive({ user: null, google: false, passwordReset: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: storedCompany() })
 
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
@@ -47,7 +47,7 @@ export const del = (p) => api(p, { method: 'DELETE', body: {} })
 
 export async function loadConfig() {
   const c = await get('/config')
-  Object.assign(session, { user: c.user, google: c.google, sncf: c.sncf, sncfCoverage: c.sncfCoverage, loaded: true })
+  Object.assign(session, { user: c.user, google: c.google, passwordReset: c.passwordReset, sncf: c.sncf, sncfCoverage: c.sncfCoverage, loaded: true })
 }
 
 /** Notification brève : succès (« Enregistré ») ou erreur. */

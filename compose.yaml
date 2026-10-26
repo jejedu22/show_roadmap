@@ -19,6 +19,8 @@ services:
       SNCF_CONNECT_URL: ${SNCF_CONNECT_URL:-https://www.sncf-connect.com/}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MAILER_DSN: ${MAILER_DSN:-null://null}
+      MAILER_FROM: ${MAILER_FROM:-Show Roadmap <no-reply@${APP_HOST}>}
     networks: [traefik, internal]
     labels:
       - traefik.enable=true

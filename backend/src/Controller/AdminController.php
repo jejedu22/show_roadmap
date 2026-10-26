@@ -65,7 +65,7 @@ class AdminController extends ApiController
     }
 
     #[Route('/users/{id<\d+>}', methods: ['PUT'])]
-    public function updateUser(int $id, Request $request): JsonResponse
+    public function updateUser(int $id, Request $request, \App\Security\TrustedDevices $devices): JsonResponse
     {
         $me = $this->me();
         $this->authz->global($me, 'users.manage');
@@ -82,6 +82,9 @@ class AdminController extends ApiController
             $this->guardSuperAdmin($user, 'désactiver');
             $user->isActive = (bool) $d['isActive'];
             $changes['actif'] = $user->isActive;
+            if (!$user->isActive && ($n = $devices->revokeAll($user))) {
+                $changes['appareils révoqués'] = $n; // plus de reprise de session « rester connecté »
+            }
         }
         if (array_key_exists('isAdmin', $d) && (bool) $d['isAdmin'] !== $user->isAdmin) {
             if (!$me->isAdmin) {

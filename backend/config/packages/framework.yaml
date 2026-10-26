@@ -16,6 +16,17 @@ framework:
         default_options:
             timeout: 10
 
+    # Mot de passe oublié : limite par adresse IP et par adresse e-mail demandée
+    rate_limiter:
+        password_reset_ip:
+            policy: sliding_window
+            limit: 5
+            interval: '15 minutes'
+        password_reset_email:
+            policy: sliding_window
+            limit: 3
+            interval: '1 hour'
+
 when@test:
     framework:
         test: true

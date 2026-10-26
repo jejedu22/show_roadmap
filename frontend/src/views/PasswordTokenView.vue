@@ -54,6 +54,7 @@ async function submit() {
         <h1 style="font-size:24px">Lien inutilisable</h1>
         <p class="alert bad" style="margin:0">{{ error }}</p>
         <RouterLink class="btn" to="/login">Aller à la connexion</RouterLink>
+        <p v-if="session.passwordReset" class="muted small" style="margin:0">Pour un nouveau lien, utilisez « Mot de passe oublié ? » sur la page de connexion.</p>
       </template>
     </div>
   </div>

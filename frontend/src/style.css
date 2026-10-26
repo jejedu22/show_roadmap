@@ -289,3 +289,9 @@ dialog.modal::backdrop { background: rgba(27, 27, 58, .55); }
 .list-edit input { flex: 1; min-height: 38px; }
 .vocab-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
 @media (max-width: 700px) { .lists-grid { grid-template-columns: 1fr; } .vocab-row { grid-template-columns: 1fr; } }
+
+/* ---------- Appareils de confiance ---------- */
+.device-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.device-list li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.device-list .who { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.device-list .who .small { flex-basis: 100%; }
