@@ -80,11 +80,7 @@ class Event
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     public string $fee = '0.00';
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
-    public string $lighting = '0.00';
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
-    public string $posters = '0.00';
 
     /** @var Collection<int, Participation> */
     #[ORM\OneToMany(targetEntity: Participation::class, mappedBy: 'event', cascade: ['persist', 'remove'], orphanRemoval: true)]

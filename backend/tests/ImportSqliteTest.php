@@ -60,6 +60,9 @@ class ImportSqliteTest extends ApiTestCase
         self::assertSame('option', $beauvais['status']);
         self::assertEquals(10713.2, $beauvais['quote']['totalHt']);
         self::assertEquals(11302.43, $beauvais['quote']['totalTtc']);
+        self::assertEqualsCanonicalizing([['label' => 'Métro Paris (2 × 4)', 'amount' => 8, 'kind' => 'team_transport'], ['label' => 'Location lumière', 'amount' => 450, 'kind' => 'other']],
+            array_map(fn ($x) => array_diff_key($x, ['id' => 0]), $beauvais['extras']), 'location lumière reprise en frais supplémentaires');
+        self::assertNotContains('Location lumière', array_column($beauvais['quote']['lines'], 'label'));
         self::assertSame(4, $beauvais['teamSize']);
         self::assertSame('Hôtel Cathédrale', $beauvais['lodgings'][0]['name']);
         self::assertSame($beauvais['lodgings'][0]['id'], $beauvais['participations'][0]['lodgingId']);

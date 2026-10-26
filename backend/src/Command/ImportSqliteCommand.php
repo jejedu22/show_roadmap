@@ -110,8 +110,16 @@ class ImportSqliteCommand extends Command
                 [$e->techArrival, $e->artisticArrival, $e->departure] = [self::date($r['tech_arrival']), self::date($r['artistic_arrival']), self::date($r['departure'])];
                 $e->performances = max(1, (int) $r['performances']);
                 foreach (['mealRate' => 'meal_rate', 'breakfastRate' => 'breakfast_rate', 'nightRate' => 'night_rate', 'truckRate' => 'truck_rate',
-                    'vatRate' => 'vat_rate', 'fee' => 'fee', 'lighting' => 'lighting', 'posters' => 'posters'] as $prop => $col) {
+                    'vatRate' => 'vat_rate', 'fee' => 'fee'] as $prop => $col) {
                     $e->$prop = self::dec($r[$col]);
+                }
+                // Location lumière et affiches n'ont plus de champ dédié : reprises en frais supplémentaires
+                foreach (['lighting' => 'Location lumière', 'posters' => 'Affiches'] as $col => $label) {
+                    if (0.0 !== (float) $r[$col]) {
+                        $x = new ExtraCost($e);
+                        [$x->label, $x->amount] = [$label, self::dec($r[$col])];
+                        $e->extras->add($x);
+                    }
                 }
 
                 return $e;

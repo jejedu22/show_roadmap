@@ -62,7 +62,7 @@ class SeedDemoCommand extends Command
         $ev1 = new Event($murmure, 'Théâtre du Beauvaisis — Scène nationale', $d('2026-05-19'), $d('2026-05-23'));
         [$ev1->city, $ev1->address, $ev1->techArrival, $ev1->artisticArrival, $ev1->departure, $ev1->performances] =
             ['Beauvais', '3 place Georges Brassens, 60000 Beauvais', $d('2026-05-16'), $d('2026-05-18'), $d('2026-05-23'), 3];
-        [$ev1->fee, $ev1->lighting, $ev1->venueContact] = ['9000.00', '450.00', 'Accueil : Jeanne Exemple — 03 00 00 00 00'];
+        [$ev1->fee, $ev1->venueContact] = ['9000.00', 'Accueil : Jeanne Exemple — 03 00 00 00 00'];
         $ev2 = new Event($prelude, 'Festival Exemple', $d('2026-05-21'), $d('2026-05-22'));
         [$ev2->city, $ev2->artisticArrival, $ev2->departure, $ev2->performances, $ev2->fee] = ['Strasbourg', $d('2026-05-20'), $d('2026-05-23'), 2, '5000.00'];
 

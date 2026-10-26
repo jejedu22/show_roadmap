@@ -4,7 +4,7 @@ import { post, put, del } from '../../api.js'
 import { money } from '../../format.js'
 
 const { ev, apply } = inject('event')
-const RATES = [['fee', 'Cachet HT (€)'], ['lighting', 'Location lumière HT'], ['posters', 'Affiches'], ['mealRate', 'Repas / pers. / jour (€)'],
+const RATES = [['fee', 'Cachet HT (€)'], ['mealRate', 'Repas / pers. / jour (€)'],
   ['breakfastRate', 'Petit-déj. (€)'], ['nightRate', 'Nuitée (€, 0 = pris en charge)'], ['truckRate', 'Camion (€ HT / km)'], ['vatRate', 'TVA (%)']]
 const rates = reactive({})
 const trucks = reactive({})
