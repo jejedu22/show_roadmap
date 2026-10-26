@@ -19,6 +19,14 @@ class Company
     #[ORM\Column(type: Types::TEXT)]
     public string $notes = '';
 
+    /** Clé d'API Orfeo, chiffrée (voir Secrets) ; null = non connectée. */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $orfeoToken = null;
+
+    /** Nom de l'organisation Orfeo reliée, pour l'affichage. */
+    #[ORM\Column(length: 255, options: ['default' => ''])]
+    public string $orfeoOrganization = '';
+
     /** @var Collection<int, Show> */
     #[ORM\OneToMany(targetEntity: Show::class, mappedBy: 'company', cascade: ['remove'])]
     #[ORM\OrderBy(['title' => 'ASC'])]

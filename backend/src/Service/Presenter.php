@@ -90,6 +90,7 @@ class Presenter
 
         return [
             'id' => $c->id, 'name' => $c->name, 'notes' => $c->notes, 'permissions' => $perms,
+            'orfeo' => ['connected' => null !== $c->orfeoToken, 'organization' => $c->orfeoOrganization],
             'shows' => $c->shows->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'description' => $s->description,
                 'eventCount' => $s->events->count()])->getValues(),
             'people' => $c->people->map(fn (Person $p) => $this->personFor($p, $perms))->getValues(),

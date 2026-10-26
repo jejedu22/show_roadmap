@@ -36,6 +36,10 @@ class Person
     #[ORM\Column(length: 120)]
     public string $homeCity = '';
 
+    /** Identifiant de l'objet correspondant dans Orfeo (import), pour ne pas le recréer. */
+    #[ORM\Column(nullable: true)]
+    public ?int $orfeoId = null;
+
     public function __construct(Company $company)
     {
         $this->company = $company;

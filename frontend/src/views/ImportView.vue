@@ -25,6 +25,7 @@ const allowed = computed(() => company.value && can('events.edit', company.value
 const canCreateShow = computed(() => can('shows.edit', company.value?.permissions))
 const files = computed(() => batch.value?.files || [])
 const chosen = computed(() => files.value.filter((f) => !f.error && forms.value[f.index].include))
+const isOrfeo = computed(() => batch.value?.source === 'orfeo')
 const VOCAB = [['function', 'Fonctions', 'Laisser vide'], ['schedule', 'Intitulés de planning', 'Sans intitulé (texte en précision)']]
 const unknownCount = computed(() => ['function', 'schedule'].reduce((n, k) => n + (batch.value?.vocabulary?.[k]?.length || 0), 0))
 const LEVEL = { danger: 'bad', warning: 'warn', info: 'info' }
@@ -39,9 +40,17 @@ function reset() {
 async function send(list) {
   const xlsx = [...list].filter((f) => /\.xlsx$/i.test(f.name))
   if (!xlsx.length) return showError('Déposez des classeurs Excel (.xlsx).')
+  await review(() => upload(`/companies/${props.id}/import`, 'files', xlsx))
+}
+
+// Orfeo : dates d'une période, présentées à la même relecture que les classeurs
+const orfeo = ref({ from: new Date().toISOString().slice(0, 10), to: new Date(Date.now() + 182 * 86400000).toISOString().slice(0, 10) })
+const fromOrfeo = () => review(() => post(`/companies/${props.id}/orfeo/import`, orfeo.value))
+
+async function review(load) {
   busy.value = true
   try {
-    batch.value = await upload(`/companies/${props.id}/import`, 'files', xlsx)
+    batch.value = await load()
     // Choix proposé par le serveur : suggestion, ajout à la liste, ou texte gardé en précision pour une phrase
     vocab.value = Object.fromEntries(['function', 'schedule'].map((k) => [k, Object.fromEntries((batch.value.vocabulary?.[k] || [])
       .map((u) => [u.value, u.choice]))]))
@@ -80,10 +89,11 @@ async function commit() {
 }
 
 const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`
-function counts(c) {
+function counts(c, orfeo = false) {
   return [
     `${plural(c.team, 'personne')}${c.newPeople ? ` (${c.newPeople} à créer dans l'annuaire)` : ''}`,
-    plural(c.nights, 'nuitée'), `${c.meals} repas`,
+    // Orfeo ne donne pas le détail jour par jour : présence pré-remplie sur la période de la date, à ajuster ensuite
+    ...(orfeo ? ['nuitées et repas pré-remplis d\'après la période'] : [plural(c.nights, 'nuitée'), `${c.meals} repas`]),
     c.tickets ? `billets ${money(c.tickets)}` : null,
   ].filter(Boolean).join(' · ')
 }
@@ -97,15 +107,28 @@ function roadmapCounts(c) {
     <header class="page-head">
       <div>
         <h1>Importer des devis</h1>
-        <p>Reprenez vos classeurs « Devis_Spectacle_Ville.xlsx » : rien n'est enregistré avant votre validation.</p>
+        <p>Reprenez vos classeurs « Devis_Spectacle_Ville.xlsx »<template v-if="company.orfeo?.connected"> ou vos dates Orfeo</template> : rien n'est enregistré avant votre validation.</p>
       </div>
-      <button v-if="step !== 'drop'" class="btn" @click="reset"><Icon name="upload" />Autres fichiers</button>
+      <button v-if="step !== 'drop'" class="btn" @click="reset"><Icon name="upload" />{{ isOrfeo ? 'Nouvel import' : 'Autres fichiers' }}</button>
     </header>
 
     <div v-if="!allowed" class="alert bad">Il faut les droits « Modifier les dates » et « Modifier l'annuaire » sur {{ company.name }} pour importer.</div>
 
     <!-- 1. Dépôt -->
     <template v-else-if="step === 'drop'">
+      <section v-if="company.orfeo?.connected" class="card orfeo-card">
+        <div class="card-head" style="margin-bottom:6px">
+          <h2>Depuis Orfeo</h2>
+          <span class="chip ok">Relié à {{ company.orfeo.organization }}</span>
+        </div>
+        <p class="muted small" style="margin:0 0 12px">Les dates Orfeo de la période (spectacle, lieu, équipe, planning, hébergements) sont présentées à la relecture, comme un classeur. Une date déjà importée est reconnue et ne sera pas créée deux fois.</p>
+        <form class="actions" @submit.prevent="fromOrfeo">
+          <label class="field" style="flex:1 1 160px">Du<input v-model="orfeo.from" type="date" required></label>
+          <label class="field" style="flex:1 1 160px">Au<input v-model="orfeo.to" type="date" required></label>
+          <button class="btn btn-primary" style="align-self:flex-end" :disabled="busy"><Icon name="download" />{{ busy ? 'Lecture d\'Orfeo… (jusqu\'à une minute)' : 'Récupérer les dates' }}</button>
+        </form>
+      </section>
+      <p v-else-if="can('company.manage', company.permissions)" class="muted small" style="margin:0">Vous utilisez Orfeo ? <RouterLink :to="`/companies/${company.id}/settings`">Reliez la compagnie à Orfeo</RouterLink> pour récupérer vos dates sans classeur.</p>
       <label class="dropzone" :class="{ over: dragging, busy }" @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="drop">
         <input ref="input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple class="sr-only" :disabled="busy" @change="send($event.target.files)">
         <span class="dropzone-icon"><Icon name="upload" :size="28" /></span>
@@ -128,6 +151,8 @@ function roadmapCounts(c) {
 
     <!-- 2. Relecture -->
     <template v-else-if="step === 'review'">
+      <p v-if="batch.notice" class="alert" style="margin:0">{{ batch.notice }}</p>
+      <p v-if="isOrfeo && !files.length" class="card empty" style="margin:0">Aucune date dans Orfeo sur cette période.</p>
       <article v-for="f in files" :key="f.index" class="card import-file" :class="{ off: f.error || !forms[f.index].include }">
         <template v-if="f.error">
           <div class="card-head" style="margin:0"><h2 class="file-name"><Icon name="file" />{{ f.file }}</h2><span class="chip bad">Non lisible</span></div>
@@ -157,14 +182,14 @@ function roadmapCounts(c) {
               <label class="field">Dernière représentation<input v-model="forms[f.index].lastDate" type="date"></label>
               <label class="field">Représentations<input v-model.number="forms[f.index].performances" type="number" min="1" max="99"></label>
               <label class="field">Statut
-                <select v-model="forms[f.index].status"><option value="confirmed">Confirmé</option><option value="option">Option</option></select>
+                <select v-model="forms[f.index].status"><option value="confirmed">Confirmé</option><option value="option">Option</option><option value="cancelled">Annulé</option></select>
               </label>
               <label class="field">Arrivée technique<input v-model="forms[f.index].techArrival" type="date"></label>
               <label class="field">Arrivée artistique<input v-model="forms[f.index].artisticArrival" type="date"></label>
               <label class="field">Départ de l'équipe<input v-model="forms[f.index].departure" type="date"></label>
             </div>
             <div class="import-summary">
-              <p><b>Équipe</b> · {{ counts(f.counts) }}</p>
+              <p><b>Équipe</b> · {{ counts(f.counts, f.source === 'orfeo') }}</p>
               <p class="team-chips">
                 <span v-for="t in f.team" :key="t.name" class="chip" :class="t.known ? 'info' : 'warn'" :title="t.known ? 'Déjà dans l\'annuaire' : 'Sera ajouté à l\'annuaire'">{{ t.name }}<template v-if="!t.known"> · nouveau</template></span>
               </p>
@@ -172,7 +197,7 @@ function roadmapCounts(c) {
                 <input v-model="forms[f.index].includeRoadmap" type="checkbox">
                 <span>Reprendre la feuille de route <span class="muted small">({{ roadmapCounts(f.counts) }})</span></span>
               </label>
-              <p v-else class="muted small">Pas de feuille de route exploitable dans ce classeur.</p>
+              <p v-else class="muted small">{{ f.source === 'orfeo' ? 'Ni planning ni hébergement dans Orfeo pour cette date.' : 'Pas de feuille de route exploitable dans ce classeur.' }}</p>
               <p v-if="!forms[f.index].includeRoadmap && f.counts.tickets" class="muted small">Sans feuille de route, le prix des billets du devis est repris sur un trajet aller et un trajet retour à compléter.</p>
             </div>
           </template>
@@ -182,7 +207,7 @@ function roadmapCounts(c) {
 
       <section v-if="unknownCount" class="card">
         <h2 style="margin-bottom:4px">Valeurs hors liste</h2>
-        <p class="muted small" style="margin:0 0 8px">Ces fonctions et intitulés de planning des fichiers ne sont pas dans les listes (Administration → Listes).
+        <p class="muted small" style="margin:0 0 8px">Ces fonctions et intitulés de planning {{ isOrfeo ? 'd\'Orfeo' : 'des fichiers' }} ne sont pas dans les listes (Administration → Listes).
           Rattachez-les à une entrée existante — le texte d'origine est gardé en précision pour le planning — <template v-if="batch.canManageLists">ou ajoutez-les à la liste.</template><template v-else>(seule une personne ayant le droit « Gérer les listes » peut en ajouter).</template>
           Les valeurs reconnues (« Représentation #1 - Place Kléber » → Représentation + « #1 - Place Kléber ») sont rattachées d'office.</p>
         <template v-for="[kind, title, none] in VOCAB" :key="kind">
@@ -201,7 +226,7 @@ function roadmapCounts(c) {
       </section>
 
       <div class="import-bar">
-        <span>{{ chosen.length }} date{{ chosen.length > 1 ? 's' : '' }} sur {{ files.length }} fichier{{ files.length > 1 ? 's' : '' }}</span>
+        <span>{{ chosen.length }} date{{ chosen.length > 1 ? 's' : '' }} sur {{ files.length }} {{ isOrfeo ? 'date' : 'fichier' }}{{ files.length > 1 ? 's' : '' }}{{ isOrfeo ? ' Orfeo' : '' }}</span>
         <button class="btn btn-primary" :disabled="busy || !chosen.length" @click="commit"><Icon name="check" />{{ busy ? 'Import en cours…' : `Importer ${chosen.length} date${chosen.length > 1 ? 's' : ''}` }}</button>
       </div>
     </template>

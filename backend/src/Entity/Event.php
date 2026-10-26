@@ -58,6 +58,10 @@ class Event
     #[ORM\Column(type: Types::TEXT)]
     public string $notes = '';
 
+    /** Identifiant de l'objet correspondant dans Orfeo (import), pour ne pas le recréer. */
+    #[ORM\Column(nullable: true)]
+    public ?int $orfeoId = null;
+
     /** Lien public (non devinable) vers la feuille de route PDF, partagé avec l'équipe ; null = pas de partage */
     #[ORM\Column(length: 64, unique: true, nullable: true)]
     public ?string $shareToken = null;

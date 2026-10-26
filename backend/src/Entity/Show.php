@@ -25,6 +25,10 @@ class Show
     #[ORM\Column(type: Types::TEXT)]
     public string $description = '';
 
+    /** Identifiant de l'objet correspondant dans Orfeo (import), pour ne pas le recréer. */
+    #[ORM\Column(nullable: true)]
+    public ?int $orfeoId = null;
+
     /** @var Collection<int, Event> */
     #[ORM\OneToMany(targetEntity: Event::class, mappedBy: 'show', cascade: ['remove'])]
     #[ORM\OrderBy(['firstDate' => 'ASC'])]

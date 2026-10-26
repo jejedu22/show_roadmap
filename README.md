@@ -149,6 +149,32 @@ Un trajet avec correspondance crée un trajet par tronçon. Prix et référence 
 
 Seuls les comptes déjà créés par un administrateur (même e-mail, vérifié par Google) peuvent se connecter.
 
+## Intégration Orfeo (étape 1 : récupération des dates)
+
+1. **Relier la compagnie à Orfeo :** dans Orfeo, créez une clé d'API (Paramètres → API & webhooks). Collez-la dans
+   **Paramètres** de la compagnie (droit « Paramètres de la compagnie »). La clé est vérifiée auprès d'Orfeo, stockée
+   chiffrée (clé dérivée d'`APP_SECRET`) et jamais réaffichée.
+2. **Récupérer les dates :** dans **Importer des devis → Depuis Orfeo**, choisissez une période. Jusqu'à 40 dates sont
+   présentées à la **même relecture que les classeurs Excel** : corrections, rapprochement avec l'annuaire et les listes,
+   dates déjà présentes. Rien n'est enregistré avant validation.
+
+| Orfeo | Application |
+|---|---|
+| spectacle, projet (titre, dates, statut, annulation) | spectacle, date (confirmée, option ou annulée) |
+| lieu du projet, contacts liés | lieu, adresse, ville, contact d'accueil |
+| participants confirmés ou à confirmer + fiche (nom, ville, téléphone, e-mail) | équipe de la date, annuaire complété sans écraser |
+| planning : représentations, répétitions, technique, repas, autres | planning sur place (intitulés rapprochés des listes) |
+| planning : hébergements (lieu, personnes) | hébergements et affectation de l'équipe |
+| notes de planning et de régie | rubriques de la feuille de route |
+
+- **Lien avec Orfeo :** chaque date, personne et spectacle garde son identifiant Orfeo. Une date déjà importée est
+  reconnue (même si son lieu a changé dans Orfeo) et proposée décochée. Une personne renommée dans Orfeo est retrouvée.
+- **Pas repris :**
+  - les voyages Orfeo : ils n'ont ni gares ni billets, et sont signalés pour être saisis dans l'onglet Voyages ;
+  - les postes non pourvus (N.N.) ;
+  - le détail des repas et nuitées jour par jour : la présence est pré-remplie d'après la période de la date.
+- **Accès à l'API :** lecture seule, au plus 10 requêtes par seconde (limite d'Orfeo). Une période chargée peut prendre jusqu'à une minute.
+
 ## Listes paramétrées (fonctions, intitulés de planning)
 
 **Administration → Listes** (droit global « Gérer les listes ») : les fonctions des personnes et les intitulés du planning

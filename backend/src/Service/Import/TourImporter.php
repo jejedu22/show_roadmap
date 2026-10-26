@@ -43,6 +43,7 @@ class TourImporter
         private Authz $authz,
         private Audit $audit,
         private Lists $lists,
+        private \App\Service\Planning $planning,
         #[Autowire('%kernel.project_dir%/var/imports')] private string $dir,
     ) {
     }
@@ -75,6 +76,12 @@ class TourImporter
                 $drafts[] = ['file' => $name, 'error' => 'Classeur illisible (format inattendu ou fichier abîmé).'];
             }
         }
+        return $this->analyzeDrafts($company, $user, $drafts);
+    }
+
+    /** Contrôles, mise de côté des brouillons et résumé pour la relecture (classeurs Excel ou dates Orfeo). */
+    public function analyzeDrafts(Company $company, User $user, array $drafts): array
+    {
         $this->crossCheck($company, $drafts);
 
         $id = bin2hex(random_bytes(12));
@@ -253,6 +260,13 @@ class TourImporter
 
     private function existingEvent(Company $company, array $d): ?Event
     {
+        if ($orfeoId = $d['orfeo']['project'] ?? null) { // date déjà importée depuis Orfeo, même si elle a changé depuis
+            foreach ($this->em->getRepository(Event::class)->findBy(['orfeoId' => $orfeoId]) as $ev) {
+                if ($ev->show->company === $company) {
+                    return $ev;
+                }
+            }
+        }
         $first = new \DateTimeImmutable($d['event']['firstDate']);
         foreach ($this->em->getRepository(Event::class)->findBy(['firstDate' => $first]) as $ev) {
             if ($ev->show->company === $company && (Sheet::norm($ev->venue) === Sheet::norm($d['event']['venue'])
@@ -269,17 +283,18 @@ class TourImporter
         if (isset($d['error'])) {
             return ['index' => $index, 'file' => $d['file'], 'error' => $d['error']];
         }
-        $show = $this->findShow($company, $d['show']);
+        $show = $this->showByOrfeo($company, $d['orfeo']['spectacle'] ?? null) ?? $this->findShow($company, $d['show']);
         $people = $this->peopleIndex($company);
         $team = array_map(fn ($p) => [
             'name' => trim($p['firstName'].' '.$p['lastName']), 'role' => $p['role'],
-            'known' => isset($people[self::personKey($p['lastName'], $p['firstName'])]),
+            'known' => isset($people[self::personKey($p['lastName'], $p['firstName'])]) || (isset($p['orfeoId']) && $this->personByOrfeo($company, (int) $p['orfeoId'])),
         ], $d['team']);
 
         return [
             'index' => $index,
             'file' => $d['file'],
             'show' => ['title' => $d['show'], 'id' => $show?->id, 'matchTitle' => $show?->title],
+            'source' => $d['source'] ?? 'excel',
             'event' => $d['event'] + ['status' => 'confirmed'],
             'team' => $team,
             'counts' => [
@@ -362,8 +377,14 @@ class TourImporter
                 return $show;
             }
         }
+        $orfeoId = $d['orfeo']['spectacle'] ?? null;
+        if (empty($c['showTitle']) && ($show = $this->showByOrfeo($company, $orfeoId))) {
+            return $show;
+        }
         $title = trim(mb_substr((string) ($c['showTitle'] ?? $d['show']), 0, 255)) ?: 'Spectacle importé';
         if ($show = $this->findShow($company, $title)) {
+            $show->orfeoId ??= $orfeoId;
+
             return $show;
         }
         if (!$canCreate) {
@@ -399,12 +420,15 @@ class TourImporter
         $event->city = $text('city', 120);
         $event->address = $text('address', 255);
         $event->venueContact = mb_substr($e['venueContact'], 0, 2000);
-        $event->status = in_array($c['status'] ?? '', Event::STATUSES, true) ? $c['status'] : 'confirmed';
+        $event->status = in_array($c['status'] ?? '', Event::STATUSES, true) ? $c['status'] : ($e['status'] ?? 'confirmed');
+        $event->orfeoId = $d['orfeo']['project'] ?? null;
         $event->techArrival = $date('techArrival');
         $event->artisticArrival = $date('artisticArrival');
         $event->departure = $date('departure') ?? $last;
         $event->performances = max(1, min(99, (int) ($c['performances'] ?? $e['performances'])));
-        $event->notes = sprintf('Importé du classeur « %s » le %s.', $d['file'], (new \DateTimeImmutable())->format('d/m/Y'));
+        $event->notes = 'orfeo' === ($d['source'] ?? '')
+            ? sprintf('Importé d\'Orfeo (projet n° %d) le %s.', $d['orfeo']['project'], (new \DateTimeImmutable())->format('d/m/Y'))
+            : sprintf('Importé du classeur « %s » le %s.', $d['file'], (new \DateTimeImmutable())->format('d/m/Y'));
         if ($finance) {
             $money = fn (?float $v, int $scale = 2) => null === $v ? null : number_format($v, $scale, '.', '');
             $event->fee = $money($e['fee']) ?? $event->fee;
@@ -425,11 +449,15 @@ class TourImporter
         $parts = [];
         foreach ($d['team'] as $p) {
             $key = self::personKey($p['lastName'], $p['firstName']);
-            $person = $people[$key] ?? null;
+            $person = (isset($p['orfeoId']) ? $this->personByOrfeo($event->show->company, (int) $p['orfeoId']) : null) ?? $people[$key] ?? null;
+            if ($person && isset($p['orfeoId'])) {
+                $person->orfeoId ??= (int) $p['orfeoId'];
+            }
             if (!$person) {
                 $person = new Person($event->show->company);
                 $person->lastName = mb_substr($p['lastName'], 0, 120);
                 $person->firstName = mb_substr($p['firstName'], 0, 120);
+                $person->orfeoId = isset($p['orfeoId']) ? (int) $p['orfeoId'] : null;
                 $event->show->company->people->add($person);
                 $this->em->persist($person);
                 $people[$key] = $person;
@@ -448,6 +476,9 @@ class TourImporter
             $part->note = mb_substr($p['note'], 0, 255);
             foreach ($p['days'] as $day => $x) {
                 $part->days->add(new Day($part, new \DateTimeImmutable($day), $x['night'], $x['meals'], $x['breakfast']));
+            }
+            if (!$p['days'] && !empty($d['fillDays'])) { // Orfeo : présence déduite de la période de la date (à ajuster)
+                $this->planning->fillDefaultDays($part);
             }
             $event->participations->add($part);
             $this->em->persist($part);
@@ -523,6 +554,16 @@ class TourImporter
             $event->schedule->add($item);
             $this->em->persist($item);
         }
+    }
+
+    private function showByOrfeo(Company $company, ?int $orfeoId): ?Show
+    {
+        return $orfeoId ? $this->em->getRepository(Show::class)->findOneBy(['company' => $company, 'orfeoId' => $orfeoId]) : null;
+    }
+
+    private function personByOrfeo(Company $company, int $orfeoId): ?Person
+    {
+        return $this->em->getRepository(Person::class)->findOneBy(['company' => $company, 'orfeoId' => $orfeoId]);
     }
 
     private function findShow(Company $company, string $title): ?Show
