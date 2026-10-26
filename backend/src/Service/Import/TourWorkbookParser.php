@@ -325,7 +325,7 @@ class TourWorkbookParser
                     }
                 }
                 if (null !== $who && $day) {
-                    $legs[] = $this->leg($d['team'][$who]['key'], $direction, $day, $c, $s->text(4, $r), $s->text(5, $r), $s->text(7, $r));
+                    $legs[] = $this->leg($d['team'][$who]['key'], $direction, $day, $c, $s->text(4, $r), $s->text(5, $r), $s->text(7, $r), $s->link($r, 2, 8));
                 }
                 continue;
             }
@@ -353,7 +353,7 @@ class TourWorkbookParser
                 continue;
             }
             if ('lodging' === $mode) {
-                $this->lodgingLine($block, $bt, $d['team']);
+                $this->lodgingLine($block, $bt, $d['team'], $s->link($r, 2, 8));
                 continue;
             }
             if ('section' === $mode && '' !== $bt) {
@@ -411,7 +411,7 @@ class TourWorkbookParser
         return null;
     }
 
-    private function leg(string $key, string $direction, string $day, string $route, string $times, string $ref, string $mode): array
+    private function leg(string $key, string $direction, string $day, string $route, string $times, string $ref, string $mode, string $url = ''): array
     {
         [$from, $to] = array_map('trim', explode('>', $route, 2)) + [1 => ''];
         $note = [];
@@ -448,11 +448,11 @@ class TourWorkbookParser
         return [
             'person' => $key, 'direction' => $direction, 'day' => $day, 'origin' => mb_substr($from, 0, 120), 'destination' => mb_substr($to, 0, 120),
             'depTime' => $dep, 'arrTime' => $arr, 'mode' => $appMode, 'reference' => mb_substr($ref, 0, 60),
-            'note' => mb_substr(implode(' · ', $note), 0, 255), 'price' => 0.0,
+            'note' => mb_substr(implode(' · ', $note), 0, 255), 'price' => 0.0, 'bookingUrl' => $url,
         ];
     }
 
-    private function lodgingLine(array &$block, string $text, array $team): void
+    private function lodgingLine(array &$block, string $text, array $team, string $url = ''): void
     {
         $items = &$block['items'];
         $first = strtok($text, "\n");
@@ -467,7 +467,8 @@ class TourWorkbookParser
                     $people[] = $team[$i]['key'];
                 }
             }
-            $items[] = ['name' => mb_substr(self::title(trim($parts[0], " *\t")), 0, 255) ?: 'Hébergement', 'address' => '', 'phone' => '', 'details' => '', 'people' => $people];
+            $items[] = ['name' => mb_substr(self::title(trim($parts[0], " *\t")), 0, 255) ?: 'Hébergement', 'address' => '', 'phone' => '',
+                'details' => '' !== $url ? "Site : $url" : '', 'people' => $people];
             $text = trim(mb_substr($text, mb_strlen($first)));
             if ('' === $text) {
                 return;
@@ -640,7 +641,7 @@ class TourWorkbookParser
             'person' => $p['key'], 'direction' => $dir, 'day' => $day,
             'origin' => 'outbound' === $dir ? $home : $city, 'destination' => 'outbound' === $dir ? $city : $home,
             'depTime' => '', 'arrTime' => '', 'mode' => 'Train', 'reference' => '', 'price' => $price,
-            'note' => 'Montant repris du devis — horaires à compléter',
+            'note' => 'Montant repris du devis — horaires à compléter', 'bookingUrl' => '',
         ];
     }
 

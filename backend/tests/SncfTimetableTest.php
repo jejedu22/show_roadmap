@@ -5,7 +5,7 @@ namespace App\Tests;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
 
-/** Horaires SNCF open data : import GTFS et recherche de trains directs. */
+/** Horaires SNCF open data : import GTFS et recherche de trains, directs ou avec une correspondance. */
 class SncfTimetableTest extends ApiTestCase
 {
     private const A = 'StopArea:OCE87271007';
@@ -29,7 +29,8 @@ class SncfTimetableTest extends ApiTestCase
                 ."R,S1,T-INVERSE,847408,1,,\n" // Beauvais → Paris : ne doit pas sortir
                 ."R,S1,T-SANS-MONTEE,847410,0,,\n" // montée interdite à Paris
                 ."R,S3,T-SEMAINE,847420,0,,\n"  // calendar.txt : en semaine, sauf le 18 (exception)
-                ."R,S1,T-TGV,6602,0,,\n",       // Saint-Étienne → Paris
+                ."R,S1,T-TGV,6602,0,,\n"        // Saint-Étienne → Paris
+                ."R,S1,T-SUITE,847500,0,,\n",    // Paris 8h30 → Beauvais : correspondance avec le TGV (arrivé 8h14)
             'stop_times.txt' => "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign,pickup_type,drop_off_type,shape_dist_traveled\n"
                 ."T-JOUR,07:37:00,07:37:00,StopPoint:OCETrain TER-87271007,0,,0,1,\n"
                 ."T-JOUR,08:51:00,08:51:00,StopPoint:OCETrain TER-87313510,1,,1,0,\n"
@@ -42,7 +43,9 @@ class SncfTimetableTest extends ApiTestCase
                 ."T-SEMAINE,14:00:00,14:00:00,StopPoint:OCETrain TER-87271007,0,,0,1,\n"
                 ."T-SEMAINE,15:15:00,15:15:00,StopPoint:OCETrain TER-87313510,1,,1,0,\n"
                 ."T-TGV,06:04:00,06:04:00,StopPoint:OCETGV INOUI-87726000,0,,0,1,\n"
-                ."T-TGV,08:14:00,08:14:00,StopPoint:OCETrain TER-87271007,1,,1,0,\n",
+                ."T-TGV,08:14:00,08:14:00,StopPoint:OCETrain TER-87271007,1,,1,0,\n"
+                ."T-SUITE,08:30:00,08:30:00,StopPoint:OCETrain TER-87271007,0,,0,1,\n"
+                ."T-SUITE,09:45:00,09:45:00,StopPoint:OCETrain TER-87313510,1,,1,0,\n",
             'calendar.txt' => "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
                 ."S3,1,1,1,1,1,0,0,20261116,20261120\n",
             'calendar_dates.txt' => "service_id,date,exception_type\nS1,20261118,1\nS2,20261117,1\nS3,20261118,2\n",
@@ -104,11 +107,20 @@ class SncfTimetableTest extends ApiTestCase
 
         $q = fn (string $from, string $to, string $day, string $time = '') => $this->call('GET', "/api/events/$ev/sncf/journeys?".
             http_build_query(['origin' => $from, 'dest' => $to, 'day' => $day, 'time' => $time]));
+        $brief = fn (array $list) => array_map(fn ($j) => array_diff_key($j, ['segments' => 1]), $list);
         self::assertSame([
             ['depTime' => '0h30', 'arrTime' => '1h40', 'mode' => 'TER', 'transfers' => 0, 'durationMin' => 70, 'numbers' => '847999'],
             ['depTime' => '7h37', 'arrTime' => '8h51', 'mode' => 'TER', 'transfers' => 0, 'durationMin' => 74, 'numbers' => '847407'],
-        ], $q(self::A, self::B, '2026-11-18'));
-        self::assertSame(['847407'], array_column($q(self::A, self::B, '2026-11-18', '07:00'), 'numbers'));
+            ['depTime' => '8h30', 'arrTime' => '9h45', 'mode' => 'TER', 'transfers' => 0, 'durationMin' => 75, 'numbers' => '847500'],
+        ], $brief($q(self::A, self::B, '2026-11-18')));
+        self::assertSame(['847407', '847500'], array_column($q(self::A, self::B, '2026-11-18', '07:00'), 'numbers'));
+
+        // Pas de train direct Saint-Étienne → Beauvais : TGV jusqu'à Paris, puis TER (16 min de changement)
+        $via = $q('StopArea:OCE87726000', self::B, '2026-11-18');
+        self::assertSame([['depTime' => '6h04', 'arrTime' => '9h45', 'mode' => 'TGV INOUI + TER', 'transfers' => 1, 'durationMin' => 221, 'numbers' => '6602 + 847500']], $brief($via));
+        self::assertSame([['Saint-Étienne Châteaucreux', '6h04', 'Paris Gare du Nord', '8h14'], ['Paris Gare du Nord', '8h30', 'Beauvais', '9h45']],
+            array_map(fn ($g) => [$g['from'], $g['depTime'], $g['to'], $g['arrTime']], $via[0]['segments']));
+        self::assertSame([], $q('StopArea:OCE87726000', self::B, '2026-11-18', '07:00'), 'plus de TGV après 7h');
         self::assertSame(['847420'], array_column($q(self::A, self::B, '2026-11-19', '13:00'), 'numbers'), 'calendar.txt : jeudi');
         self::assertSame([], $q(self::A, self::B, '2026-11-21'), 'samedi : aucun train');
         self::assertSame('TGV INOUI', $q('StopArea:OCE87726000', self::A, '2026-11-18')[0]['mode']);
@@ -126,7 +138,7 @@ class SncfTimetableTest extends ApiTestCase
         $tester = $this->importCommand();
         $tester->assertCommandIsSuccessful();
         self::assertStringContainsString('gtfs.test', implode(' ', $fake->calls));
-        self::assertStringContainsString('3 gares, 6 trains', $tester->getDisplay());
+        self::assertStringContainsString('3 gares, 7 trains', $tester->getDisplay());
 
         // déjà à jour : rien à faire
         self::assertStringContainsString('à jour', $this->importCommand(['--if-older-than' => 20])->getDisplay());

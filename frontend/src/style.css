@@ -207,6 +207,8 @@ input[type=checkbox], input[type=radio] { width: 20px; min-height: 20px; height:
 .train { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--ink-3); background: var(--ink-2); color: #fff; font: inherit; text-align: left; cursor: pointer; width: 100%; }
 .train:hover, .train.picked { border: 2px solid var(--sun); }
 .train small { color: var(--muted-on-dark); }
+.train { padding: 8px 14px; }
+.train-legs { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; }
 .panel .btn:not(.btn-sun) { background: transparent; color: #fff; border-color: var(--ink-3); }
 .panel .note { font-size: 13px; color: var(--muted-on-dark); margin: 0; }
 

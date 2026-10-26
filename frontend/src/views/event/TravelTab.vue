@@ -88,7 +88,7 @@ async function remove(p, l) {
         :leg="panel.leg" :apply="apply" @close="panel = null" />
       <div v-else class="card">
         <h3 style="margin-bottom:8px">Comment ça marche</h3>
-        <p class="muted small" style="margin:0">Cliquez sur « Ajouter l'aller » ou « Ajouter le retour » : villes et date sont pré-remplies, les trains directs SNCF sont proposés.
+        <p class="muted small" style="margin:0">Cliquez sur « Ajouter l'aller » ou « Ajouter le retour » : villes et date sont pré-remplies, les trains SNCF sont proposés, avec une correspondance si besoin.
           Collez le lien du billet : il devient un bouton « Billet » dans la feuille de route envoyée à l'équipe.</p>
       </div>
     </aside>

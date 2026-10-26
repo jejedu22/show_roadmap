@@ -338,8 +338,8 @@ class TourImporter
             }
             $leg = new Leg($part, new \DateTimeImmutable($l['day']));
             $leg->direction = 'return' === $l['direction'] ? 'return' : 'outbound';
-            foreach (['origin', 'destination', 'depTime', 'arrTime', 'mode', 'reference', 'note'] as $f) {
-                $leg->$f = $l[$f];
+            foreach (['origin', 'destination', 'depTime', 'arrTime', 'mode', 'reference', 'note', 'bookingUrl'] as $f) {
+                $leg->$f = $l[$f] ?? '';
             }
             $leg->price = number_format((float) $l['price'], 2, '.', '');
             $part->legs->add($leg);

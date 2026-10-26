@@ -54,6 +54,21 @@ final class Sheet
         return is_int($v) || is_float($v) ? (float) $v : (is_string($v) && is_numeric(str_replace(',', '.', trim($v))) ? (float) str_replace(',', '.', trim($v)) : null);
     }
 
+    /** Premier lien web (http/https) posé sur une des cellules de la ligne, colonnes $from à $to. */
+    public function link(int $row, int $from = 1, int $to = 10): string
+    {
+        for ($c = $from; $c <= $to; ++$c) {
+            if ($this->ws->cellExists([$c, $row]) && ($cell = $this->ws->getCell([$c, $row]))->hasHyperlink()) {
+                $url = trim($cell->getHyperlink()->getUrl());
+                if (preg_match('#^https?://\S+$#i', $url) && mb_strlen($url) <= 1000) {
+                    return $url;
+                }
+            }
+        }
+
+        return '';
+    }
+
     public function maxRow(): int
     {
         return min($this->ws->getHighestDataRow(), 2000);

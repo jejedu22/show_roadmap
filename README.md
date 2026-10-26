@@ -12,7 +12,7 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - **Tableau de bord** : prochaine date, trajets sans billet, conflits de planning, dates par mois avec leur avancement,
   liste « À faire » calculée automatiquement. **Calendrier** mensuel des présences.
 - **Fiche d'une date en 6 étapes** (Infos, Équipe, Séjour, Voyages, Devis, Feuille de route), chacune avec son avancement.
-- **Voyages** : une carte par personne, ajout de l'aller ou du retour pré-rempli (villes, date) avec les trains directs SNCF ;
+- **Voyages** : une carte par personne, ajout de l'aller ou du retour pré-rempli (villes, date) avec les trains SNCF (directs ou avec une correspondance) ;
   les gares les mieux reliées sont choisies automatiquement (Paris → Beauvais : Paris Gare du Nord).
 - **Envoyer à l'équipe** : lien secret et révocable vers la feuille de route PDF, à copier ou à envoyer par la messagerie.
 
@@ -24,7 +24,7 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - **Lien de réservation** sur chaque trajet : il devient un bouton « Billet ↗ » cliquable dans la feuille de route PDF,
   pour que chaque intervenant récupère son billet lui-même.
 - Connexion par mot de passe ou Google (comptes créés par un administrateur uniquement).
-- Recherche de trains directs dans l'onglet Voyages, à partir des horaires SNCF en open data (sans clé).
+- Recherche de trains (directs ou avec une correspondance, y compris en changeant de gare à Paris, Lyon ou Lille) dans l'onglet Voyages, à partir des horaires SNCF en open data (sans clé).
 
 ## Déploiement Docker + Traefik
 
@@ -122,7 +122,7 @@ Après une modification d'entité : `php bin/console doctrine:migrations:diff` p
 
 ## Horaires SNCF (open data)
 
-L'onglet **Voyages** propose les **trains directs** entre deux gares à une date donnée (TER, Intercités, TGV INOUI, OUIGO, cars TER…)
+L'onglet **Voyages** propose les **trains directs et avec une correspondance** entre deux gares à une date donnée (TER, Intercités, TGV INOUI, OUIGO, cars TER…)
 et pré-remplit départ, arrivée, heures, mode et numéro de train. Prix et référence de billet restent à saisir.
 
 - Source : [horaires théoriques SNCF](https://www.data.gouv.fr/datasets/horaires-sncf), publiés en open data, **sans clé**,

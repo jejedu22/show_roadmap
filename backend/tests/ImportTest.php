@@ -105,8 +105,12 @@ class ImportTest extends ApiTestCase
                 '' !== $row[$j] && $set($f, $c.(8 + $i), $row[$j]);
             }
         }
+        $f->getCell('E8')->getHyperlink()->setUrl('https://dossier.sncf-voyageurs.com/fr/dossier-voyageur/ABC123');
+        $f->getCell('D9')->getHyperlink()->setUrl('https://www.klm.fr/check-in');
+        $f->getCell('C10')->getHyperlink()->setUrl('mailto:yann@test.io'); // pas un lien de billet
         $set($f, 'B12', 'HÔTEL');
         $set($f, 'B13', 'HÔTEL DE LA GARE ** - Anna, Yann');
+        $f->getCell('B13')->getHyperlink()->setUrl('https://hotel-gare.test/');
         $set($f, 'B14', "Adresse : 1 place de la Gare, 56100 $roadmapCity\nTéléphone : 02 97 11 11 11");
         $set($f, 'B15', 'Petit-déjeuner : 7h - 10h');
         $set($f, 'B17', 'WIFI');
@@ -199,6 +203,10 @@ class ImportTest extends ApiTestCase
         self::assertSame(119.5, (float) $ev['quote']['travelTickets']);
         self::assertSame(['Hôtel de la Gare'], array_column($ev['lodgings'], 'name'));
         self::assertSame('02 97 11 11 11', $ev['lodgings'][0]['phone']);
+        self::assertStringStartsWith('Site : https://hotel-gare.test/', $ev['lodgings'][0]['details']);
+        // Liens des billets posés sur les cellules des trajets dans la feuille de route
+        self::assertSame(['https://dossier.sncf-voyageurs.com/fr/dossier-voyageur/ABC123', 'https://www.klm.fr/check-in', ''], array_column($anna['legs'], 'bookingUrl'));
+        self::assertSame(['', ''], array_column($yann['legs'], 'bookingUrl'));
         self::assertSame($ev['lodgings'][0]['id'], $anna['lodgingId']);
         self::assertSame(['Wifi'], array_column($ev['sections'], 'title'));
         self::assertCount(3, $ev['schedule']);

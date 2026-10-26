@@ -6,7 +6,8 @@ import Icon from './Icon.vue'
 
 /**
  * Saisie d'un trajet (nouveau ou existant), pré-remplie selon le sens et la personne.
- * Avec les horaires SNCF chargés, les gares sont trouvées à partir des villes et les trains directs proposés.
+ * Avec les horaires SNCF chargés, les gares sont trouvées à partir des villes et les trains proposés (directs ou avec une
+ * correspondance) ; un trajet avec correspondance est enregistré tronçon par tronçon.
  */
 const props = defineProps({ ev: Object, part: Object, direction: String, leg: Object, apply: Function })
 const emit = defineEmits(['close'])
@@ -64,18 +65,30 @@ async function search() {
     const [first, last] = session.sncfCoverage || []
     message.value = trains.value.length ? ''
       : last && (form.day > last || form.day < first) ? `Les horaires SNCF publiés vont du ${fdate(first)} au ${fdate(last)}.`
-      : 'Aucun train direct ce jour-là. Avec correspondance : saisissez chaque tronçon.'
+      : 'Aucun train ce jour-là, même avec une correspondance. Saisissez chaque tronçon, ou cherchez gare par gare.'
   } catch (e) { message.value = e.message }
 }
+// Tronçons du trajet choisi (le premier remplit le formulaire, les suivants sont créés à l'enregistrement)
+const segments = computed(() => picked.value === null ? [] : trains.value[picked.value].segments || [])
+const legOf = (g) => ({ origin: g.from, destination: g.to, depTime: g.depTime.replace(' (+1)', ''), arrTime: g.arrTime.replace(' (+1)', ''), mode: g.mode, note: g.number ? `Train ${g.number}` : '' })
 function pick(t, i) {
   picked.value = i
-  Object.assign(form, { origin: stations.from, destination: stations.to, depTime: t.depTime, arrTime: t.arrTime, mode: t.mode, note: t.numbers ? `Train ${t.numbers}` : form.note })
+  const [first] = t.segments || []
+  Object.assign(form, first ? legOf(first) : { origin: stations.from, destination: stations.to, depTime: t.depTime, arrTime: t.arrTime, mode: t.mode, note: t.numbers ? `Train ${t.numbers}` : form.note })
 }
+const nextDay = (iso) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) }
 const who = computed(() => props.part.person.firstName || props.part.person.lastName)
 const title = computed(() => `${props.leg ? 'Modifier' : props.direction === 'outbound' ? 'Aller' : 'Retour'} de ${who.value}`)
 async function save() {
   const url = `/events/${props.ev.id}/items/leg${props.leg ? '/' + props.leg.id : ''}`
-  if (await props.apply(props.leg ? put(url, form) : post(url, form))) { toast(`Trajet de ${who.value} enregistré`); emit('close') }
+  if (!await props.apply(props.leg ? put(url, form) : post(url, form))) return
+  // Correspondance : un trajet par tronçon suivant, même jour (ou lendemain après minuit), sans prix ni référence
+  for (const g of props.leg ? [] : segments.value.slice(1)) {
+    const extra = { ...form, ...legOf(g), day: g.nextDay ? nextDay(form.day) : form.day, price: '', reference: '', bookedOn: '', bookingUrl: '' }
+    if (!await props.apply(post(url, extra))) return
+  }
+  toast(segments.value.length > 1 && !props.leg ? `${segments.value.length} trajets de ${who.value} enregistrés` : `Trajet de ${who.value} enregistré`)
+  emit('close')
 }
 </script>
 
@@ -93,7 +106,7 @@ async function save() {
     </div>
 
     <template v-if="session.sncf">
-      <span class="eyebrow">Trains directs (horaires SNCF)</span>
+      <span class="eyebrow">Trains (horaires SNCF, direct ou une correspondance)</span>
       <datalist :id="`gares-${part.id}`"><option v-for="p in places" :key="p.id" :value="p.name" /></datalist>
       <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <label class="field">Gare de départ<input v-model="stations.from" :list="`gares-${part.id}`" autocomplete="off" @input="suggest(stations.from)"></label>
@@ -103,7 +116,10 @@ async function save() {
       </div>
       <p v-if="message" class="note" role="status">{{ message }}</p>
       <button v-for="(t, i) in trains" :key="i" type="button" class="train" :class="{ picked: picked === i }" :aria-pressed="picked === i" @click="pick(t, i)">
-        <span><b>{{ t.depTime }} → {{ t.arrTime }}</b> · {{ t.mode }} {{ t.numbers }}</span><small>{{ Math.floor(t.durationMin / 60) }}h{{ String(t.durationMin % 60).padStart(2, '0') }}</small>
+        <span>
+          <b>{{ t.depTime }} → {{ t.arrTime }}</b> · {{ t.transfers ? '1 corresp.' : 'direct' }} · {{ t.mode }}
+          <small v-if="t.transfers" class="train-legs"><template v-for="(g, j) in t.segments" :key="j">{{ j ? ' · ' : '' }}{{ g.from }} {{ g.depTime }} → {{ g.to }} {{ g.arrTime }}</template></small>
+        </span><small>{{ Math.floor(t.durationMin / 60) }}h{{ String(t.durationMin % 60).padStart(2, '0') }}</small>
       </button>
     </template>
 
