@@ -53,7 +53,7 @@ class SncfTimetableTest extends ApiTestCase
         return self::zip($files);
     }
 
-    /** Petite archive Transilien (format IDFM) : Herblay → Gare du Nord, plus un TER en double du fichier national. */
+    /** Petite archive Transilien (format IDFM, services en UUID de 44 caractères) : Herblay → Gare du Nord, plus un TER en double du fichier national. */
     public static function idfZip(): string
     {
         return self::zip([
@@ -64,11 +64,11 @@ class SncfTimetableTest extends ApiTestCase
                 ."IDFM:471,,Gare du Nord,,2.3505,48.8805,1,,0,IDFM:71410\n"
                 ."IDFM:65897,,Herblay,,2.1615,48.9906,4,,1,\n"
                 ."IDFM:470659,,Herblay,,2.1615,48.9906,4,,0,IDFM:65897\n",
-            'trips.txt' => "route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id\nIDFM:H,IDFM:TN:1,H-1,POPI,135001-135002,0\nIDFM:TER,IDFM:TN:1,TER-1,X,847407,0\n",
+            'trips.txt' => "route_id,service_id,trip_id,trip_headsign,trip_short_name,direction_id\nIDFM:H,IDFM:TN:5e6bff26-2579-3205-a398-440e88726dca,H-1,POPI,135001-135002,0\nIDFM:TER,IDFM:TN:5e6bff26-2579-3205-a398-440e88726dca,TER-1,X,847407,0\n",
             'stop_times.txt' => "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type\n"
                 ."H-1,07:00:00,07:00:00,IDFM:470659,1,0,1\nH-1,07:20:00,07:20:00,IDFM:471,2,1,0\n"
                 ."TER-1,07:37:00,07:37:00,IDFM:471,1,0,1\nTER-1,08:51:00,08:51:00,IDFM:470659,2,1,0\n",
-            'calendar_dates.txt' => "service_id,date,exception_type\nIDFM:TN:1,20261118,1\n",
+            'calendar_dates.txt' => "service_id,date,exception_type\nIDFM:TN:5e6bff26-2579-3205-a398-440e88726dca,20261118,1\n",
         ]);
     }
 

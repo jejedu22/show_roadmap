@@ -69,7 +69,7 @@ class GtfsImporter
             $this->db->executeStatement("CREATE TABLE {$t}_new LIKE $t");
         }
         try {
-            $state = ['nextTrip' => 1, 'names' => [], 'coords' => [], 'used' => [], 'days' => [], 'trips' => 0, 'stopTimes' => 0];
+            $state = ['nextTrip' => 1, 'names' => [], 'coords' => [], 'used' => [], 'days' => [], 'services' => [], 'trips' => 0, 'stopTimes' => 0];
             foreach ($zips as $i => $zip) {
                 $this->load($zip, $i, $state);
             }
@@ -118,13 +118,13 @@ class GtfsImporter
         $areaOf = $modeOf = $names = $coords = [];
         foreach ($this->rows($zip, 'stops.txt') as $r) {
             if ('1' === ($r['location_type'] ?? '')) {
-                $names[$r['stop_id']] = $r['stop_name'];
+                $names[self::stopId($r['stop_id'])] = mb_substr($r['stop_name'], 0, 255);
                 if (is_numeric($r['stop_lat'] ?? null) && is_numeric($r['stop_lon'] ?? null)) {
-                    $coords[$r['stop_id']] = [(float) $r['stop_lat'], (float) $r['stop_lon']];
+                    $coords[self::stopId($r['stop_id'])] = [(float) $r['stop_lat'], (float) $r['stop_lon']];
                 }
             } elseif (in_array($r['location_type'] ?? '', ['', '0'], true)) {
-                $areaOf[$r['stop_id']] = $r['parent_station'] ?: $r['stop_id'];
-                $names[$r['stop_id']] ??= $r['stop_name'];
+                $areaOf[$r['stop_id']] = self::stopId($r['parent_station'] ?: $r['stop_id']);
+                $names[self::stopId($r['stop_id'])] ??= mb_substr($r['stop_name'], 0, 255);
                 $modeOf[$r['stop_id']] = self::mode($r['stop_id']);
             }
         }
@@ -172,7 +172,7 @@ class GtfsImporter
             $tripIds[$r['trip_id']] = $id;
             // Numéro du train : trip_headsign dans le fichier national, trip_short_name (« 141572-141573 ») ailleurs
             $number = $extra ? explode('-', $r['trip_short_name'] ?? '')[0] : ($r['trip_headsign'] ?? '');
-            $tripInfo[$id] = $prefix.$r['service_id']."\t".mb_substr($number, 0, 32);
+            $tripInfo[$id] = self::service($state, $prefix.$r['service_id'])."\t".mb_substr($number, 0, 32);
             if ($extra && isset($routeMode[$r['route_id'] ?? ''])) {
                 $tripRouteMode[$id] = $routeMode[$r['route_id']];
             }
@@ -218,7 +218,7 @@ class GtfsImporter
                 $end = self::date($r['end_date']);
                 for ($d = self::date($r['start_date']); $d <= $end; $d = $d->modify('+1 day')) {
                     if ('1' === $r[$days[(int) $d->format('N') - 1]]) {
-                        $state['days'][$prefix.$r['service_id'].'|'.$d->format('Y-m-d')] = true;
+                        $state['days'][self::service($state, $prefix.$r['service_id']).'|'.$d->format('Y-m-d')] = true;
                         $extra && $state['extraLast'] = max($state['extraLast'] ?? '', $d->format('Y-m-d'));
                     }
                 }
@@ -226,7 +226,7 @@ class GtfsImporter
         }
         if (false !== $zip->locateName('calendar_dates.txt')) {
             foreach ($this->rows($zip, 'calendar_dates.txt') as $r) {
-                $key = $prefix.$r['service_id'].'|'.self::date($r['date'])->format('Y-m-d');
+                $key = self::service($state, $prefix.$r['service_id']).'|'.self::date($r['date'])->format('Y-m-d');
                 if ('2' === $r['exception_type']) {
                     unset($state['days'][$key]);
                 } else {
@@ -339,6 +339,21 @@ class GtfsImporter
         );
 
         return count($rows);
+    }
+
+    /**
+     * Code court d'un service GTFS (« s42 ») : les identifiants des fichiers peuvent être longs et changer de format
+     * (UUID dans le fichier Transilien), seule leur correspondance trains ↔ jours compte.
+     */
+    private static function service(array &$state, string $gtfsId): string
+    {
+        return $state['services'][$gtfsId] ??= 's'.(count($state['services'] ?? []) + 1);
+    }
+
+    /** Identifiant de gare tenant dans la colonne (64 caractères) : condensé s'il est plus long. */
+    private static function stopId(string $id): string
+    {
+        return strlen($id) <= 64 ? $id : 'h:'.sha1($id);
     }
 
     /** « 25:10:00 » → 1510 (les trains de nuit dépassent 24 h). */
