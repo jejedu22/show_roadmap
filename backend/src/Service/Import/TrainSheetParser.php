@@ -37,13 +37,10 @@ class TrainSheetParser
             throw new \InvalidArgumentException('Onglet « Horaires TGV » introuvable dans ce classeur.');
         }
         $s = new Sheet($ws);
-        [$headerRow, $left, $right] = $this->layout($s);
+        [$left, $right] = $this->layout($s);
         $warnings = [];
         $persons = [];
-        foreach ([['outbound', $left], ['return', $right]] as [$direction, $col]) {
-            if (null === $col) {
-                continue;
-            }
+        foreach ([['outbound', $left], ['return', $right]] as [$direction, [$col, $headerRow]]) {
             $default = $s->date($col, $headerRow)
                 ?? ('outbound' === $direction ? ($event->techArrival ?? $event->artisticArrival ?? $event->firstDate) : ($event->departure ?? $event->lastDate));
             foreach ($this->side($s, $col, $headerRow, $default, $direction, $warnings) as $name => $legs) {
@@ -54,6 +51,9 @@ class TrainSheetParser
 
         $out = [];
         foreach ($persons as $name => $legs) {
+            if (!$legs) {
+                continue; // ligne réservée à une personne sans trajet (« ???? »)
+            }
             $out[] = ['name' => $name, 'legs' => self::dedupe($legs)];
         }
         $this->checkDates($out, $event, $warnings);
@@ -62,27 +62,38 @@ class TrainSheetParser
     }
 
     /**
-     * Ligne d'en-tête et première colonne de chaque côté : les deux dates de départ en haut de l'onglet
-     * (B et J d'ordinaire). À défaut, B et J.
+     * Première colonne et ligne d'en-tête de chaque côté : la date de départ en haut de l'onglet (B et J d'ordinaire),
+     * pas forcément sur la même ligne des deux côtés. À défaut, B et J en ligne 1.
+     *
+     * @return array{0: array{int, int}, 1: array{int, int}} [[colonne, ligne] aller, [colonne, ligne] retour]
      */
     private function layout(Sheet $s): array
     {
+        $dates = []; // colonne => ligne de la première date
         for ($r = 1; $r <= 6; ++$r) {
-            $dates = [];
             for ($c = 1; $c <= 20; ++$c) {
-                if ($s->date($c, $r)) {
-                    $dates[] = $c;
+                if (!isset($dates[$c]) && $s->date($c, $r)) {
+                    $dates[$c] = $r;
                 }
             }
-            if (count($dates) >= 2 && $dates[1] - $dates[0] >= 7) {
-                return [$r, $dates[0], $dates[1]];
-            }
-            if (1 === count($dates)) {
-                return [$r, $dates[0], $dates[0] + 8];
+        }
+        ksort($dates);
+        $cols = array_keys($dates);
+        foreach ($cols as $i => $l) {
+            foreach (array_slice($cols, $i + 1) as $r) {
+                if ($r - $l >= 7) {
+                    return [[$l, $dates[$l]], [$r, $dates[$r]]];
+                }
             }
         }
+        if ($cols) {
+            // Une seule date : côté aller si elle est à gauche, retour sinon ; l'autre côté à 8 colonnes
+            $c = $cols[0];
 
-        return [1, 2, 10];
+            return $c >= 9 ? [[$c - 8, $dates[$c]], [$c, $dates[$c]]] : [[$c, $dates[$c]], [$c + 8, $dates[$c]]];
+        }
+
+        return [[2, 1], [10, 1]];
     }
 
     /**

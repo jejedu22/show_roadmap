@@ -130,6 +130,33 @@ class TrainSheetTest extends ApiTestCase
         self::assertEqualsCanonicalizing(['Anna DURAND', 'Jean-Christophe AUBERT'], array_column($res['participants'], 'name'));
     }
 
+    /** Dates d'en-tête sur deux lignes différentes (retour en J1, aller en B2) et prénom réservé sans trajet. */
+    public function testHeaderDatesOnDifferentRows(): void
+    {
+        [$ev] = $this->fixture();
+        $wb = new Spreadsheet();
+        $s = $wb->getActiveSheet()->setTitle('Horaires TGV');
+        foreach (['J1' => '2027-05-21', 'B2' => '2027-05-18'] as $cell => $ymd) {
+            $s->setCellValue($cell, Date::PHPToExcel(new \DateTimeImmutable($ymd)));
+            $s->getStyle($cell)->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        }
+        foreach ([4 => ['C' => 'Lyon', 'D' => 'Paris', 'K' => 'Paris', 'L' => 'Lyon'],
+            5 => ['B' => 'Anna', 'C' => '10h04', 'D' => '12h08', 'E' => 'Direct', 'G' => 30, 'J' => 'Anna', 'K' => '10h00', 'L' => '11h56', 'M' => 'Direct', 'O' => 37],
+            8 => ['B' => '????', 'J' => '????']] as $r => $cells) {
+            foreach ($cells as $col => $v) {
+                $s->setCellValue($col.$r, $v);
+            }
+        }
+        $path = tempnam(sys_get_temp_dir(), 'tgv').'.xlsx';
+        (new Xlsx($wb))->save($path);
+        $this->tmp[] = $path;
+
+        $res = $this->preview($ev, $path);
+        self::assertSame(['Anna'], array_column($res['persons'], 'name'));
+        self::assertSame([['outbound', '2027-05-18', 'Lyon', 30.0], ['return', '2027-05-21', 'Paris', 37.0]],
+            array_map(fn ($l) => [$l['direction'], $l['day'], $l['origin'], (float) $l['price']], $res['persons'][0]['legs']));
+    }
+
     public function testImportAddsOrReplacesLegs(): void
     {
         [$ev, $parts] = $this->fixture();
