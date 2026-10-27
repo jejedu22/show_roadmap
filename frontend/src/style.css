@@ -226,6 +226,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 
 /* ---------- Fenêtres, notifications ---------- */
 dialog.modal { border: 0; border-radius: 24px; padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-shadow: 0 24px 80px rgba(27, 27, 58, .35); color: var(--ink); overflow: hidden; }
+dialog.modal.wide { width: min(880px, calc(100vw - 32px)); }
 dialog.modal[open] { display: flex; flex-direction: column; }
 dialog.modal::backdrop { background: rgba(27, 27, 58, .55); }
 .modal-head { background: var(--violet); color: #fff; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }

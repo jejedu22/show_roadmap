@@ -27,6 +27,12 @@ final class Sheet
             return null;
         }
         if ((is_int($v) || is_float($v)) && $this->isDate($cell)) {
+            if ($v >= 0 && $v < 1) { // heure seule (format hh:mm) : « 14h27 », comme les heures saisies en texte
+                $min = (int) round($v * 1440);
+
+                return intdiv($min, 60).'h'.sprintf('%02d', $min % 60);
+            }
+
             return \DateTimeImmutable::createFromInterface(Date::excelToDateTimeObject($v))->setTime(0, 0);
         }
 

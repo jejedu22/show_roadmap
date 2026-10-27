@@ -12,6 +12,8 @@ use App\Entity\Person;
 use App\Entity\RoadmapSection;
 use App\Entity\ScheduleItem;
 use App\Entity\TruckLeg;
+use App\Service\Import\Sheet;
+use App\Service\Import\TrainSheetParser;
 use App\Service\Input;
 use App\Service\PdfRenderer;
 use App\Service\Planning;
@@ -377,6 +379,86 @@ class EventController extends ApiController
                     $this->lists->check('schedule', Input::str($d, 'label') ?: throw new BadRequestHttpException('Intitulé obligatoire'), $item->label),
                     Input::str($d, 'detail')],
         };
+    }
+
+    // ---- Import de l'onglet « Horaires TGV » d'un classeur de devis vers les voyages ----
+
+    /** Lecture du classeur : trajets par prénom, rattachés aux participants ; rien n'est enregistré. */
+    #[Route('/legs/excel', methods: ['POST'])]
+    public function previewLegs(int $id, Request $request, TrainSheetParser $parser): JsonResponse
+    {
+        $ev = $this->event($id, 'travel.edit');
+        $file = $request->files->get('file');
+        $file = is_array($file) ? ($file[0] ?? null) : $file;
+        if (!$file || !$file->isValid() || $file->getSize() > 10 * 1024 * 1024) {
+            throw new BadRequestHttpException('Fichier illisible ou trop volumineux (10 Mo maximum).');
+        }
+        if (!preg_match('/\.xlsx$/i', (string) $file->getClientOriginalName()) || 'PK' !== file_get_contents($file->getPathname(), false, null, 0, 2)) {
+            throw new BadRequestHttpException('Seuls les classeurs Excel .xlsx sont acceptés.');
+        }
+        try {
+            $data = $parser->parse($file->getPathname(), $ev);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        } catch (\Throwable) {
+            throw new BadRequestHttpException('Classeur illisible (format inattendu ou fichier abîmé).');
+        }
+        $participants = [];
+        foreach ($ev->participations as $p) {
+            $participants[$p->id] = ['first' => $p->person->firstName, 'last' => $p->person->lastName];
+        }
+        // Trajet déjà saisi pour cette personne (même jour, mêmes gares, même départ) : proposé décoché
+        $same = fn (Leg $l, array $x) => $l->direction === $x['direction'] && $l->day->format('Y-m-d') === $x['day']
+            && Sheet::norm($l->origin) === Sheet::norm($x['origin']) && Sheet::norm($l->destination) === Sheet::norm($x['destination'])
+            && $l->depTime === $x['depTime'];
+        foreach ($data['persons'] as &$person) {
+            $person['participationId'] = TrainSheetParser::match($person['name'], $participants);
+            $part = $person['participationId'] ? $this->participation($ev, $person['participationId']) : null;
+            foreach ($person['legs'] as &$leg) {
+                $leg['exists'] = $part && $part->legs->exists(fn ($k, Leg $l) => $same($l, $leg));
+            }
+        }
+        unset($person, $leg);
+
+        return $this->json($data + ['participants' => array_map(fn ($pid, $p) => ['id' => $pid, 'name' => trim($p['first'].' '.$p['last'])],
+            array_keys($participants), $participants)]);
+    }
+
+    /** Enregistre les trajets retenus à l'écran ; « replace » efface d'abord les trajets des personnes concernées. */
+    #[Route('/legs/import', methods: ['POST'])]
+    public function importLegs(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'travel.edit');
+        $d = $this->body($request);
+        $rows = array_values(array_filter((array) ($d['legs'] ?? []), 'is_array'));
+        if (!$rows) {
+            throw new BadRequestHttpException('Aucun trajet à importer.');
+        }
+        if (count($rows) > 500) {
+            throw new BadRequestHttpException('500 trajets au plus par import.');
+        }
+        $parts = [];
+        foreach ($rows as $row) {
+            $parts[(int) ($row['participationId'] ?? 0)] ??= $this->participation($ev, (int) ($row['participationId'] ?? 0));
+        }
+        $removed = 0;
+        if (!empty($d['replace'])) {
+            foreach ($parts as $part) {
+                $removed += $part->legs->count();
+                $part->legs->clear();
+            }
+        }
+        foreach ($rows as $row) {
+            $part = $parts[(int) $row['participationId']];
+            $leg = new Leg($part, Input::date($row, 'day') ?? throw new BadRequestHttpException('Date du trajet manquante.'));
+            $this->fillLeg($leg, $row);
+            $part->legs->add($leg);
+        }
+        $this->audit->log('event.legs_import', sprintf('%s — %s', $ev->show->title, $ev->venue), [
+            'trajets' => count($rows), 'personnes' => count($parts), 'remplacés' => $removed,
+        ]);
+
+        return $this->savedEvent($ev);
     }
 
     private function fillLeg(Leg $leg, array $d): void

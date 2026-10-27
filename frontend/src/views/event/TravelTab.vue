@@ -5,11 +5,13 @@ import { byDeparture, fdate, money, sum } from '../../format.js'
 import Avatar from '../../components/Avatar.vue'
 import Icon from '../../components/Icon.vue'
 import LegPanel from '../../components/LegPanel.vue'
+import LegsImportDialog from '../../components/LegsImportDialog.vue'
 
 const { ev, apply, allowed } = inject('event')
 const panel = ref(null) // { part, direction, leg }
 const panelEl = ref(null)
 const open = ref({})
+const importing = ref(false)
 
 const legsOf = (p, dir) => p.legs.filter((l) => l.direction === dir).sort(byDeparture)
 const status = (p) => {
@@ -34,7 +36,9 @@ async function remove(p, l) {
       <div class="page-head">
         <h2 id="voy">Voyages</h2>
         <span class="muted">{{ ev.readiness.legsCovered }} / {{ ev.readiness.legsNeeded }} trajets<template v-if="ev.quote"> · billets <b style="color:var(--ink)">{{ money(ev.quote.travelTickets) }}</b></template></span>
+        <button v-if="allowed('travel.edit') && ev.participations.length" type="button" class="btn btn-sm" style="margin-left:auto" @click="importing = true">Importer depuis Excel (Horaires TGV)</button>
       </div>
+      <LegsImportDialog :open="importing" :ev="ev" :apply="apply" @close="importing = false" />
       <p v-if="!ev.participations.length" class="card empty">Ajoutez d'abord des personnes à l'étape Équipe.</p>
 
       <article v-for="p in ev.participations" :key="p.id" class="card" :class="{ warn: status(p)[1] !== 'ok' }">

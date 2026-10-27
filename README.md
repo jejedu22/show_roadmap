@@ -94,6 +94,21 @@ Chaque fichier est contrôlé avant import :
 Tout se corrige à l'écran avant d'importer.
 Sans feuille de route, le prix des billets du devis est porté sur un trajet aller et un trajet retour « à compléter ».
 
+### Onglet « Horaires TGV » seul
+
+Dans l'onglet **Voyages** d'une date, le bouton **Importer depuis Excel (Horaires TGV)** (droit « Gérer les voyages »)
+lit uniquement l'onglet « Horaires TGV » d'un classeur de devis et propose les trajets de chacun avant enregistrement.
+
+- **Structures acceptées :** colonnes aller et retour côte à côte (position repérée d'après les dates d'en-tête) ;
+  prénom sur la ligne des gares ou des horaires ; date propre à un trajet ou nouvelle date en cours d'onglet ;
+  trajets « Autonome » ou en voiture sur une ligne ; trajet isolé sans prénom (rattaché à la personne du dessus, signalé).
+- **Billets :** référence, prix, mode (Direct → TGV INOUI, OUIGO, TER, voiture, avion…). Les lignes « Echange »,
+  « Annulation », « Remboursement » corrigent le prix du trajet et sont notées ; un billet entièrement remboursé
+  ou remplacé par un échange est proposé décoché, de même qu'un trajet déjà saisi. Les totaux sont ignorés.
+- **Personnes :** les prénoms sont rapprochés de l'équipe de la date (prénom, nom, initiales comme « JC ») ;
+  un prénom non reconnu se rattache à la main ou s'ignore.
+- **Enregistrement :** ajout aux trajets existants, ou remplacement des trajets des personnes importées.
+
 ## Développement
 
 Prérequis : PHP 8.3 (pdo_mysql, intl, zip, gd), Composer, Node 22, MariaDB.
