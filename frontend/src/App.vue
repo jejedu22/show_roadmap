@@ -27,6 +27,15 @@ const ADMIN = computed(() => [['/admin/users', 'Utilisateurs', 'user', 'users.ma
 const isActive = (suffix) => suffix === '' ? route.path === `/companies/${cid.value}` || route.path.startsWith('/events/') : route.path === `/companies/${cid.value}${suffix}`
 const abbr = (name) => name.split(/\s+/).filter((w) => w.length > 2 || /^[A-Z]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || name.slice(0, 2).toUpperCase()
 
+const retry = () => window.location.reload()
+window.addEventListener('online', () => { if (session.unreachable) retry() })
+
+async function install() {
+  const prompt = session.installPrompt
+  session.installPrompt = null
+  await prompt?.prompt()
+}
+
 async function logout() {
   await post('/logout').catch(() => {})
   session.user = null
@@ -35,7 +44,15 @@ async function logout() {
 </script>
 
 <template>
-  <div v-if="shell" class="shell">
+  <main v-if="session.unreachable" style="min-height:100vh;display:grid;place-items:center;padding:16px">
+    <div class="card" style="max-width:420px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center">
+      <span class="brand-mark" style="width:48px;height:48px;border-radius:14px"><Icon name="logo" :size="26" style="color:#1b1b3a" /></span>
+      <h1 style="font-size:22px;margin:0">Show Roadmap</h1>
+      <p class="muted" style="margin:0">{{ session.unreachable }}</p>
+      <button type="button" class="btn btn-primary" @click="retry">Réessayer</button>
+    </div>
+  </main>
+  <div v-else-if="shell" class="shell">
     <div class="topbar">
       <RouterLink class="brand" to="/" style="display:flex"><span class="brand-mark"><Icon name="logo" :size="20" style="color:#1b1b3a" /></span>Show Roadmap</RouterLink>
       <button type="button" :aria-expanded="menuOpen" aria-controls="sidebar" aria-label="Menu" @click="menuOpen = !menuOpen"><Icon :name="menuOpen ? 'close' : 'menu'" :size="22" /></button>
@@ -78,10 +95,13 @@ async function logout() {
           <span style="display:flex;gap:10px"><RouterLink to="/account">Mon compte</RouterLink><button type="button" @click="logout">Déconnexion</button></span>
         </span>
       </div>
+      <button v-if="session.installPrompt" type="button" class="side-add" style="background:none;border:0;cursor:pointer;font:inherit" @click="install">
+        <Icon name="upload" :size="16" style="transform:rotate(180deg)" />Installer l'application</button>
       <p class="side-legal"><RouterLink to="/mentions-legales">Mentions légales</RouterLink> · <RouterLink to="/confidentialite">Confidentialité</RouterLink></p>
     </nav>
     <main class="content"><div class="content-inner"><RouterView /></div></main>
   </div>
   <RouterView v-else />
+  <div v-if="!session.online && !session.unreachable" class="offline" role="status">Hors connexion : les données affichées ne sont plus mises à jour.</div>
   <div v-if="session.toast" class="toast" :class="session.toast.kind" role="status" aria-live="polite">{{ session.toast.text }}</div>
 </template>

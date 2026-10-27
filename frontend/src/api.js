@@ -2,18 +2,30 @@ import { reactive } from 'vue'
 
 /** État global minimal : utilisateur connecté et options du serveur. */
 const storedCompany = () => { try { return Number(localStorage.getItem('companyId')) || null } catch { return null } }
-export const session = reactive({ user: null, google: false, passwordReset: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: storedCompany() })
+export const session = reactive({ online: navigator.onLine, unreachable: null, installPrompt: null,  user: null, google: false, passwordReset: false, sncf: false, sncfCoverage: null, loaded: false, toast: null, companyId: storedCompany() })
 
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
 }
+
+/** fetch avec un message clair hors connexion (l'interface reste ouverte, mais les données viennent du serveur). */
+async function send(url, init) {
+  try { return await fetch(url, init) } catch {
+    throw new ApiError(navigator.onLine ? 'Serveur injoignable : réessayez dans un instant.' : 'Hors connexion : reconnectez-vous à Internet pour continuer.', 0)
+  }
+}
+window.addEventListener('online', () => { session.online = true })
+window.addEventListener('offline', () => { session.online = false })
+// Proposition d'installation (Chrome, Edge, Android) : affichée dans le menu plutôt que la bannière du navigateur
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); session.installPrompt = e })
+window.addEventListener('appinstalled', () => { session.installPrompt = null })
 
 let onUnauthorized = () => {}
 export function setUnauthorizedHandler(fn) { onUnauthorized = fn }
 
 /** Appel JSON de l'API. L'en-tête X-Requested-With est exigé par le serveur pour toute écriture (CSRF). */
 export async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch(`/api${path}`, {
+  const res = await send(`/api${path}`, {
     method,
     credentials: 'same-origin',
     headers: { 'X-Requested-With': 'XMLHttpRequest', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
@@ -32,7 +44,7 @@ export async function api(path, { method = 'GET', body } = {}) {
 export async function upload(path, field, files) {
   const form = new FormData()
   for (const f of files) form.append(`${field}[]`, f)
-  const res = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: form })
+  const res = await send(`/api${path}`, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: form })
   const data = await res.json().catch(() => ({}))
   if (res.status === 401) { session.user = null; onUnauthorized() }
   if (res.status === 413) throw new ApiError('Envoi trop volumineux : importez les fichiers en plusieurs fois.', 413)

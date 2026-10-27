@@ -36,7 +36,7 @@ const contact = computed(() => legal.privacyEmail || legal.publisher.email)
 
     <section>
       <h2>Cookies</h2>
-      <p>Le site n'utilise que des cookies strictement nécessaires à son fonctionnement, qui ne demandent pas de consentement. Aucun traceur publicitaire ou de mesure d'audience, aucune ressource tierce (les polices sont hébergées sur le site).</p>
+      <p>Le site n'utilise que des cookies strictement nécessaires à son fonctionnement, qui ne demandent pas de consentement. Aucun traceur publicitaire ou de mesure d'audience, aucune ressource tierce (les polices sont hébergées sur le site). L'application installable garde sur l'appareil les seuls fichiers de l'interface, jamais vos données.</p>
       <ul>
         <li><code>roadmap_session</code> : maintient votre connexion ; supprimé à la fermeture du navigateur ou après 12 heures d'inactivité.</li>
         <li><code>REMEMBERME</code> : uniquement si vous cochez « Rester connecté sur cet appareil » ; valable 30 jours après la dernière utilisation, révocable dans « Mon compte ».</li>

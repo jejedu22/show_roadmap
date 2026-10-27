@@ -235,6 +235,7 @@ dialog.modal::backdrop { background: rgba(27, 27, 58, .55); }
 .modal-body { padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
 .modal-head { flex: none; }
 .toast { position: fixed; z-index: 50; bottom: 20px; right: 20px; max-width: 380px; padding: 12px 16px; border-radius: 14px; background: var(--ink); color: #fff; box-shadow: 0 10px 30px rgba(27, 27, 58, .3); display: flex; gap: 10px; align-items: center; font-weight: 500; }
+.offline { position: fixed; z-index: 49; top: 0; left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 0 0 12px 12px; background: var(--sun); color: var(--ink); font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgba(27, 27, 58, .2); }
 .toast.error { background: var(--coral-dark); }
 .toast.ok::before { content: '✓'; color: var(--sun); font-weight: 800; }
 

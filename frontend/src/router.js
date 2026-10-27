@@ -37,12 +37,20 @@ const routes = [
 const router = createRouter({ history: createWebHistory(), routes, scrollBehavior: () => ({ top: 0 }) })
 
 router.beforeEach(async (to) => {
-  if (!session.loaded) await loadConfig()
+  if (!session.loaded) {
+    // Hors connexion au lancement : l'interface (en cache) s'affiche avec un message plutôt qu'une page blanche
+    try { await loadConfig(); session.unreachable = null } catch (e) { session.unreachable = e.message; return true }
+  }
   if (!to.meta.public && !session.user) return { path: '/login' }
   if (to.path === '/login' && session.user) return { path: '/' }
   if (to.meta.perm && !can(to.meta.perm)) return { path: '/' }
 })
 
 setUnauthorizedHandler(() => router.push('/login'))
+
+// Après une mise à jour, un écran pas encore chargé peut ne plus exister sur le serveur : on recharge la page
+router.onError((err, to) => {
+  if (/dynamically imported module|Importing a module script failed/i.test(err?.message || '') && navigator.onLine) window.location.assign(to.fullPath)
+})
 
 export default router

@@ -98,7 +98,8 @@ Tenez aussi un **registre des violations** (date, nature, données et personnes 
 **Déjà en place :** mots de passe hachés et soumis à une exigence de robustesse, limitation des tentatives de connexion et
 des demandes de réinitialisation, liens de réinitialisation à usage unique (1 h) stockés hachés, sessions « rester
 connecté » révocables et protégées contre le vol de cookie, cloisonnement strict entre compagnies, droits par groupes,
-clés d'API tierces chiffrées, journal d'audit, protection CSRF, purge automatique des données techniques.
+clés d'API tierces chiffrées, journal d'audit, protection CSRF, purge automatique des données techniques. L'application
+installable (PWA) ne met en cache sur l'appareil que les fichiers de l'interface : aucune donnée personnelle n'y est stockée.
 
 **À votre charge :** HTTPS (assuré par Traefik), mises à jour régulières de l'image et du système, **sauvegardes**
 chiffrées de la base et test de restauration, mot de passe d'administrateur robuste, accès limité au serveur, retrait des

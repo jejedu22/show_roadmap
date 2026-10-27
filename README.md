@@ -29,6 +29,11 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
   pour que chaque intervenant récupère son billet lui-même.
 - Connexion par mot de passe ou Google (comptes créés par un administrateur uniquement).
 - Recherche de trains (directs ou avec une correspondance, y compris en changeant de gare à Paris, Lyon ou Lille) dans l'onglet Voyages, à partir des horaires SNCF en open data (sans clé).
+- **Application installable (PWA)** : sur téléphone (« Ajouter à l'écran d'accueil ») ou ordinateur (bouton « Installer
+  l'application » du menu sous Chrome / Edge), elle s'ouvre dans sa propre fenêtre avec son icône. L'interface est mise en
+  cache pour démarrer vite, même sur une connexion faible ; les données, elles, ne sont jamais stockées sur l'appareil
+  (hors connexion, un message invite à se reconnecter). Une nouvelle version est prise dès la réouverture de l'application.
+  L'installation exige HTTPS (assuré par Traefik), sauf sur `localhost`.
 
 ## Déploiement Docker + Traefik
 

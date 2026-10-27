@@ -18,3 +18,8 @@
 /public/index.html
 /public/assets/
 ###< front ###
+/public/sw.js
+/public/manifest.webmanifest
+/public/icon*.png
+/public/icon.svg
+/public/apple-touch-icon.png
