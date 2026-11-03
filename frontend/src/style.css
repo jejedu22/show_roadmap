@@ -198,6 +198,8 @@ input[type=checkbox], input[type=radio] { width: 20px; min-height: 20px; height:
 .leg .what { flex: 1 1 220px; min-width: 0; }
 .leg .mode { padding: 2px 8px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; }
 .leg .ref { font-size: 13px; color: var(--violet-dark); }
+.leg.expense { background: none; border: 1.5px dashed var(--violet-soft); padding: 7px 12px; }
+.leg.expense.back { border-color: var(--coral-soft); }
 .legs { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .panel { position: sticky; top: 20px; background: var(--ink); color: #fff; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
 .panel .field { color: var(--muted-on-dark); }

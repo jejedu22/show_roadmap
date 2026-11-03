@@ -82,7 +82,7 @@ async function addExtra() { if (await saved(post(url('extra'), newExtra.value)))
         </table>
         <p style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0">
           <span class="eyebrow" style="color:var(--sun)">Total TTC</span><b style="font-family:var(--display);font-size:28px;color:var(--sun)">{{ money(ev.quote.totalTtc) }}</b></p>
-        <p class="small" style="color:var(--muted-on-dark);margin:0 0 14px">Billets ({{ money(ev.quote.travelTickets) }}), repas, petits-déjeuners et nuitées viennent des étapes Séjour et Voyages.</p>
+        <p class="small" style="color:var(--muted-on-dark);margin:0 0 14px">Billets ({{ money(ev.quote.travelTickets) }}), dépenses de trajet ({{ money(ev.quote.travelExpenses) }}), repas, petits-déjeuners et nuitées viennent des étapes Séjour et Voyages.</p>
         <div class="actions">
           <RouterLink class="btn btn-sun" :to="`/events/${ev.id}/print/quote`" target="_blank"><Icon name="file" :size="16" />Devis PDF</RouterLink>
           <a class="btn" :href="`/api/events/${ev.id}/pdf/quote?download=1`"><Icon name="download" :size="16" />Télécharger</a>

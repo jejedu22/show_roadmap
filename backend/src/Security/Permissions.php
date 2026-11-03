@@ -13,7 +13,7 @@ final class Permissions
     public const COMPANY = [
         'company.view' => ['Consulter', 'Voir la compagnie, ses spectacles, dates, équipes, hébergements et voyages (sans les montants ni les coordonnées)'],
         'events.edit' => ['Organiser les dates', 'Créer et modifier les dates : infos, équipe, séjour, planning, infos pratiques'],
-        'travel.edit' => ['Gérer les voyages', 'Saisir les trajets, billets et liens de réservation'],
+        'travel.edit' => ['Gérer les voyages', 'Saisir les trajets, billets et liens de réservation (dépenses et remboursements avec « Voir les montants »)'],
         'people.view' => ['Voir les coordonnées', 'Téléphones, e-mails et régimes alimentaires des personnes'],
         'people.edit' => ['Gérer l\'annuaire', 'Ajouter, modifier et supprimer des personnes'],
         'finance.view' => ['Voir les montants', 'Devis, cachets, prix des billets, défraiements, export Excel'],
@@ -28,7 +28,7 @@ final class Permissions
         'groups.manage' => ['Gérer les groupes', 'Créer des groupes, choisir leurs droits, leurs compagnies et leurs membres'],
         'companies.create' => ['Créer des compagnies', 'Le créateur reçoit un groupe « Équipe » avec tous les droits sur la nouvelle compagnie'],
         'companies.delete' => ['Supprimer des compagnies', 'Suppression définitive avec tout leur contenu'],
-        'lists.manage' => ['Gérer les listes', 'Fonctions des personnes et intitulés de planning proposés dans les listes déroulantes'],
+        'lists.manage' => ['Gérer les listes', 'Fonctions, intitulés de planning, modes de transport et types de dépense proposés dans les listes déroulantes'],
     ];
 
     /** @return list<string> */

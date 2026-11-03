@@ -4,11 +4,12 @@ import { put, showError, toast } from '../../api.js'
 import { loadLists, setLists } from '../../lists.js'
 import Icon from '../../components/Icon.vue'
 
-/** Listes déroulantes de l'application : fonctions des personnes, intitulés du planning sur place, modes de transport des voyages. */
+/** Listes déroulantes de l'application : fonctions des personnes, intitulés du planning sur place, modes de transport et types de dépense des voyages. */
 const LISTS = [
   ['function', 'Fonctions', 'Proposées dans l\'annuaire et pour l\'équipe de chaque date.', 'Régisseuse plateau'],
   ['schedule', 'Intitulés de planning', 'Proposés dans le planning sur place ; une précision libre complète chaque ligne (« #1 scolaire », un lieu…).', 'Rencontre avec le public'],
   ['mode', 'Modes de transport', 'Proposés pour chaque trajet de la partie Voyages ; un train choisi dans les horaires SNCF prend le mode correspondant de la liste.', 'Covoiturage'],
+  ['expense', 'Types de dépense', 'Proposés pour les dépenses et remboursements de l\'aller et du retour (partie Voyages) ; comptés dans le coût, absents de la feuille de route.', 'Navette aéroport'],
 ]
 const KINDS = LISTS.map(([kind]) => kind)
 const items = reactive(Object.fromEntries(KINDS.map((k) => [k, []])))

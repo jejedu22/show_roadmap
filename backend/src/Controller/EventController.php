@@ -11,6 +11,7 @@ use App\Entity\Participation;
 use App\Entity\Person;
 use App\Entity\RoadmapSection;
 use App\Entity\ScheduleItem;
+use App\Entity\TravelExpense;
 use App\Entity\TruckLeg;
 use App\Service\Import\Sheet;
 use App\Service\Import\TrainSheetParser;
@@ -209,28 +210,41 @@ class EventController extends ApiController
 
     // ---- Lignes : hébergements, trajets, camion, frais, feuille de route ----
 
-    private const KINDS = ['lodging', 'leg', 'truck', 'extra', 'section', 'schedule'];
+    private const KINDS = ['lodging', 'leg', 'expense', 'truck', 'extra', 'section', 'schedule'];
 
     /** Droit nécessaire pour modifier un type de ligne. */
     private static function itemPerm(string $kind): string
     {
         return match ($kind) {
-            'leg' => 'travel.edit',
+            'leg', 'expense' => 'travel.edit',
             'truck', 'extra' => 'finance.edit',
             'lodging', 'section', 'schedule' => 'events.edit',
             default => throw new NotFoundHttpException(),
         };
     }
 
+    /** Date dont on modifie une ligne ; une dépense de trajet demande aussi de voir les montants. */
+    private function eventForItem(int $id, string $kind): Event
+    {
+        $ev = $this->event($id, self::itemPerm($kind));
+        if ('expense' === $kind) {
+            $this->authz->event($this->me(), $ev, 'finance.view');
+        }
+
+        return $ev;
+    }
+
     #[Route('/items/{kind}', methods: ['POST'])]
     public function createItem(int $id, string $kind, Request $request): JsonResponse
     {
-        $ev = $this->event($id, self::itemPerm($kind));
+        $ev = $this->eventForItem($id, $kind);
         $d = $this->body($request);
         $item = match ($kind) {
             'lodging' => new Lodging($ev),
             'leg' => new Leg($this->participation($ev, Input::int($d, 'participationId')),
                 Input::date($d, 'day') ?? throw new BadRequestHttpException('Date du trajet obligatoire')),
+            'expense' => new TravelExpense($this->participation($ev, Input::int($d, 'participationId')),
+                Input::date($d, 'day') ?? throw new BadRequestHttpException('Date de la dépense obligatoire')),
             'truck' => new TruckLeg($ev),
             'extra' => new ExtraCost($ev),
             'section' => new RoadmapSection($ev),
@@ -243,6 +257,7 @@ class EventController extends ApiController
         $this->fill($item, $d);
         match (true) {
             $item instanceof Leg => $item->participation->legs->add($item),
+            $item instanceof TravelExpense => $item->participation->expenses->add($item),
             $item instanceof Lodging => $ev->lodgings->add($item),
             $item instanceof TruckLeg => $ev->trucks->add($item),
             $item instanceof ExtraCost => $ev->extras->add($item),
@@ -256,7 +271,7 @@ class EventController extends ApiController
     #[Route('/items/{kind}/{itemId<\d+>}', methods: ['PUT'])]
     public function updateItem(int $id, string $kind, int $itemId, Request $request): JsonResponse
     {
-        $ev = $this->event($id, self::itemPerm($kind));
+        $ev = $this->eventForItem($id, $kind);
         $this->fill($this->item($ev, $kind, $itemId), $this->body($request));
 
         return $this->savedEvent($ev);
@@ -265,7 +280,7 @@ class EventController extends ApiController
     #[Route('/items/{kind}/{itemId<\d+>}', methods: ['DELETE'])]
     public function deleteItem(int $id, string $kind, int $itemId): JsonResponse
     {
-        $ev = $this->event($id, self::itemPerm($kind));
+        $ev = $this->eventForItem($id, $kind);
         $item = $this->item($ev, $kind, $itemId);
         if ($item instanceof Lodging) {
             foreach ($ev->participations as $p) {
@@ -276,6 +291,7 @@ class EventController extends ApiController
         }
         match (true) {
             $item instanceof Leg => $item->participation->legs->removeElement($item),
+            $item instanceof TravelExpense => $item->participation->expenses->removeElement($item),
             $item instanceof Lodging => $ev->lodgings->removeElement($item),
             $item instanceof TruckLeg => $ev->trucks->removeElement($item),
             $item instanceof ExtraCost => $ev->extras->removeElement($item),
@@ -351,6 +367,7 @@ class EventController extends ApiController
         $find = fn ($collection) => $collection->findFirst(fn ($k, $x) => $x->id === $itemId);
         $item = match ($kind) {
             'leg' => array_reduce($ev->participations->toArray(), fn ($found, $p) => $found ?? $find($p->legs)),
+            'expense' => array_reduce($ev->participations->toArray(), fn ($found, $p) => $found ?? $find($p->expenses)),
             'lodging' => $find($ev->lodgings),
             'truck' => $find($ev->trucks),
             'extra' => $find($ev->extras),
@@ -368,6 +385,10 @@ class EventController extends ApiController
                 [Input::str($d, 'name') ?: throw new BadRequestHttpException('Nom obligatoire'), Input::str($d, 'address'),
                     Input::str($d, 'phone', 60), Input::text($d, 'details')],
             $item instanceof Leg => $this->fillLeg($item, $d, $this->lists->check('mode', Input::str($d, 'mode', 60), $item->mode)),
+            $item instanceof TravelExpense => [$item->direction, $item->day, $item->kind, $item->amount, $item->comment] =
+                ['return' === ($d['direction'] ?? null) ? 'return' : 'outbound', Input::date($d, 'day') ?? $item->day,
+                    $this->lists->check('expense', Input::str($d, 'kind', 120) ?: throw new BadRequestHttpException('Type de dépense obligatoire'), $item->kind),
+                    Input::decimal($d, 'amount'), Input::str($d, 'comment')],
             $item instanceof TruckLeg => [$item->label, $item->km] = [Input::str($d, 'label'), Input::decimal($d, 'km', 1)],
             $item instanceof ExtraCost => [$item->label, $item->amount, $item->kind] =
                 [Input::str($d, 'label') ?: throw new BadRequestHttpException('Libellé obligatoire'), Input::decimal($d, 'amount'),

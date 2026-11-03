@@ -52,6 +52,14 @@ class XlsxExporter
         }
         $this->sheet($book, 'Voyages', ['Nom', 'Sens', 'Date', 'De', 'À', 'Départ', 'Arrivée', 'Mode', 'Référence', 'Prix (€)', 'Lien billet'], $rows);
 
+        $rows = [];
+        foreach ($ev->participations as $p) {
+            foreach ($p->expenses as $x) {
+                $rows[] = [$p->person->fullName(), 'return' === $x->direction ? 'Retour' : 'Aller', $x->day->format('d/m/Y'), $x->kind, (float) $x->amount, $x->comment];
+            }
+        }
+        $rows && $this->sheet($book, 'Dépenses trajets', ['Nom', 'Sens', 'Date', 'Type', 'Montant (€)', 'Commentaire'], $rows);
+
         $withContacts && $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
             $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues());
 

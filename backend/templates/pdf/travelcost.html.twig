@@ -6,11 +6,25 @@
       <tr><td><b>{{ c.name }}</b></td><td>{{ c.departureCity }}</td><td class="r">{{ c.outbound|money }}</td><td class="r">{{ c.return|money }}</td><td class="r"><b>{{ (c.outbound + c.return)|money }}</b></td></tr>
     {% endfor %}</tbody>
     <tfoot><tr><td colspan="2">Total</td><td class="r">{{ ev.personCosts|reduce((s, c) => s + c.outbound, 0)|money }}</td>
-      <td class="r">{{ ev.personCosts|reduce((s, c) => s + c.return, 0)|money }}</td><td class="r">{{ ev.quote.travelTickets|money }}</td></tr></tfoot>
+      <td class="r">{{ ev.personCosts|reduce((s, c) => s + c.return, 0)|money }}</td><td class="r">{{ ev.quote.travelTotal|money }}</td></tr></tfoot>
   </table>
 
   <div class="sec"><span class="dot mint"></span>Détail des billets aller</div>
   {% include 'pdf/_trips.html.twig' with { days: outbound, back: false } %}
   <div class="sec"><span class="dot coral"></span>Détail des billets retour</div>
   {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
+
+  {% set expenses = [] %}
+  {% for p in ev.participations %}{% for x in p.expenses %}{% set expenses = expenses|merge([{ p: p, x: x }]) %}{% endfor %}{% endfor %}
+  {% if expenses %}
+    <div class="sec"><span class="dot sun"></span>Dépenses et remboursements</div>
+    <table class="grid">
+      <thead><tr><th>Nom</th><th>Sens</th><th>Date</th><th>Type</th><th>Commentaire</th><th class="r">Montant</th></tr></thead>
+      <tbody>{% for e in expenses %}
+        <tr><td><b>{{ e.p.person.firstName ?: e.p.person.lastName }}</b></td><td>{{ e.x.direction == 'return' ? 'Retour' : 'Aller' }}</td>
+          <td>{{ e.x.day|fday }}</td><td>{{ e.x.kind }}</td><td>{{ e.x.comment }}</td><td class="r">{{ e.x.amount|money }}</td></tr>
+      {% endfor %}</tbody>
+      <tfoot><tr><td colspan="5">Total</td><td class="r">{{ ev.quote.travelExpenses|money }}</td></tr></tfoot>
+    </table>
+  {% endif %}
 {% endblock %}
