@@ -2,7 +2,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { get, post, put, session, toast } from '../api.js'
 import { fdate } from '../format.js'
+import { lists, loadLists } from '../lists.js'
 import Icon from './Icon.vue'
+import ListSelect from './ListSelect.vue'
 
 /**
  * Saisie d'un trajet (nouveau ou existant), pré-remplie selon le sens et la personne.
@@ -11,7 +13,18 @@ import Icon from './Icon.vue'
  */
 const props = defineProps({ ev: Object, part: Object, direction: String, leg: Object, apply: Function })
 const emit = defineEmits(['close'])
-const MODES = ['Train', 'TER', 'TGV INOUI', 'OUIGO', 'Intercités', 'Avion', 'Véhicule perso', 'Bus', 'Taxi']
+// Modes : liste paramétrée (Administration → Listes). Le mode d'un train SNCF (« TGV INOUI », « Transilien H »…) est rapproché
+// d'une entrée : identique (casse, accents), sinon la plus longue entrée contenue dans le nom, sinon « Train » s'il est proposé.
+const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+function listMode(raw) {
+  const v = fold(raw || '')
+  const modes = lists.mode
+  return modes.find((m) => fold(m) === v)
+    ?? [...modes].sort((a, b) => b.length - a.length).find((m) => new RegExp(`(^|[^a-z0-9])${fold(m).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`).test(v))
+    ?? modes.find((m) => fold(m) === 'train') ?? ''
+}
+const defaultMode = () => listMode('Train')
+loadLists().then(() => { if (!props.leg && !form.mode) form.mode = defaultMode() })
 const form = reactive({})
 const stations = reactive({ from: '', to: '' })
 const ids = new Map()
@@ -27,7 +40,7 @@ function defaults() {
   const out = props.direction === 'outbound'
   const day = out ? ((isTech(props.part) ? props.ev.techArrival : props.ev.artisticArrival) || props.ev.start) : (props.ev.departure || props.ev.lastDate)
   return { participationId: props.part.id, direction: props.direction, day, origin: out ? props.part.departureCity : props.ev.city,
-    destination: out ? props.ev.city : props.part.departureCity, depTime: '', arrTime: '', mode: 'Train', reference: '', price: '', bookedOn: '', note: '', bookingUrl: '' }
+    destination: out ? props.ev.city : props.part.departureCity, depTime: '', arrTime: '', mode: defaultMode(), reference: '', price: '', bookedOn: '', note: '', bookingUrl: '' }
 }
 let touched = false // gares modifiées à la main : la détection automatique ne les écrase pas
 async function init() {
@@ -70,11 +83,11 @@ async function search() {
 }
 // Tronçons du trajet choisi (le premier remplit le formulaire, les suivants sont créés à l'enregistrement)
 const segments = computed(() => picked.value === null ? [] : trains.value[picked.value].segments || [])
-const legOf = (g) => ({ origin: g.from, destination: g.to, depTime: g.depTime.replace(' (+1)', ''), arrTime: g.arrTime.replace(' (+1)', ''), mode: g.mode, note: g.number ? `Train ${g.number}` : '' })
+const legOf = (g) => ({ origin: g.from, destination: g.to, depTime: g.depTime.replace(' (+1)', ''), arrTime: g.arrTime.replace(' (+1)', ''), mode: listMode(g.mode), note: g.number ? `Train ${g.number}` : '' })
 function pick(t, i) {
   picked.value = i
   const [first] = t.segments || []
-  Object.assign(form, first ? legOf(first) : { origin: stations.from, destination: stations.to, depTime: t.depTime, arrTime: t.arrTime, mode: t.mode, note: t.numbers ? `Train ${t.numbers}` : form.note })
+  Object.assign(form, first ? legOf(first) : { origin: stations.from, destination: stations.to, depTime: t.depTime, arrTime: t.arrTime, mode: listMode(t.mode), note: t.numbers ? `Train ${t.numbers}` : form.note })
 }
 const nextDay = (iso) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) }
 // SNCF Connect n'a pas de lien de recherche pré-remplie documenté : le trajet est copié pour être collé dans sa recherche,
@@ -136,12 +149,11 @@ async function save() {
     <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <label class="field">Départ<input v-model="form.depTime" placeholder="14h27"></label>
       <label class="field">Arrivée<input v-model="form.arrTime" placeholder="17h25"></label>
-      <label class="field">Mode<input v-model="form.mode" list="modes-list"></label>
+      <label class="field">Mode<ListSelect v-model="form.mode" kind="mode" /></label>
       <label class="field">Prix (€)<input v-model="form.price" inputmode="decimal" placeholder="0,00"></label>
       <label class="field">Référence<input v-model="form.reference" placeholder="ABC123"></label>
       <label class="field">Réservé le<input v-model="form.bookedOn" type="date"></label>
     </div>
-    <datalist id="modes-list"><option v-for="m in MODES" :key="m" :value="m" /></datalist>
     <label class="field">Lien du billet ou de la réservation<input v-model="form.bookingUrl" type="url" placeholder="https://…"></label>
     <label class="field">Note<input v-model="form.note"></label>
     <div class="actions">

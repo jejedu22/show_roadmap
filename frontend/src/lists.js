@@ -1,8 +1,8 @@
 import { reactive } from 'vue'
 import { get } from './api.js'
 
-/** Listes paramétrées (Administration → Listes) : fonctions des personnes, intitulés de planning. Chargées une fois, rechargées après modification. */
-export const lists = reactive({ function: [], schedule: [], loaded: false })
+/** Listes paramétrées (Administration → Listes) : fonctions des personnes, intitulés de planning, modes de transport. Chargées une fois, rechargées après modification. */
+export const lists = reactive({ function: [], schedule: [], mode: [], loaded: false })
 
 let pending = null
 export function loadLists(force = false) {
