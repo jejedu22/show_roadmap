@@ -10,7 +10,7 @@ class QuoteCalculator
     public function compute(Event $ev): array
     {
         $meals = $bf = $nights = 0;
-        $tickets = 0.0;
+        $tickets = $expenses = 0.0;
         foreach ($ev->participations as $p) {
             foreach ($p->days as $d) {
                 $meals += $d->meals;
@@ -19,6 +19,9 @@ class QuoteCalculator
             }
             foreach ($p->legs as $l) {
                 $tickets += (float) $l->price;
+            }
+            foreach ($p->expenses as $x) {
+                $expenses += (float) $x->amount;
             }
         }
         $teamExtras = $otherExtras = 0.0;
@@ -33,7 +36,7 @@ class QuoteCalculator
         $mealsAmount = $meals * (float) $ev->mealRate;
         $bfAmount = $bf * (float) $ev->breakfastRate;
         $nightsAmount = $nights * (float) $ev->nightRate;
-        $team = $tickets + $teamExtras;
+        $team = $tickets + $expenses + $teamExtras;
         $annex = $truck + $team + $mealsAmount + $bfAmount + $nightsAmount + $otherExtras;
         $totalHt = (float) $ev->fee + $annex;
         $vat = $totalHt * (float) $ev->vatRate / 100;
@@ -44,6 +47,8 @@ class QuoteCalculator
             'truckKm' => $km,
             'truckScale' => self::truckScale($km, $ev->performances),
             'travelTickets' => $r($tickets),
+            'travelExpenses' => $r($expenses),
+            'travelTotal' => $r($tickets + $expenses),
             'mealsCount' => $meals,
             'breakfastsCount' => $bf,
             'nightsCount' => $nights,
@@ -52,7 +57,7 @@ class QuoteCalculator
             'nights' => $r($nightsAmount),
             'lines' => [
                 ['label' => sprintf('Transport décor (%s km × %s €)', self::n($km), self::n((float) $ev->truckRate)), 'amount' => $r($truck)],
-                ['label' => 'Transport équipe (billets + transports locaux)', 'amount' => $r($team)],
+                ['label' => 'Transport équipe (billets, dépenses de trajet, transports locaux)', 'amount' => $r($team)],
                 ['label' => sprintf('Défraiements repas (%d × %s €)', $meals, self::n((float) $ev->mealRate)), 'amount' => $r($mealsAmount)],
                 ['label' => sprintf('Petits-déjeuners (%d × %s €)', $bf, self::n((float) $ev->breakfastRate)), 'amount' => $r($bfAmount)],
                 ['label' => sprintf('Nuitées (%d × %s €)', $nights, self::n((float) $ev->nightRate)), 'amount' => $r($nightsAmount)],
@@ -65,7 +70,7 @@ class QuoteCalculator
         ];
     }
 
-    /** Par personne : repas, petits-déjeuners, défraiement et billets aller / retour. */
+    /** Par personne : repas, petits-déjeuners, défraiement et coût aller / retour (billets + dépenses et remboursements). */
     public function personCosts(Event $ev): array
     {
         $rows = [];
@@ -80,11 +85,15 @@ class QuoteCalculator
             foreach ($p->legs as $l) {
                 'return' === $l->direction ? $ret += (float) $l->price : $out += (float) $l->price;
             }
+            $tickets = $out + $ret;
+            foreach ($p->expenses as $x) {
+                'return' === $x->direction ? $ret += (float) $x->amount : $out += (float) $x->amount;
+            }
             $rows[] = [
                 'participationId' => $p->id, 'name' => $p->person->fullName(), 'departureCity' => $p->departureCity,
                 'meals' => $meals, 'breakfasts' => $bf, 'nights' => $nights,
                 'perDiem' => round($meals * (float) $ev->mealRate + $bf * (float) $ev->breakfastRate, 2),
-                'outbound' => round($out, 2), 'return' => round($ret, 2),
+                'outbound' => round($out, 2), 'return' => round($ret, 2), 'expenses' => round($out + $ret - $tickets, 2),
             ];
         }
 

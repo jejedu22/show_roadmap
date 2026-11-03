@@ -41,8 +41,9 @@ abstract class ApiTestCase extends WebTestCase
         // Listes paramétrées : valeurs de départ, comme après la migration
         require_once dirname(__DIR__).'/migrations/Version20261028090000.php';
         require_once dirname(__DIR__).'/migrations/Version20261103090000.php';
+        require_once dirname(__DIR__).'/migrations/Version20261103100000.php';
         foreach (['function' => \DoctrineMigrations\Version20261028090000::FUNCTIONS, 'schedule' => \DoctrineMigrations\Version20261028090000::SCHEDULE,
-            'mode' => \DoctrineMigrations\Version20261103090000::MODES] as $kind => $labels) {
+            'mode' => \DoctrineMigrations\Version20261103090000::MODES, 'expense' => \DoctrineMigrations\Version20261103100000::EXPENSES] as $kind => $labels) {
             foreach ($labels as $i => $label) {
                 $em->persist(new \App\Entity\ListItem($kind, $label, $i + 1));
             }

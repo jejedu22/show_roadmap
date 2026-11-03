@@ -148,6 +148,9 @@ class Presenter
                     'origin' => $l->origin, 'destination' => $l->destination, 'depTime' => $l->depTime, 'arrTime' => $l->arrTime,
                     'mode' => $l->mode, 'reference' => $l->reference, 'price' => $finance ? (float) $l->price : null,
                     'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note, 'bookingUrl' => $l->bookingUrl], self::byTime($p->legs->toArray(), 'depTime')),
+                // Dépenses et remboursements : montants seulement, jamais dans la feuille de route
+                'expenses' => $finance ? $p->expenses->map(fn ($x) => ['id' => $x->id, 'direction' => $x->direction, 'day' => Input::iso($x->day),
+                    'kind' => $x->kind, 'amount' => (float) $x->amount, 'comment' => $x->comment])->getValues() : [],
                 'conflicts' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue],
                     $conflicts[$p->person->id] ?? []),
             ])->getValues(),

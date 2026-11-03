@@ -50,6 +50,11 @@ class Participation
     #[ORM\OrderBy(['day' => 'ASC', 'depTime' => 'ASC'])]
     public Collection $legs;
 
+    /** @var Collection<int, TravelExpense> dépenses et remboursements de l'aller et du retour */
+    #[ORM\OneToMany(targetEntity: TravelExpense::class, mappedBy: 'participation', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['day' => 'ASC', 'id' => 'ASC'])]
+    public Collection $expenses;
+
     public function __construct(Event $event, Person $person)
     {
         $this->event = $event;
@@ -58,6 +63,7 @@ class Participation
         $this->departureCity = $person->homeCity;
         $this->days = new ArrayCollection();
         $this->legs = new ArrayCollection();
+        $this->expenses = new ArrayCollection();
     }
 
     public function day(\DateTimeInterface $d): ?Day
