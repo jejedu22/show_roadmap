@@ -19,7 +19,7 @@ final class Permissions
         'finance.view' => ['Voir les montants', 'Devis, cachets, prix des billets, défraiements, export Excel'],
         'finance.edit' => ['Modifier le devis', 'Cachet, tarifs, transport du décor, frais supplémentaires'],
         'shows.edit' => ['Gérer les spectacles', 'Créer, renommer et supprimer des spectacles'],
-        'share.manage' => ['Partager la feuille de route', 'Créer, envoyer et révoquer le lien public de la feuille de route'],
+        'share.manage' => ['Partager la feuille de route', 'Créer, envoyer et révoquer le lien public de la feuille de route, et celui de l\'export Excel des coûts (avec « Voir les montants »)'],
         'company.manage' => ['Paramètres de la compagnie', 'Renommer la compagnie, modifier ses notes'],
     ];
 

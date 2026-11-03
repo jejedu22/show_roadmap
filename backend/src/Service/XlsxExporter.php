@@ -7,7 +7,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-/** Export Excel d'une date : devis, rooming, défraiements, voyages, coordonnées. */
+/** Exports Excel d'une date : complet (devis, rooming, défraiements, voyages, coordonnées) ou coûts seuls (lien de partage). */
 class XlsxExporter
 {
     public function __construct(private QuoteCalculator $quotes)
@@ -39,6 +39,82 @@ class XlsxExporter
         $this->sheet($book, 'Défraiements', ['Nom', 'Repas', 'Petits-déj.', 'Total (€)'],
             array_map(fn ($c) => [$c['name'], $c['meals'], $c['breakfasts'], $c['perDiem']], $this->quotes->personCosts($ev)));
 
+        $this->travelSheets($book, $ev);
+
+        $withContacts && $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
+            $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues());
+
+        return $this->write($book);
+    }
+
+    /**
+     * Tout ce qui touche aux coûts d'une date, sans coordonnées ni rooming : le fichier envoyé par le lien de partage des coûts.
+     * Devis, tarifs, coûts par personne, défraiements jour par jour, billets, dépenses et remboursements, camion, frais supplémentaires.
+     */
+    public function exportCosts(Event $ev): string
+    {
+        $book = new Spreadsheet();
+        $book->removeSheetByIndex(0);
+        $q = $this->quotes->compute($ev);
+        $period = $ev->firstDate->format('d/m/Y').($ev->lastDate != $ev->firstDate ? ' au '.$ev->lastDate->format('d/m/Y') : '');
+        $rows = [['Spectacle', $ev->show->title], ['Lieu', trim($ev->venue.($ev->city ? ' — '.$ev->city : ''))], ['Dates', $period], ['', ''],
+            ['Cachet', $q['fee']]];
+        foreach ($q['lines'] as $l) {
+            $rows[] = [$l['label'], $l['amount']];
+        }
+        array_push($rows, ['Total frais annexes', $q['annexTotal']], ['Total HT', $q['totalHt']],
+            ['TVA '.(float) $ev->vatRate.' %', $q['vat']], ['Total TTC', $q['totalTtc']], ['', ''],
+            ['Dont billets de train / avion…', $q['travelTickets']], ['Dont dépenses et remboursements de trajet', $q['travelExpenses']]);
+        $this->sheet($book, 'Devis', ['Poste', 'Montant HT (€)'], $rows);
+
+        $this->sheet($book, 'Tarifs', ['Tarif', 'Valeur'], [['Cachet HT (€)', (float) $ev->fee], ['Repas / personne / jour (€)', (float) $ev->mealRate],
+            ['Petit-déjeuner (€)', (float) $ev->breakfastRate], ['Nuitée (€)', (float) $ev->nightRate], ['Camion (€ HT / km)', (float) $ev->truckRate],
+            ['TVA (%)', (float) $ev->vatRate]]);
+
+        $rows = [];
+        $costs = array_column($this->quotes->personCosts($ev), null, 'participationId');
+        foreach ($ev->participations as $p) {
+            $c = $costs[$p->id];
+            $tickets = ['outbound' => 0.0, 'return' => 0.0];
+            foreach ($p->legs as $l) {
+                $tickets['return' === $l->direction ? 'return' : 'outbound'] += (float) $l->price;
+            }
+            $travel = $c['outbound'] + $c['return'];
+            $rows[] = [$p->person->fullName(), $p->role, $p->departureCity, $c['meals'], $c['breakfasts'], $c['nights'], $c['perDiem'],
+                round($tickets['outbound'], 2), round($tickets['return'], 2), $c['expenses'], round($travel, 2), round($travel + $c['perDiem'], 2)];
+        }
+        $this->sheet($book, 'Par personne', ['Nom', 'Fonction', 'Départ de', 'Repas', 'Petits-déj.', 'Nuitées', 'Défraiements (€)', 'Billets aller (€)',
+            'Billets retour (€)', 'Dépenses / remb. (€)', 'Total voyages (€)', 'Total (€)'], $rows);
+
+        $rows = [];
+        foreach ($ev->participations as $p) {
+            foreach ($p->days as $d) {
+                if ($d->meals || $d->breakfast || $d->night) {
+                    $rows[] = [$p->person->fullName(), $d->day->format('d/m/Y'), $d->meals, $d->breakfast, $d->night,
+                        round($d->meals * (float) $ev->mealRate + $d->breakfast * (float) $ev->breakfastRate, 2)];
+                }
+            }
+        }
+        $this->sheet($book, 'Défraiements', ['Nom', 'Date', 'Repas', 'Petits-déj.', 'Nuitée', 'Défraiement (€)'], $rows);
+
+        $this->travelSheets($book, $ev, true);
+
+        $this->sheet($book, 'Transport décor', ['Trajet', 'Km', 'Tarif (€ HT / km)', 'Montant HT (€)'],
+            $ev->trucks->map(fn ($t) => [$t->label, (float) $t->km, (float) $ev->truckRate, round((float) $t->km * (float) $ev->truckRate, 2)])->getValues());
+        $this->sheet($book, 'Frais supplémentaires', ['Libellé', 'Poste', 'Montant HT (€)'],
+            $ev->extras->map(fn ($x) => [$x->label, 'team_transport' === $x->kind ? 'Transport équipe' : 'Autres frais', (float) $x->amount])->getValues());
+
+        return $this->write($book);
+    }
+
+    public static function costsFilename(Event $ev): string
+    {
+        return str_replace([' ', '/', '\''], ['_', '-', ''], 'Couts_'.$ev->show->title.'_'.$ev->venue).'.xlsx';
+    }
+
+    /** Onglets Voyages (billets) et Dépenses trajets ; $always : onglet des dépenses même vide. */
+    private function travelSheets(Spreadsheet $book, Event $ev, bool $always = false): void
+    {
         $rows = [];
         foreach ($ev->participations as $p) {
             // Allers puis retours, chacun dans l'ordre chronologique
@@ -58,11 +134,11 @@ class XlsxExporter
                 $rows[] = [$p->person->fullName(), 'return' === $x->direction ? 'Retour' : 'Aller', $x->day->format('d/m/Y'), $x->kind, (float) $x->amount, $x->comment];
             }
         }
-        $rows && $this->sheet($book, 'Dépenses trajets', ['Nom', 'Sens', 'Date', 'Type', 'Montant (€)', 'Commentaire'], $rows);
+        ($rows || $always) && $this->sheet($book, 'Dépenses trajets', ['Nom', 'Sens', 'Date', 'Type', 'Montant (€)', 'Commentaire'], $rows);
+    }
 
-        $withContacts && $this->sheet($book, 'Coordonnées', ['Nom', 'Fonction', 'Téléphone', 'E-mail', 'Régime'],
-            $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues());
-
+    private function write(Spreadsheet $book): string
+    {
         $book->setActiveSheetIndex(0);
         ob_start();
         (new Xlsx($book))->save('php://output');

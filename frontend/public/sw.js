@@ -21,7 +21,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request
   const url = new URL(req.url)
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api')) return
+  // API et documents partagés (PDF, Excel) : jamais mis en cache, ni pris pour l'interface
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api') || url.pathname.startsWith('/partage/')) return
 
   // Pages : réseau d'abord (nouvelle version dès qu'elle est en ligne), sinon l'interface en cache
   if (req.mode === 'navigate') {

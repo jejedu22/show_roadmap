@@ -4,6 +4,7 @@ import { del, toast } from '../../api.js'
 import { byDeparture, fdate, money, sum } from '../../format.js'
 import Avatar from '../../components/Avatar.vue'
 import Icon from '../../components/Icon.vue'
+import CostShareDialog from '../../components/CostShareDialog.vue'
 import ExpensePanel from '../../components/ExpensePanel.vue'
 import LegPanel from '../../components/LegPanel.vue'
 import LegsImportDialog from '../../components/LegsImportDialog.vue'
@@ -13,6 +14,7 @@ const panel = ref(null) // { part, direction, leg } ou { part, direction, expens
 const panelEl = ref(null)
 const open = ref({})
 const importing = ref(false)
+const sharingCosts = ref(false)
 
 const legsOf = (p, dir) => p.legs.filter((l) => l.direction === dir).sort(byDeparture)
 const status = (p) => {
@@ -98,7 +100,12 @@ async function remove(p, l) {
 
       <section v-if="ev.participations.length && ev.personCosts" class="card">
         <div class="card-head"><h3>Récapitulatif des frais</h3>
-          <RouterLink class="btn btn-sm" :to="`/events/${ev.id}/print/travelcost`" target="_blank">Suivi des frais PDF</RouterLink></div>
+          <span class="actions">
+            <RouterLink class="btn btn-sm" :to="`/events/${ev.id}/print/travelcost`" target="_blank">Suivi des frais PDF</RouterLink>
+            <a class="btn btn-sm" :href="`/api/events/${ev.id}/costs.xlsx`"><Icon name="download" :size="16" />Excel des coûts</a>
+            <button v-if="allowed('share.manage')" type="button" class="btn btn-sm" @click="sharingCosts = true"><Icon name="link" :size="16" />Envoyer les coûts</button>
+          </span></div>
+        <CostShareDialog :open="sharingCosts" :ev="ev" :apply="apply" @close="sharingCosts = false" />
         <div class="table-wrap">
           <table class="table">
             <caption class="sr-only">Billets, dépenses et remboursements compris</caption>
