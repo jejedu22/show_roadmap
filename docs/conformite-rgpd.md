@@ -84,7 +84,7 @@ activités de traitement »). Coordonnées du responsable : _à compléter_.
 | **Personnes** | Utilisateurs de l'outil | Artistes, techniciens, administrateurs de tournée | Les mêmes | Utilisateurs |
 | **Données** | E-mail, nom, mot de passe haché, droits, connexions | Nom, prénom, fonction, téléphone, e-mail, ville ; **régime alimentaire (sensible)** | Trajets, horaires, références et liens de billets, hébergement, repas, montants | E-mail, action, adresse IP, date |
 | **Base légale** | Exécution du service | Contrat / intérêt légitime ; consentement pour le régime alimentaire | Contrat / intérêt légitime | Intérêt légitime |
-| **Destinataires** | Administrateurs | Utilisateurs habilités ; personnes disposant d'un lien de partage (équipe, trajets) | Utilisateurs habilités selon leurs droits | Administrateurs |
+| **Destinataires** | Administrateurs | Utilisateurs habilités ; personnes disposant d'un lien de partage (feuille de route : équipe, trajets ; export des coûts : noms, fonctions, villes de départ, frais) | Utilisateurs habilités selon leurs droits | Administrateurs |
 | **Sous-traitants** | Hébergeur ; prestataire d'e-mails ; Google si connexion Google | Hébergeur ; Orfeo si la compagnie le relie (lecture) | Hébergeur | Hébergeur |
 | **Transferts hors UE** | Google (cadre de Google) si activé ; selon prestataire d'e-mails | Selon hébergeur | Selon hébergeur | Selon hébergeur |
 | **Durée** | Jusqu'à suppression du compte | Durée utile à la compagnie, suppression sur demande | Durée utile à la compagnie | 12 mois (purge automatique) |

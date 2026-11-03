@@ -46,4 +46,65 @@ class TravelExpensesTest extends ApiTestCase
         $this->call('POST', "$base/expense", ['participationId' => $pid, 'day' => '2027-01-18', 'kind' => 'Taxi', 'amount' => '5']);
         self::assertSame(403, $this->code());
     }
+
+    public function testCostsExcelSharedByLink(): void
+    {
+        $this->login();
+        [$cid, [$show]] = $this->buildCompany();
+        $ev = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => '2027-01-19']);
+        $ev = $this->call('POST', "/api/events/{$ev['id']}/participations", ['personIds' => [$ev['availablePeople'][0]['id']]]);
+        $id = $ev['id'];
+        $pid = $ev['participations'][0]['id'];
+        $this->call('POST', "/api/events/$id/items/leg", ['participationId' => $pid, 'day' => '2027-01-18', 'price' => '60']);
+        $this->call('POST', "/api/events/$id/items/expense", ['participationId' => $pid, 'day' => '2027-01-18', 'kind' => 'Taxi', 'amount' => '12']);
+
+        $this->client->request('GET', "/api/events/$id/costs.xlsx");
+        self::assertSame(200, $this->code());
+        $sheets = $this->sheets($this->client->getResponse()->getContent());
+        self::assertSame(['Devis', 'Tarifs', 'Par personne', 'Défraiements', 'Voyages', 'Dépenses trajets', 'Transport décor', 'Frais supplémentaires'], $sheets);
+
+        $this->client->request('GET', '/partage/couts/'.str_repeat('a', 64));
+        self::assertSame(404, $this->code());
+        $ev = $this->call('POST', "/api/events/$id/cost-share");
+        $token = $ev['costShare']['token'];
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $token);
+        self::assertNotSame($ev['share']['token'], $token, 'distinct du lien de la feuille de route');
+        self::assertSame($token, $this->call('POST', "/api/events/$id/cost-share")['costShare']['token'], 'le lien reste le même');
+        $this->client->request('GET', "/partage/$token");
+        self::assertSame(404, $this->code(), 'le lien des coûts n\'ouvre pas la feuille de route');
+
+        $this->call('POST', '/api/logout');
+        $this->client->request('GET', "/partage/couts/$token");
+        self::assertSame(200, $this->code(), 'accessible sans compte');
+        self::assertStringContainsString('spreadsheetml', $this->client->getResponse()->headers->get('content-type'));
+        self::assertStringContainsString('no-store', $this->client->getResponse()->headers->get('cache-control'));
+        self::assertNotContains('Coordonnées', $this->sheets($this->client->getResponse()->getContent()));
+
+        // Sans « Voir les montants » : pas de lien visible, ni création possible
+        $this->createUser('sh@test.io', 'sh-password-12345');
+        $this->grant(['sh@test.io'], ['company.view', 'share.manage'], [$cid]);
+        $this->login('sh@test.io', 'sh-password-12345');
+        self::assertNull($this->call('GET', "/api/events/$id")['costShare']['token']);
+        $this->call('POST', "/api/events/$id/cost-share");
+        self::assertSame(403, $this->code());
+        $this->call('POST', '/api/logout');
+
+        $this->login();
+        $this->call('DELETE', "/api/events/$id/cost-share");
+        $this->call('POST', '/api/logout');
+        $this->client->request('GET', "/partage/couts/$token");
+        self::assertSame(404, $this->code(), 'lien révoqué');
+    }
+
+    /** @return list<string> noms des onglets d'un classeur */
+    private function sheets(string $xlsx): array
+    {
+        $file = tempnam(sys_get_temp_dir(), 'xlsx');
+        file_put_contents($file, $xlsx);
+        try {
+            return \PhpOffice\PhpSpreadsheet\IOFactory::load($file)->getSheetNames();
+        } finally {
+            unlink($file);
+        }
+    }
 }

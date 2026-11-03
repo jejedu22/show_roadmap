@@ -69,6 +69,13 @@ class Event
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     public ?\DateTimeImmutable $sharedAt = null;
 
+    /** Lien public (non devinable) vers l'export Excel des coûts, distinct de celui de la feuille de route ; null = pas de partage */
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
+    public ?string $costShareToken = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $costSharedAt = null;
+
     // Tarifs et montants du devis (HT)
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     public string $mealRate = '20.70';

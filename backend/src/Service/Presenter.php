@@ -168,6 +168,8 @@ class Presenter
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
             'team' => $this->team($e),
             'readiness' => $this->readinessFor($e, $perms),
+            'costShare' => ['token' => in_array('share.manage', $perms, true) && $finance ? $e->costShareToken : null,
+                'sharedAt' => $finance ? $e->costSharedAt?->format(\DATE_ATOM) : null],
             'share' => ['token' => in_array('share.manage', $perms, true) ? $e->shareToken : null, 'sharedAt' => $e->sharedAt?->format(\DATE_ATOM),
                 'emails' => in_array('people.view', $perms, true) ? array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues())) : []],
             'quote' => $this->quotes->compute($e),

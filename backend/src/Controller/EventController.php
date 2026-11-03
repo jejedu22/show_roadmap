@@ -302,17 +302,59 @@ class EventController extends ApiController
         return $this->savedEvent($ev);
     }
 
+    /** Export Excel des seuls coûts (le fichier envoyé par le lien de partage des coûts). */
+    #[Route('/costs.xlsx', methods: ['GET'])]
+    public function exportCosts(int $id, XlsxExporter $exporter): Response
+    {
+        $ev = $this->event($id, 'finance.view');
+
+        return self::xlsx($exporter->exportCosts($ev), XlsxExporter::costsFilename($ev));
+    }
+
+    /** Active le lien public de l'export des coûts (créé une seule fois, conservé ensuite) et note la date d'envoi. */
+    #[Route('/cost-share', methods: ['POST'])]
+    public function costShare(int $id): JsonResponse
+    {
+        $ev = $this->event($id, 'share.manage');
+        $this->authz->event($this->me(), $ev, 'finance.view');
+        if (null === $ev->costShareToken) {
+            $ev->costShareToken = bin2hex(random_bytes(32));
+            $this->audit->log('event.cost_share', sprintf('%s — %s', $ev->show->title, $ev->venue));
+        }
+        $ev->costSharedAt = new \DateTimeImmutable();
+
+        return $this->savedEvent($ev);
+    }
+
+    /** Révoque le lien des coûts : l'ancienne adresse ne fonctionne plus. */
+    #[Route('/cost-share', methods: ['DELETE'])]
+    public function costUnshare(int $id): JsonResponse
+    {
+        $ev = $this->event($id, 'share.manage');
+        $this->authz->event($this->me(), $ev, 'finance.view');
+        if (null !== $ev->costShareToken) {
+            $this->audit->log('event.cost_unshare', sprintf('%s — %s', $ev->show->title, $ev->venue));
+        }
+        [$ev->costShareToken, $ev->costSharedAt] = [null, null];
+
+        return $this->savedEvent($ev);
+    }
+
+    private static function xlsx(string $content, string $name): Response
+    {
+        return new Response($content, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $name, preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'export.xlsx'),
+        ]);
+    }
+
     #[Route('/export.xlsx', methods: ['GET'])]
     public function export(int $id, XlsxExporter $exporter): Response
     {
         $ev = $this->event($id, 'finance.view');
         $name = str_replace([' ', '/'], ['_', '-'], $ev->show->title.'_'.$ev->venue).'.xlsx';
-        $ascii = preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'export.xlsx';
 
-        return new Response($exporter->export($ev, $this->authz->can($this->me(), 'people.view', $ev->show->company)), 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $name, $ascii),
-        ]);
+        return self::xlsx($exporter->export($ev, $this->authz->can($this->me(), 'people.view', $ev->show->company)), $name);
     }
 
     /** Active le lien public de la feuille de route (créé une seule fois, conservé ensuite) et note la date d'envoi. */

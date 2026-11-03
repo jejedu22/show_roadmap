@@ -1,12 +1,14 @@
 <script setup>
-import { inject, reactive, watch } from 'vue'
+import { inject, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { put, post, del, showError, toast } from '../../api.js'
 import { money } from '../../format.js'
+import CostShareDialog from '../../components/CostShareDialog.vue'
 import Icon from '../../components/Icon.vue'
 
 const { ev, apply, allowed } = inject('event')
 const router = useRouter()
+const sharingCosts = ref(false)
 const FIELDS = ['venue', 'city', 'address', 'firstDate', 'lastDate', 'performances', 'techArrival', 'artisticArrival', 'departure', 'status', 'venueContact', 'notes']
 const form = reactive({})
 watch(ev, (e) => FIELDS.forEach((f) => { form[f] = e[f] ?? '' }), { immediate: true })
@@ -62,10 +64,13 @@ async function remove() {
         <h3 style="margin-bottom:10px">Autres actions</h3>
         <div class="actions">
           <a v-if="allowed('finance.view')" class="btn btn-sm" :href="`/api/events/${ev.id}/export.xlsx`"><Icon name="download" :size="16" />Export Excel</a>
+          <a v-if="allowed('finance.view')" class="btn btn-sm" :href="`/api/events/${ev.id}/costs.xlsx`"><Icon name="download" :size="16" />Export des coûts</a>
+          <button v-if="allowed('finance.view') && allowed('share.manage')" class="btn btn-sm" @click="sharingCosts = true"><Icon name="link" :size="16" />Lien Excel des coûts</button>
           <button v-if="allowed('events.edit')" class="btn btn-sm" @click="duplicate"><Icon name="copy" :size="16" />Dupliquer</button>
           <button v-if="allowed('events.edit')" class="btn btn-sm btn-danger" @click="remove"><Icon name="trash" :size="16" />Supprimer</button>
         </div>
       </div>
     </aside>
+    <CostShareDialog :open="sharingCosts" :ev="ev" :apply="apply" @close="sharingCosts = false" />
   </div>
 </template>
