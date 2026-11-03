@@ -4,17 +4,19 @@ import { put, showError, toast } from '../../api.js'
 import { loadLists, setLists } from '../../lists.js'
 import Icon from '../../components/Icon.vue'
 
-/** Listes déroulantes de l'application : fonctions des personnes, intitulés du planning sur place. */
+/** Listes déroulantes de l'application : fonctions des personnes, intitulés du planning sur place, modes de transport des voyages. */
 const LISTS = [
   ['function', 'Fonctions', 'Proposées dans l\'annuaire et pour l\'équipe de chaque date.', 'Régisseuse plateau'],
   ['schedule', 'Intitulés de planning', 'Proposés dans le planning sur place ; une précision libre complète chaque ligne (« #1 scolaire », un lieu…).', 'Rencontre avec le public'],
+  ['mode', 'Modes de transport', 'Proposés pour chaque trajet de la partie Voyages ; un train choisi dans les horaires SNCF prend le mode correspondant de la liste.', 'Covoiturage'],
 ]
-const items = reactive({ function: [], schedule: [] })
-const fresh = reactive({ function: '', schedule: '' })
-const dirty = reactive({ function: false, schedule: false })
+const KINDS = LISTS.map(([kind]) => kind)
+const items = reactive(Object.fromEntries(KINDS.map((k) => [k, []])))
+const fresh = reactive(Object.fromEntries(KINDS.map((k) => [k, ''])))
+const dirty = reactive(Object.fromEntries(KINDS.map((k) => [k, false])))
 const busy = ref(false)
 
-loadLists(true).then((l) => { items.function = [...l.function]; items.schedule = [...l.schedule] })
+loadLists(true).then((l) => KINDS.forEach((k) => { items[k] = [...(l[k] || [])] }))
 
 const changed = (kind) => { dirty[kind] = true }
 function add(kind) {

@@ -4,13 +4,13 @@ namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
-/** Entrée d'une liste paramétrée dans l'administration (fonctions des personnes, intitulés de planning). */
+/** Entrée d'une liste paramétrée dans l'administration (fonctions des personnes, intitulés de planning, modes de transport). */
 #[ORM\Entity]
 #[ORM\Table(name: 'list_item')]
 #[ORM\UniqueConstraint(name: 'list_item_label', columns: ['kind', 'label'])]
 class ListItem
 {
-    public const KINDS = ['function' => 'Fonctions', 'schedule' => 'Intitulés de planning'];
+    public const KINDS = ['function' => 'Fonctions', 'schedule' => 'Intitulés de planning', 'mode' => 'Modes de transport'];
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     public ?int $id = null;

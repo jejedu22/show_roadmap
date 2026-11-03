@@ -367,7 +367,7 @@ class EventController extends ApiController
             $item instanceof Lodging => [$item->name, $item->address, $item->phone, $item->details] =
                 [Input::str($d, 'name') ?: throw new BadRequestHttpException('Nom obligatoire'), Input::str($d, 'address'),
                     Input::str($d, 'phone', 60), Input::text($d, 'details')],
-            $item instanceof Leg => $this->fillLeg($item, $d),
+            $item instanceof Leg => $this->fillLeg($item, $d, $this->lists->check('mode', Input::str($d, 'mode', 60), $item->mode)),
             $item instanceof TruckLeg => [$item->label, $item->km] = [Input::str($d, 'label'), Input::decimal($d, 'km', 1)],
             $item instanceof ExtraCost => [$item->label, $item->amount, $item->kind] =
                 [Input::str($d, 'label') ?: throw new BadRequestHttpException('Libellé obligatoire'), Input::decimal($d, 'amount'),
@@ -461,7 +461,8 @@ class EventController extends ApiController
         return $this->savedEvent($ev);
     }
 
-    private function fillLeg(Leg $leg, array $d): void
+    /** $mode : mode déjà contrôlé par la liste (saisie) ; à l'import, la valeur du classeur est gardée telle quelle (« hors liste » au besoin). */
+    private function fillLeg(Leg $leg, array $d, ?string $mode = null): void
     {
         $leg->direction = 'return' === ($d['direction'] ?? null) ? 'return' : 'outbound';
         $leg->day = Input::date($d, 'day') ?? throw new BadRequestHttpException('Date du trajet obligatoire');
@@ -469,7 +470,7 @@ class EventController extends ApiController
         $leg->destination = Input::str($d, 'destination', 120);
         $leg->depTime = Input::str($d, 'depTime', 20);
         $leg->arrTime = Input::str($d, 'arrTime', 20);
-        $leg->mode = Input::str($d, 'mode', 60);
+        $leg->mode = $mode ?? Input::str($d, 'mode', 60);
         $leg->reference = Input::str($d, 'reference', 60);
         $leg->price = Input::decimal($d, 'price');
         $leg->bookedOn = Input::date($d, 'bookedOn');

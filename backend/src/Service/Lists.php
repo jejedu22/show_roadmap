@@ -7,7 +7,7 @@ use App\Service\Import\Sheet;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
-/** Listes paramétrées : fonctions des personnes et intitulés de planning (choix proposés, contrôle des saisies, rapprochement à l'import). */
+/** Listes paramétrées : fonctions des personnes, intitulés de planning et modes de transport (choix proposés, contrôle des saisies, rapprochement à l'import). */
 class Lists
 {
     /** @var array<string, list<string>>|null */

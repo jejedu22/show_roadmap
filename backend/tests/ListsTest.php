@@ -45,6 +45,30 @@ class ListsTest extends ApiTestCase
         self::assertSame(['19h', 'Représentation'], [$ev['schedule'][0]['time'], $ev['schedule'][0]['label']]);
     }
 
+    public function testLegModesComeFromTheList(): void
+    {
+        $this->login();
+        [, [$show]] = $this->buildCompany();
+        self::assertContains('TGV INOUI', $this->call('GET', '/api/lists')['mode']);
+        $ev = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => '2027-01-19']);
+        $ev = $this->call('POST', "/api/events/{$ev['id']}/participations", ['personIds' => [$ev['availablePeople'][0]['id']]]);
+        $url = "/api/events/{$ev['id']}/items/leg";
+        $leg = ['participationId' => $ev['participations'][0]['id'], 'day' => '2027-01-18'];
+
+        $this->call('POST', $url, $leg + ['mode' => 'Trottinette']);
+        self::assertSame(400, $this->code());
+        $ev = $this->call('POST', $url, $leg + ['mode' => 'tgv inoui']);
+        self::assertSame('TGV INOUI', $ev['participations'][0]['legs'][0]['mode'], 'casse de la liste');
+
+        // Mode retiré de la liste : le trajet le garde et peut encore être enregistré
+        $this->call('PUT', '/api/admin/lists/mode', ['items' => ['Avion', 'Covoiturage']]);
+        $id = $ev['participations'][0]['legs'][0]['id'];
+        $ev = $this->call('PUT', "$url/$id", $leg + ['mode' => 'TGV INOUI', 'origin' => 'Lyon']);
+        self::assertSame(['TGV INOUI', 'Lyon'], [$ev['participations'][0]['legs'][0]['mode'], $ev['participations'][0]['legs'][0]['origin']]);
+        $ev = $this->call('PUT', "$url/$id", $leg + ['mode' => 'Covoiturage']);
+        self::assertSame('Covoiturage', $ev['participations'][0]['legs'][0]['mode']);
+    }
+
     public function testOnlyListManagersEdit(): void
     {
         $this->createUser('ed@test.io', 'ed-password-12345');
