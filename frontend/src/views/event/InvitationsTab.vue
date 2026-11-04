@@ -11,12 +11,16 @@ import Icon from '../../components/Icon.vue'
 const { ev, apply, allowed } = inject('event')
 const KINDS = { company: 'Cie', pro: 'Pro' }
 const quotas = reactive({ total: 0, performances: {} })
-const blank = () => ({ kind: 'company', lastName: '', firstName: '', structure: '', places: 1, performanceId: ev.value.invitationPerformances[0]?.id ?? '' })
+const blank = () => ({ kind: 'company', lastName: '', firstName: '', structure: '', places: 1, performanceId: ev.value.invitationPerformances?.[0]?.id ?? '' })
 const form = ref(blank())
 const editing = ref(null)
 const formEl = ref(null)
 
+// Serveur pas encore à jour (déploiement ou migration manquants) : l'onglet le dit au lieu de rester blanc
+const ready = computed(() => Array.isArray(ev.value.invitationPerformances) && !!ev.value.invitationSummary)
+
 watch(ev, (e) => {
+  if (!Array.isArray(e.invitationPerformances)) return
   quotas.total = e.invitationQuota
   quotas.performances = Object.fromEntries(e.invitationPerformances.map((s) => [s.id, s.quota]))
 }, { immediate: true })
@@ -62,7 +66,9 @@ async function remove(i) {
 </script>
 
 <template>
-  <div class="two-cols">
+  <div v-if="!ready" class="card empty"><h3>Invitations indisponibles</h3>
+    <p>Le serveur n'a pas encore la mise à jour des invitations : redéployez l'application et appliquez la migration de la base de données.</p></div>
+  <div v-else class="two-cols">
     <div class="main-col">
       <div class="page-head">
         <h2>Invitations</h2>
@@ -105,7 +111,8 @@ async function remove(i) {
           <b class="inv-num" :style="summary.left < 0 ? 'color:var(--coral-dark)' : ''">{{ Math.abs(summary.left) }}</b></div>
       </div>
 
-      <p v-if="!ev.invitations.length" class="card empty">Aucune invitation pour l'instant.</p>
+      <p v-if="!ev.invitations.length" class="card empty">Aucune invitation pour l'instant.<template v-if="allowed('events.edit')"><br>
+        Ajoutez chaque invité avec le formulaire « Nouvelle invitation ».</template></p>
       <section v-for="g in groups.filter((g) => g.rows.length || g.key !== 'none')" :key="g.key" class="card">
         <div class="card-head" style="margin-bottom:8px">
           <h3>{{ g.title }}</h3>
@@ -129,8 +136,20 @@ async function remove(i) {
       </section>
     </div>
 
-    <aside v-if="allowed('events.edit')" class="side-col">
-      <form ref="formEl" class="card" style="display:flex;flex-direction:column;gap:10px" @submit.prevent="save">
+    <aside class="side-col">
+      <details class="card help" :open="!ev.invitations.length">
+        <summary><b>Comment ça marche</b></summary>
+        <ol>
+          <li><b>Nombre d'invitations</b> : saisissez en haut le nombre d'invitations données par le lieu, puis « Enregistrer ».
+            Pour le répartir par représentation, ajoutez d'abord les lignes « Représentation » (date, heure) au planning de l'onglet
+            <RouterLink :to="`/events/${ev.id}/roadmap`">Feuille de route</RouterLink> : une case apparaît alors pour chacune.</li>
+          <li><b>Invités</b> : ajoutez chaque personne avec le formulaire « Nouvelle invitation » — Invité Cie (nom, prénom)
+            ou Professionnel (nom, prénom, structure), son nombre de places et sa représentation.</li>
+          <li><b>Suivi</b> : les compteurs montrent les invitations attribuées et restantes ; « Liste PDF » donne la liste pour la billetterie.</li>
+        </ol>
+        <p class="muted small" style="margin:0">Les invitations n'apparaissent pas dans la feuille de route envoyée à l'équipe.</p>
+      </details>
+      <form v-if="allowed('events.edit')" ref="formEl" class="card" style="display:flex;flex-direction:column;gap:10px" @submit.prevent="save">
         <h3>{{ editing ? "Modifier l'invitation" : 'Nouvelle invitation' }}</h3>
         <div class="filters" role="group" aria-label="Type d'invitation">
           <button v-for="(label, k) in KINDS" :key="k" type="button" :aria-pressed="form.kind === k" @click="form.kind = k">{{ label === 'Cie' ? 'Invité Cie' : 'Professionnel' }}</button>
@@ -155,6 +174,8 @@ async function remove(i) {
 .inv-tiles .card { display: flex; flex-direction: column; gap: 2px; }
 .inv-num { font-family: var(--display); font-size: 26px; line-height: 1.1; }
 .row-editing td { background: var(--sun-soft); }
+.help summary { cursor: pointer; }
+.help ol { margin: 10px 0 8px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
 .quota-card.unset { border: 2px solid var(--sun); }
 .quota-list { display: flex; flex-direction: column; gap: 8px; }
 .quota-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--violet-soft); }
