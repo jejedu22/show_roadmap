@@ -33,7 +33,7 @@ async function revoke() {
 <template>
   <Modal :open="open" title="Envoyer les coûts" @close="emit('close')">
     <template v-if="!ev.costShare?.token">
-      <p style="margin:0">Créez un lien de téléchargement de l'<b>export Excel des coûts</b> : devis, tarifs, coûts par personne, défraiements, billets, dépenses et remboursements, transport du décor, frais supplémentaires.</p>
+      <p style="margin:0">Créez un lien de téléchargement de l'<b>export Excel des coûts</b> : devis, tarifs, coûts par personne, défraiements (repas, petits-déjeuners, nuitées jour par jour), voyages (billets, dépenses et remboursements).</p>
       <p class="muted small" style="margin:0">Le lien s'ouvre sans compte, il est secret et révocable à tout moment, et distinct de celui de la feuille de route. Il ne contient ni coordonnées ni rooming.</p>
       <div class="actions">
         <button class="btn btn-primary" :disabled="busy" @click="create"><Icon name="link" />Créer le lien</button>
