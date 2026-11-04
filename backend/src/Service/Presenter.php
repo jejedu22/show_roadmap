@@ -157,7 +157,7 @@ class Presenter
             'availablePeople' => array_values(array_map(fn (Person $p) => $this->personFor($p, $perms),
                 array_filter($e->show->company->people->toArray(), fn (Person $p) => !isset($used[$p->id])))),
             'lodgings' => $e->lodgings->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'address' => $l->address,
-                'phone' => $l->phone, 'details' => $l->details])->getValues(),
+                'phone' => $l->phone, 'website' => $l->website, 'details' => $l->details])->getValues(),
             'trucks' => $e->trucks->map(fn ($t) => ['id' => $t->id, 'label' => $t->label, 'km' => (float) $t->km])->getValues(),
             'extras' => $e->extras->map(fn ($x) => ['id' => $x->id, 'label' => $x->label, 'amount' => (float) $x->amount,
                 'kind' => $x->kind])->getValues(),

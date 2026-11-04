@@ -83,7 +83,7 @@ class EventController extends ApiController
         }
         foreach ($ev->lodgings as $l) {
             $copy = new Lodging($new);
-            [$copy->name, $copy->address, $copy->phone, $copy->details] = [$l->name, $l->address, $l->phone, $l->details];
+            [$copy->name, $copy->address, $copy->phone, $copy->website, $copy->details] = [$l->name, $l->address, $l->phone, $l->website, $l->details];
             $new->lodgings->add($copy);
         }
         foreach ($ev->participations as $p) {
@@ -423,9 +423,9 @@ class EventController extends ApiController
     private function fill(object $item, array $d): void
     {
         match (true) {
-            $item instanceof Lodging => [$item->name, $item->address, $item->phone, $item->details] =
+            $item instanceof Lodging => [$item->name, $item->address, $item->phone, $item->website, $item->details] =
                 [Input::str($d, 'name') ?: throw new BadRequestHttpException('Nom obligatoire'), Input::str($d, 'address'),
-                    Input::str($d, 'phone', 60), Input::text($d, 'details')],
+                    Input::str($d, 'phone', 60), Input::url($d, 'website'), Input::text($d, 'details')],
             $item instanceof Leg => $this->fillLeg($item, $d, $this->lists->check('mode', Input::str($d, 'mode', 60), $item->mode)),
             $item instanceof TravelExpense => [$item->direction, $item->day, $item->kind, $item->amount, $item->comment] =
                 ['return' === ($d['direction'] ?? null) ? 'return' : 'outbound', Input::date($d, 'day') ?? $item->day,

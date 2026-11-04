@@ -12,6 +12,7 @@
       <h3>{{ l.name }}</h3>
       {% if l.address %}<div>{{ l.address }}</div>{% endif %}
       {% if l.phone %}<div>☎ {{ l.phone }}</div>{% endif %}
+      {% if l.website %}<div style="margin-top:3pt"><a class="btn" href="{{ l.website }}">Site web ↗</a></div>{% endif %}
       {% if l.details %}<div class="pre" style="margin-top:3pt">{{ l.details }}</div>{% endif %}
       {% set guests = ev.participations|filter(p => p.lodgingId == l.id)|map(p => p.person.firstName ?: p.person.lastName) %}
       {% if guests|length %}<div class="who">♥ {{ guests|join(', ') }}</div>{% endif %}
