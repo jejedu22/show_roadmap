@@ -108,14 +108,7 @@ class Presenter
                 }
 
                 return $this->eventSummary($e) + [
-                    // Invitations : jamais dans la feuille de route
-            'invitationQuota' => $e->invitationQuota,
-            'invitationPerformances' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time, 'detail' => $s->detail,
-                'quota' => $s->invitationQuota], Invitations::performances($e)),
-            'invitations' => $e->invitations->map(fn ($i) => ['id' => $i->id, 'kind' => $i->kind, 'lastName' => $i->lastName, 'firstName' => $i->firstName,
-                'structure' => $i->structure, 'places' => $i->places, 'performanceId' => $i->performance?->id])->getValues(),
-            'invitationSummary' => Invitations::summary($e),
-            'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue], $overlaps),
+                    'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue], $overlaps),
                     'conflicts' => array_values($conflicts),
                     'team' => $this->team($e),
                     'readiness' => $this->readinessFor($e, $perms),
@@ -173,6 +166,13 @@ class Presenter
                 'position' => $s->position])->getValues(),
             'schedule' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
                 'label' => $s->label, 'detail' => $s->detail], self::byTime($e->schedule->toArray(), 'time')),
+            // Invitations : jamais dans la feuille de route
+            'invitationQuota' => $e->invitationQuota,
+            'invitationPerformances' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time, 'detail' => $s->detail,
+                'quota' => $s->invitationQuota], Invitations::performances($e)),
+            'invitations' => $e->invitations->map(fn ($i) => ['id' => $i->id, 'kind' => $i->kind, 'lastName' => $i->lastName, 'firstName' => $i->firstName,
+                'structure' => $i->structure, 'places' => $i->places, 'performanceId' => $i->performance?->id])->getValues(),
+            'invitationSummary' => Invitations::summary($e),
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
             'team' => $this->team($e),
             'readiness' => $this->readinessFor($e, $perms),
