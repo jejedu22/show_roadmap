@@ -61,7 +61,7 @@ class TravelExpensesTest extends ApiTestCase
         $this->client->request('GET', "/api/events/$id/costs.xlsx");
         self::assertSame(200, $this->code());
         $sheets = $this->sheets($this->client->getResponse()->getContent());
-        self::assertSame(['Devis', 'Tarifs', 'Par personne', 'Défraiements', 'Voyages', 'Dépenses trajets', 'Transport décor', 'Frais supplémentaires'], $sheets);
+        self::assertSame(['Devis', 'Tarifs', 'Par personne', 'Défraiements', 'Voyages'], $sheets);
 
         $this->client->request('GET', '/partage/couts/'.str_repeat('a', 64));
         self::assertSame(404, $this->code());

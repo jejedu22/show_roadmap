@@ -34,6 +34,7 @@ class XlsxExporter
     private const MINT = '00C2A8';
 
     private const MONEY = '#,##0.00\ "€";[Red]\-#,##0.00\ "€"';
+    /** Première ligne sous le bandeau */
     private const HEADER_ROW = 4;
 
     /** Types de colonne : largeur par défaut, format, alignement ; « sum » : additionnée dans la ligne de total. */
@@ -68,11 +69,8 @@ class XlsxExporter
             ...array_map(fn ($d) => [ExcelDate::PHPToExcel($d), 'int', 11, '[$-40C]ddd dd/mm'], $dates), ['Nuitées', 'int']], $rows,
             ['total' => 'Total', 'tab' => self::MINT]);
 
-        $this->table($book, $ev, 'Défraiements', [['Nom', 'text', 22], ['Repas', 'int'], ['Petits-déj.', 'int', 11], ['Défraiements', 'money', 14]],
-            array_map(fn ($c) => [$c['name'], $c['meals'], $c['breakfasts'], $c['perDiem']], $this->quotes->personCosts($ev)),
-            ['total' => 'Total', 'tab' => self::SUN]);
-
-        $this->travelSheets($book, $ev);
+        $this->perDiemSheet($book, $ev);
+        $this->travelSheet($book, $ev);
 
         $withContacts && $this->table($book, $ev, 'Coordonnées', [['Nom', 'text', 22], ['Fonction', 'text', 20], ['Téléphone', 'text', 16],
             ['E-mail', 'text', 30], ['Régime', 'text', 22]],
@@ -84,7 +82,7 @@ class XlsxExporter
 
     /**
      * Tout ce qui touche aux coûts d'une date, sans coordonnées ni rooming : le fichier envoyé par le lien de partage des coûts.
-     * Devis, tarifs, coûts par personne, défraiements jour par jour, billets, dépenses et remboursements, camion, frais supplémentaires.
+     * Devis, tarifs, coûts par personne, défraiements (grilles par jour), voyages (billets, dépenses et remboursements).
      */
     public function exportCosts(Event $ev): string
     {
@@ -113,26 +111,8 @@ class XlsxExporter
             ['Dépenses / remb.', 'money', 16], ['Total voyages', 'money', 14], ['Total', 'money', 14]], $rows,
             ['total' => 'Total', 'tab' => self::SUN, 'emphasis' => 11]);
 
-        $rows = [];
-        foreach ($ev->participations as $p) {
-            foreach ($p->days as $d) {
-                if ($d->meals || $d->breakfast || $d->night) {
-                    $rows[] = [$p->person->fullName(), $d->day, $d->meals, $d->breakfast, $d->night,
-                        round($d->meals * (float) $ev->mealRate + $d->breakfast * (float) $ev->breakfastRate, 2)];
-                }
-            }
-        }
-        $this->table($book, $ev, 'Défraiements', [['Nom', 'text', 22], ['Date', 'date'], ['Repas', 'int'], ['Petits-déj.', 'int', 11],
-            ['Nuitée', 'int'], ['Défraiement', 'money', 14]], $rows, ['total' => 'Total', 'tab' => self::SUN]);
-
-        $this->travelSheets($book, $ev, true);
-
-        $this->table($book, $ev, 'Transport décor', [['Trajet', 'text', 32], ['Km', 'km'], ['Tarif HT / km', 'rate', 14], ['Montant HT', 'money', 14]],
-            $ev->trucks->map(fn ($t) => [$t->label, (float) $t->km, (float) $ev->truckRate, round((float) $t->km * (float) $ev->truckRate, 2)])->getValues(),
-            ['total' => 'Total', 'tab' => self::INK]);
-        $this->table($book, $ev, 'Frais supplémentaires', [['Libellé', 'text', 32], ['Poste', 'text', 18], ['Montant HT', 'money', 14]],
-            $ev->extras->map(fn ($x) => [$x->label, 'team_transport' === $x->kind ? 'Transport équipe' : 'Autres frais', (float) $x->amount])->getValues(),
-            ['total' => 'Total', 'tab' => self::INK]);
+        $this->perDiemSheet($book, $ev);
+        $this->travelSheet($book, $ev);
 
         return $this->write($book);
     }
@@ -168,9 +148,13 @@ class XlsxExporter
             ['styles' => $styles, 'tab' => self::VIOLET, 'filter' => false, 'stripes' => false]);
     }
 
-    /** Onglets Voyages (billets) et Dépenses trajets ; $always : onglet des dépenses même vide. */
-    private function travelSheets(Spreadsheet $book, Event $ev, bool $always = false): void
+    /**
+     * Onglet Voyages : billets, puis dépenses et remboursements, alignés sur les mêmes colonnes (montants dans la colonne Prix),
+     * et total général des voyages.
+     */
+    private function travelSheet(Spreadsheet $book, Event $ev): void
     {
+        $ws = $this->newSheet($book, $ev, 'Voyages', self::CORAL);
         $rows = [];
         foreach ($ev->participations as $p) {
             // Allers puis retours, chacun dans l'ordre chronologique
@@ -182,19 +166,56 @@ class XlsxExporter
                     $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, $l->reference, (float) $l->price, $l->bookingUrl];
             }
         }
-        $this->table($book, $ev, 'Voyages', [['Nom', 'text', 22], ['Sens', 'text', 8], ['Date', 'date'], ['De', 'text', 18], ['À', 'text', 18],
+        $tickets = $this->block($ws, self::HEADER_ROW, [['Nom', 'text', 22], ['Sens', 'text', 8], ['Date', 'date'], ['De', 'text', 18], ['À', 'text', 18],
             ['Départ', 'text', 8], ['Arrivée', 'text', 8], ['Mode', 'text', 12], ['Référence', 'text', 12], ['Prix', 'money', 12], ['Billet', 'url']],
-            $rows, ['total' => 'Total', 'tab' => self::CORAL, 'direction' => 1]);
+            $rows, ['heading' => 'Billets', 'total' => 'Total billets', 'direction' => 1]);
 
         $rows = [];
         foreach ($ev->participations as $p) {
             foreach ($p->expenses as $x) {
-                $rows[] = [$p->person->fullName(), 'return' === $x->direction ? 'Retour' : 'Aller', $x->day, $x->kind, (float) $x->amount, $x->comment];
+                $rows[] = [$p->person->fullName(), 'return' === $x->direction ? 'Retour' : 'Aller', $x->day, $x->kind, $x->comment, (float) $x->amount, ''];
             }
         }
-        ($rows || $always) && $this->table($book, $ev, 'Dépenses trajets', [['Nom', 'text', 22], ['Sens', 'text', 8], ['Date', 'date'],
-            ['Type', 'text', 22], ['Montant', 'money', 13], ['Commentaire', 'text', 36]], $rows,
-            ['total' => 'Total', 'tab' => self::CORAL, 'direction' => 1, 'note' => 'Montant négatif = remboursement.']);
+        // Type sous « De », commentaire sur « À » → « Référence », montant sous « Prix »
+        $expenses = $this->block($ws, $tickets['next'], [['Nom', 'text'], ['Sens', 'text'], ['Date', 'date'], ['Type', 'text'],
+            ['Commentaire', 'text', null, null, 5], ['Montant', 'money'], ['', 'text']], $rows,
+            ['heading' => 'Dépenses et remboursements (montant négatif = remboursement)', 'total' => 'Total dépenses et remboursements',
+                'direction' => 1, 'widths' => false]);
+
+        $price = Coordinate::stringFromColumnIndex(10);
+        $sum = array_filter([$tickets['total'] ? $price.$tickets['total'] : null, $expenses['total'] ? $price.$expenses['total'] : null]);
+        $this->grandTotal($ws, $expenses['next'], 11, 'Total voyages', [10 => '='.($sum ? implode('+', $sum) : '0')]);
+        $this->finish($ws, $ev, 11);
+    }
+
+    /**
+     * Onglet Défraiements, comme le tableau de l'onglet Séjour : une grille personnes × jours pour les repas, les petits-déjeuners
+     * et les nuitées, avec total, tarif et montant par personne, puis le total général.
+     */
+    private function perDiemSheet(Spreadsheet $book, Event $ev): void
+    {
+        $ws = $this->newSheet($book, $ev, 'Défraiements', self::SUN);
+        $dates = $ev->spanDates();
+        $r = self::HEADER_ROW;
+        $amounts = [];
+        $width = 0;
+        foreach ([['meals', 'Repas', (float) $ev->mealRate], ['breakfast', 'Petits-déjeuners', (float) $ev->breakfastRate],
+            ['night', 'Nuitées', (float) $ev->nightRate]] as $i => [$field, $label, $rate]) {
+            $rows = [];
+            foreach ($ev->participations as $p) {
+                $counts = array_map(fn ($d) => $p->day($d)?->$field ?? 0, $dates);
+                $n = array_sum($counts);
+                $rows[] = [$p->person->fullName(), ...$counts, $n, $rate, round($n * $rate, 2)];
+            }
+            $b = $this->block($ws, $r, [['Nom', 'text', 22], ...array_map(fn ($d) => [ExcelDate::PHPToExcel($d), 'int', 10, '[$-40C]ddd dd/mm'], $dates),
+                ['Total', 'int'], ['Tarif', 'rate', 12], ['Montant', 'money', 14]], $rows,
+                ['heading' => $label, 'total' => 'Total '.mb_strtolower($label), 'emphasis' => count($dates) + 1, 'widths' => 0 === $i]);
+            $width = $b['width'];
+            $b['total'] && $amounts[] = Coordinate::stringFromColumnIndex($width).$b['total'];
+            $r = $b['next'];
+        }
+        $this->grandTotal($ws, $r, $width, 'Total défraiements (repas, petits-déjeuners, nuitées)', [$width => '='.($amounts ? implode('+', $amounts) : '0')]);
+        $this->finish($ws, $ev, $width);
     }
 
     private function book(Event $ev, string $kind): Spreadsheet
@@ -208,41 +229,80 @@ class XlsxExporter
         return $book;
     }
 
-    /**
-     * Un onglet : bandeau (titre, spectacle, lieu, dates), en-têtes, lignes, ligne de total.
-     *
-     * @param list<array{0: string|float, 1: string, 2?: int, 3?: string}> $columns [libellé, type, largeur, format de l'en-tête]
-     * @param list<list<mixed>>                                            $rows    une valeur peut être [valeur, type] pour changer le type d'une cellule
-     * @param array{total?: string, tab?: string, styles?: array<int, string>, filter?: bool, stripes?: bool, emphasis?: int, direction?: int, note?: string} $opts
-     */
+    /** Un onglet d'un seul tableau : bandeau, tableau, filtres, volets figés, impression. */
     private function table(Spreadsheet $book, Event $ev, string $title, array $columns, array $rows, array $opts = []): void
+    {
+        $ws = $this->newSheet($book, $ev, $title, $opts['tab'] ?? self::VIOLET, $opts['note'] ?? null);
+        $b = $this->block($ws, self::HEADER_ROW, $columns, $rows, $opts);
+        if (($opts['filter'] ?? true) && $rows) {
+            $ws->setAutoFilter('A'.self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($b['width']).($b['last']));
+        }
+        $this->finish($ws, $ev, $b['width'], self::HEADER_ROW);
+    }
+
+    /** Onglet vide avec son bandeau : titre, spectacle, lieu, dates, note éventuelle. */
+    private function newSheet(Spreadsheet $book, Event $ev, string $title, string $tab, ?string $note = null): Worksheet
     {
         $ws = $book->createSheet();
         $ws->setTitle($title);
-        $ws->getTabColor()->setRGB($opts['tab'] ?? self::VIOLET);
+        $ws->getTabColor()->setRGB($tab);
         $ws->setShowGridlines(false);
-        $n = count($columns);
-        $last = Coordinate::stringFromColumnIndex($n);
-        $h = self::HEADER_ROW;
-
-        // Bandeau
         $ws->setCellValueExplicit('A1', $title, DataType::TYPE_STRING);
         $ws->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB(self::VIOLET);
         $ws->getRowDimension(1)->setRowHeight(24);
         $period = $ev->firstDate->format('d/m/Y').($ev->lastDate != $ev->firstDate ? ' au '.$ev->lastDate->format('d/m/Y') : '');
         $ws->setCellValueExplicit('A2', implode(' · ', array_filter([$ev->show->title, trim($ev->venue.($ev->city ? ', '.$ev->city : '')), $period])), DataType::TYPE_STRING);
         $ws->getStyle('A2')->getFont()->setSize(10)->getColor()->setRGB(self::MUTED);
-        if (isset($opts['note'])) {
-            $ws->setCellValueExplicit('A3', $opts['note'], DataType::TYPE_STRING);
+        if (null !== $note) {
+            $ws->setCellValueExplicit('A3', $note, DataType::TYPE_STRING);
             $ws->getStyle('A3')->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB(self::MUTED);
+        }
+
+        return $ws;
+    }
+
+    /**
+     * Un tableau à partir de la ligne $h : intitulé de section éventuel, en-têtes, lignes, ligne de total.
+     * Une colonne peut couvrir plusieurs colonnes de la feuille (« span », cellules fusionnées), pour aligner deux tableaux d'un même onglet.
+     *
+     * @param list<array{0: string|float, 1: string, 2?: ?int, 3?: ?string, 4?: int}> $columns [libellé, type, largeur, format de l'en-tête, span]
+     * @param list<list<mixed>>                                                       $rows    une valeur peut être [valeur, type] pour changer le type d'une cellule
+     * @param array{total?: string, heading?: string, styles?: array<int, string>, stripes?: bool, emphasis?: int, direction?: int, widths?: bool} $opts
+     *
+     * @return array{header: int, first: int, last: int, total: ?int, next: int, width: int, cols: list<int>} lignes et colonnes de la feuille utilisées
+     */
+    private function block(Worksheet $ws, int $h, array $columns, array $rows, array $opts = []): array
+    {
+        // Colonnes de la feuille : début et fin de chaque colonne du tableau
+        $cols = $ends = [];
+        $sc = 1;
+        foreach ($columns as $col) {
+            $cols[] = $sc;
+            $sc += $col[4] ?? 1;
+            $ends[] = $sc - 1;
+        }
+        $width = $sc - 1;
+        $last = Coordinate::stringFromColumnIndex($width);
+        $merge = function (int $c, int $r) use ($ws, $cols, $ends) {
+            $cols[$c] !== $ends[$c] && $ws->mergeCells([$cols[$c], $r, $ends[$c], $r]);
+        };
+
+        if (isset($opts['heading'])) {
+            $ws->setCellValueExplicit("A$h", $opts['heading'], DataType::TYPE_STRING);
+            $ws->getStyle("A$h")->getFont()->setBold(true)->setSize(12)->getColor()->setRGB(self::INK);
+            $ws->getRowDimension($h)->setRowHeight(20);
+            ++$h;
         }
 
         // En-têtes
         foreach ($columns as $c => $col) {
-            $cell = [$c + 1, $h];
+            $cell = [$cols[$c], $h];
             is_float($col[0]) ? $ws->setCellValueExplicit($cell, $col[0], DataType::TYPE_NUMERIC) : $ws->setCellValueExplicit($cell, $col[0], DataType::TYPE_STRING);
             isset($col[3]) && $ws->getStyle($cell)->getNumberFormat()->setFormatCode($col[3]);
-            $ws->getColumnDimensionByColumn($c + 1)->setWidth($col[2] ?? self::TYPES[$col[1]]['width']);
+            if (($opts['widths'] ?? true) && 1 === ($col[4] ?? 1)) {
+                $ws->getColumnDimensionByColumn($cols[$c])->setWidth($col[2] ?? self::TYPES[$col[1]]['width']);
+            }
+            $merge($c, $h);
         }
         $head = $ws->getStyle("A$h:$last$h");
         $head->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
@@ -250,7 +310,7 @@ class XlsxExporter
         $head->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         $ws->getRowDimension($h)->setRowHeight(28);
         foreach ($columns as $c => $col) {
-            self::align($ws->getStyle([$c + 1, $h])->getAlignment(), self::TYPES[$col[1]]['align']);
+            self::align($ws->getStyle([$cols[$c], $h])->getAlignment(), self::TYPES[$col[1]]['align']);
         }
 
         // Lignes
@@ -259,7 +319,8 @@ class XlsxExporter
             ++$r;
             foreach (array_values($row) as $c => $v) {
                 [$v, $type] = is_array($v) ? $v : [$v, $columns[$c][1]];
-                $this->cell($ws, $c + 1, $r, $v, $type);
+                $this->cell($ws, $cols[$c], $r, $v, $type);
+                $merge($c, $r);
             }
             $style = $opts['styles'][$i] ?? null;
             $range = $ws->getStyle("A$r:$last$r");
@@ -279,11 +340,11 @@ class XlsxExporter
                 $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::STRIPE);
             }
             if (isset($opts['direction'])) {
-                $ws->getStyle([$opts['direction'] + 1, $r])->getFont()->setBold(true)
+                $ws->getStyle([$cols[$opts['direction']], $r])->getFont()->setBold(true)
                     ->getColor()->setRGB('Retour' === $row[$opts['direction']] ? 'D93A3F' : self::VIOLET);
             }
             if (isset($opts['emphasis'])) {
-                $ws->getStyle([$opts['emphasis'] + 1, $r])->getFont()->setBold(true);
+                $ws->getStyle([$cols[$opts['emphasis']], $r])->getFont()->setBold(true);
             }
         }
         if (!$rows) {
@@ -292,19 +353,21 @@ class XlsxExporter
             $this->format($ws, 1, $r, 'text');
             $ws->getStyle("A$r")->getFont()->setItalic(true)->getColor()->setRGB(self::MUTED);
         }
+        $lastRow = $r;
 
         // Total : formules SOMME, pour rester juste si l'on modifie le fichier
+        $totalRow = null;
         if (isset($opts['total']) && $rows) {
             $first = $h + 1;
-            $end = $r;
-            ++$r;
+            $totalRow = ++$r;
             $ws->setCellValueExplicit("A$r", $opts['total'], DataType::TYPE_STRING);
             $this->format($ws, 1, $r, 'text');
             foreach ($columns as $c => $col) {
+                $merge($c, $r);
                 if (self::TYPES[$col[1]]['sum'] && $c > 0) {
-                    $letter = Coordinate::stringFromColumnIndex($c + 1);
-                    $ws->setCellValueExplicit([$c + 1, $r], "=SUM($letter$first:$letter$end)", DataType::TYPE_FORMULA);
-                    $this->format($ws, $c + 1, $r, $col[1]);
+                    $letter = Coordinate::stringFromColumnIndex($cols[$c]);
+                    $ws->setCellValueExplicit([$cols[$c], $r], "=SUM($letter$first:$letter$lastRow)", DataType::TYPE_FORMULA);
+                    $this->format($ws, $cols[$c], $r, $col[1]);
                 }
             }
             $total = $ws->getStyle("A$r:$last$r");
@@ -314,18 +377,38 @@ class XlsxExporter
             $ws->getRowDimension($r)->setRowHeight(20);
         }
 
-        // Navigation et impression
-        $ws->freezePane('B'.($h + 1));
-        if (($opts['filter'] ?? true) && $rows) {
-            $ws->setAutoFilter("A$h:$last".($h + count($rows)));
+        return ['header' => $h, 'first' => $h + 1, 'last' => $lastRow, 'total' => $totalRow, 'next' => $r + 2, 'width' => $width, 'cols' => $cols];
+    }
+
+    /** Ligne de total général d'un onglet à plusieurs tableaux : $cells => formule, dans les colonnes de la feuille indiquées. */
+    private function grandTotal(Worksheet $ws, int $r, int $width, string $label, array $formulas, string $type = 'money'): void
+    {
+        $last = Coordinate::stringFromColumnIndex($width);
+        $ws->setCellValueExplicit("A$r", $label, DataType::TYPE_STRING);
+        $this->format($ws, 1, $r, 'text');
+        foreach ($formulas as $col => $formula) {
+            $ws->setCellValueExplicit([$col, $r], $formula, DataType::TYPE_FORMULA);
+            $this->format($ws, $col, $r, $type);
         }
+        $style = $ws->getStyle("A$r:$last$r");
+        $style->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('FFFFFF');
+        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::INK);
+        $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $ws->getRowDimension($r)->setRowHeight(24);
+    }
+
+    /** Volets figés (et en-tête répété à l'impression si $header), mise en page A4, pied de page. */
+    private function finish(Worksheet $ws, Event $ev, int $width, ?int $header = null): void
+    {
+        $ws->freezePane('B'.($header ? $header + 1 : self::HEADER_ROW));
         $setup = $ws->getPageSetup();
         $setup->setPaperSize(PageSetup::PAPERSIZE_A4)
-            ->setOrientation($n > 6 ? PageSetup::ORIENTATION_LANDSCAPE : PageSetup::ORIENTATION_PORTRAIT)
-            ->setFitToWidth(1)->setFitToHeight(0)->setRowsToRepeatAtTopByStartAndEnd($h, $h);
+            ->setOrientation($width > 6 ? PageSetup::ORIENTATION_LANDSCAPE : PageSetup::ORIENTATION_PORTRAIT)
+            ->setFitToWidth(1)->setFitToHeight(0);
+        $header && $setup->setRowsToRepeatAtTopByStartAndEnd($header, $header);
         $ws->getPageMargins()->setTop(0.5)->setBottom(0.6)->setLeft(0.4)->setRight(0.4);
         $ws->getHeaderFooter()->setOddFooter('&L&8 '.self::footer($ev->show->title.' — '.$ev->venue).'&R&8 Page &P / &N');
-        $ws->setSelectedCell('A'.($h + 1));
+        $ws->setSelectedCell('A'.($header ? $header + 1 : self::HEADER_ROW));
     }
 
     private function cell(Worksheet $ws, int $col, int $row, mixed $v, string $type): void
