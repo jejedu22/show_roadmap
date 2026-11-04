@@ -51,5 +51,10 @@ class InvitationsTest extends ApiTestCase
 
         $ev = $this->call('DELETE', "$url/{$zoe['id']}");
         self::assertCount(1, $ev['invitations']);
+
+        // Liste PDF : visible avec « Consulter »
+        $this->client->request('GET', "/api/events/$id/pdf/invitations");
+        self::assertSame(200, $this->code());
+        self::assertSame('application/pdf', $this->client->getResponse()->headers->get('content-type'));
     }
 }
