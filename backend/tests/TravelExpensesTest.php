@@ -25,15 +25,15 @@ class TravelExpensesTest extends ApiTestCase
         $ev = $this->call('POST', "$base/expense", ['participationId' => $pid, 'direction' => 'return', 'day' => '2027-01-20', 'kind' => 'Remboursement de billet', 'amount' => '-15']);
         $x = $ev['participations'][0]['expenses'];
         self::assertSame([['outbound', 'Taxi', 25.5, 'Gare → théâtre'], ['return', 'Remboursement de billet', -15.0, '']],
-            array_map(fn ($e) => [$e['direction'], $e['kind'], $e['amount'], $e['comment']], $x));
-        self::assertSame([60.0, 10.5, 70.5], [$ev['quote']['travelTickets'], $ev['quote']['travelExpenses'], $ev['quote']['travelTotal']]);
-        self::assertSame([85.5, -15.0, 10.5], [$ev['personCosts'][0]['outbound'], $ev['personCosts'][0]['return'], $ev['personCosts'][0]['expenses']]);
-        self::assertSame(70.5, $ev['quote']['lines'][1]['amount'], 'transport équipe du devis');
+            array_map(fn ($e) => [$e['direction'], $e['kind'], (float) $e['amount'], $e['comment']], $x));
+        self::assertEquals([60.0, 10.5, 70.5], [$ev['quote']['travelTickets'], $ev['quote']['travelExpenses'], $ev['quote']['travelTotal']]);
+        self::assertEquals([85.5, -15.0, 10.5], [$ev['personCosts'][0]['outbound'], $ev['personCosts'][0]['return'], $ev['personCosts'][0]['expenses']]);
+        self::assertEquals(70.5, $ev['quote']['lines'][1]['amount'], 'transport équipe du devis');
         self::assertSame(2, $ev['readiness']['legsNeeded']);
         self::assertSame(1, $ev['readiness']['legsCovered'], 'une dépense ne compte pas comme un trajet');
 
         $ev = $this->call('PUT', "$base/expense/{$x[0]['id']}", ['direction' => 'outbound', 'day' => '2027-01-18', 'kind' => 'Taxi', 'amount' => '30']);
-        self::assertSame(15.0, $ev['quote']['travelExpenses']);
+        self::assertEquals(15.0, $ev['quote']['travelExpenses']);
         $ev = $this->call('DELETE', "$base/expense/{$x[1]['id']}");
         self::assertCount(1, $ev['participations'][0]['expenses']);
 

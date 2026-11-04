@@ -25,7 +25,7 @@ class Lodging
     public string $phone = '';
 
     /** Site web de l'hébergement : bouton « Site web » dans la feuille de route */
-    #[ORM\Column(length: 1000)]
+    #[ORM\Column(length: 1000, options: ['default' => ''])]
     public string $website = '';
 
     /** Horaires, accès, codes, distances… */

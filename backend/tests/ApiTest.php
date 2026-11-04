@@ -81,16 +81,24 @@ class ApiTest extends ApiTestCase
         $this->call('POST', "/api/events/{$ev['id']}/items/extra", ['label' => '=HYPERLINK("http://x")', 'amount' => '1']);
         $people = array_column($ev['availablePeople'], 'id');
         $this->call('POST', "/api/events/{$ev['id']}/participations", ['personIds' => $people]);
-        $this->client->request('GET', "/api/events/{$ev['id']}/export.xlsx");
-        $file = tempnam(sys_get_temp_dir(), 'x');
-        file_put_contents($file, $this->client->getInternalResponse()->getContent());
-        $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
-        foreach ($book->getAllSheets() as $ws) {
-            foreach ($ws->getCellCollection()->getCoordinates() as $coord) {
-                self::assertFalse($ws->getCell($coord)->isFormula(), "$coord ne doit pas être une formule");
+        $this->call('POST', "/api/events/{$ev['id']}/items/invitation", ['lastName' => '=HYPERLINK("http://x")', 'kind' => 'pro', 'structure' => '+cmd|x']);
+        $texts = [];
+        foreach (["/api/events/{$ev['id']}/export.xlsx", "/api/events/{$ev['id']}/costs.xlsx"] as $url) {
+            $this->client->request('GET', $url);
+            $file = tempnam(sys_get_temp_dir(), 'x');
+            file_put_contents($file, $this->client->getInternalResponse()->getContent());
+            $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
+            foreach ($book->getAllSheets() as $ws) {
+                foreach ($ws->getCellCollection()->getCoordinates() as $coord) {
+                    $cell = $ws->getCell($coord);
+                    // Seules les formules de total écrites par l'export (SOMME, addition de cellules) sont permises
+                    $cell->isFormula() && self::assertMatchesRegularExpression('/^=(SUM\([A-Z]+\d+:[A-Z]+\d+\)|[A-Z]+\d+(\+[A-Z]+\d+)*|0)$/', (string) $cell->getValue(), "$url $coord");
+                    $cell->isFormula() || $texts[] = (string) $cell->getValue();
+                }
             }
+            unlink($file);
         }
-        unlink($file);
+        self::assertContains('=HYPERLINK("http://x")', $texts, 'saisie gardée comme texte (onglet Invitations)');
     }
 
     public function testTenantIsolation(): void
@@ -177,10 +185,14 @@ class ApiTest extends ApiTestCase
         $this->client->request('GET', "/api/events/{$ev['id']}/export.xlsx");
         $file = tempnam(sys_get_temp_dir(), 'x');
         file_put_contents($file, $this->client->getInternalResponse()->getContent());
-        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file)->getSheetByName('Voyages')->toArray();
+        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file)->getSheetByName('Voyages')->toArray(null, true, false);
         unlink($file);
+        // Tableau des billets : sous son en-tête, jusqu'à sa ligne de total ; dates en vraies dates Excel
+        $start = array_search('Nom', array_column($rows, 0), true) + 1;
+        $end = array_search('Total billets', array_column($rows, 0), true);
+        $date = fn ($v) => \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($v)->format('d/m/Y');
         self::assertSame([['Aller', '31/05/2026', ''], ['Aller', '01/06/2026', '9h05'], ['Aller', '01/06/2026', '10h00'], ['Retour', '03/06/2026', '18h00']],
-            array_map(fn ($r) => [$r[1], $r[2], (string) $r[5]], array_slice($rows, 1)));
+            array_map(fn ($r) => [$r[1], $date($r[2]), (string) $r[5]], array_slice($rows, $start, $end - $start)));
     }
 
     public function testPdfDocumentsWithBookingLinks(): void
