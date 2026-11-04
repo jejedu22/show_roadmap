@@ -5,7 +5,7 @@ import Icon from '../components/Icon.vue'
 
 /** Aperçu d'un document PDF généré par le serveur, avec téléchargement. */
 const props = defineProps({ id: String, doc: String })
-const TITLES = { roadmap: 'Feuille de route', rooming: 'Rooming-list', perdiem: 'Défraiements', travelcost: 'Suivi des frais de voyage', contacts: "Coordonnées de l'équipe", quote: 'Devis' }
+const TITLES = { roadmap: 'Feuille de route', rooming: 'Rooming-list', perdiem: 'Défraiements', travelcost: 'Suivi des frais de voyage', contacts: "Coordonnées de l'équipe", quote: 'Devis', invitations: 'Invitations' }
 const ev = ref(null)
 watch(() => props.id, async (id) => {
   ev.value = await get(`/events/${id}`)

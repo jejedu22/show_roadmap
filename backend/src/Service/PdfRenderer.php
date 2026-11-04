@@ -18,12 +18,13 @@ class PdfRenderer
         'travelcost' => 'Suivi des frais de voyage',
         'contacts' => 'Coordonnées de l\'équipe',
         'quote' => 'Devis',
+        'invitations' => 'Invitations',
     ];
 
     /** Droit nécessaire pour chaque document. */
     public const PERMS = [
         'roadmap' => 'company.view', 'rooming' => 'company.view', 'contacts' => 'people.view',
-        'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view',
+        'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view', 'invitations' => 'company.view',
     ];
 
     public function __construct(private Environment $twig, private Presenter $presenter)
@@ -41,6 +42,7 @@ class PdfRenderer
             'inbound' => self::travel($ev, 'return'),
             'lodgingNames' => array_column($ev['lodgings'], 'name', 'id'),
             'schedule' => self::groupBy($ev['schedule'], 'day'),
+            'invitationGroups' => 'invitations' === $doc ? self::invitationGroups($ev) : [],
             'generatedAt' => (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('d/m/Y à H:i'),
         ]);
 
@@ -85,6 +87,35 @@ class PdfRenderer
         }
 
         return $days;
+    }
+
+    /**
+     * Invitations par représentation (dans l'ordre du planning), puis celles à répartir — ou, sans représentation au planning,
+     * un seul groupe pour toute la date. Dans chaque groupe : Cie puis Pro, par nom.
+     *
+     * @return list<array{performance: ?array, title: string, stats: array, rows: list<array>}>
+     */
+    private static function invitationGroups(array $ev): array
+    {
+        $by = $ev['invitationSummary']['byPerformance'];
+        $sort = function (array $rows): array {
+            usort($rows, fn ($a, $b) => [$a['kind'] !== 'company', mb_strtolower($a['lastName']), mb_strtolower($a['firstName'])]
+                <=> [$b['kind'] !== 'company', mb_strtolower($b['lastName']), mb_strtolower($b['firstName'])]);
+
+            return $rows;
+        };
+        $groups = [];
+        foreach ($ev['invitationPerformances'] as $s) {
+            $groups[] = ['performance' => $s, 'title' => trim($s['time'].($s['detail'] ? ' · '.$s['detail'] : '')), 'stats' => $by[$s['id']],
+                'rows' => $sort(array_values(array_filter($ev['invitations'], fn ($i) => $i['performanceId'] === $s['id'])))];
+        }
+        $ids = array_column($ev['invitationPerformances'], 'id');
+        $loose = array_values(array_filter($ev['invitations'], fn ($i) => !in_array($i['performanceId'], $ids, true)));
+        if (!$ids || $loose) {
+            $groups[] = ['performance' => null, 'title' => $ids ? 'À répartir sur une représentation' : 'Toute la date', 'stats' => $by['none'], 'rows' => $sort($loose)];
+        }
+
+        return $groups;
     }
 
     private static function minutes(string $t): int

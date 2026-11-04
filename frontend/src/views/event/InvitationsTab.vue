@@ -67,6 +67,7 @@ async function remove(i) {
       <div class="page-head">
         <h2>Invitations</h2>
         <span class="muted">Non communiquées dans la feuille de route</span>
+        <RouterLink class="btn btn-sm" style="margin-left:auto" :to="`/events/${ev.id}/print/invitations`" target="_blank"><Icon name="file" :size="16" />Liste PDF</RouterLink>
       </div>
 
       <div class="tiles inv-tiles">

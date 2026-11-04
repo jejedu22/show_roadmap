@@ -1,0 +1,43 @@
+{% extends 'pdf/layout.html.twig' %}
+{% set sum = ev.invitationSummary %}
+{% block hero_extra %}
+  <div class="contact">{{ sum.quota }} place{{ sum.quota > 1 ? 's' }} mise{{ sum.quota > 1 ? 's' }} à disposition par le lieu
+    · {{ sum.used }} attribuée{{ sum.used > 1 ? 's' }} (Cie {{ sum.company }} · Pro {{ sum.pro }})
+    · {{ sum.left < 0 ? 'dépassement de ' ~ (0 - sum.left) : sum.left ~ ' restante' ~ (sum.left > 1 ? 's') }}</div>
+{% endblock %}
+{% block body %}
+  {% for g in invitationGroups %}
+    <div class="inv-group">
+      <div class="sec"><span class="dot {{ g.performance ? 'violet' : 'coral' }}"></span>{% if g.performance %}{{ g.performance.day|fday }}{% if g.title %} · {{ g.title }}{% endif %}{% else %}{{ g.title }}{% endif %}</div>
+      <div class="inv-stats">
+        {% set used = g.stats.company + g.stats.pro %}
+        <b>{{ used }}{% if g.performance or not ev.invitationPerformances %} / {{ g.stats.quota }}{% endif %}</b> place{{ used > 1 ? 's' }}
+        · Cie {{ g.stats.company }} · Pro {{ g.stats.pro }}
+        {% if g.performance or not ev.invitationPerformances %}· <span class="{{ g.stats.left < 0 ? 'over' }}">{{ g.stats.left < 0 ? 'dépassement de ' ~ (0 - g.stats.left) : g.stats.left ~ ' restante' ~ (g.stats.left > 1 ? 's') }}</span>{% endif %}
+      </div>
+      {% if g.rows %}
+        <table class="grid">
+          <thead><tr><th style="width:8%">Type</th><th style="width:22%">Nom</th><th style="width:18%">Prénom</th><th>Structure</th><th class="c" style="width:9%">Places</th><th class="c" style="width:9%">Retiré</th></tr></thead>
+          <tbody>{% for i in g.rows %}
+            <tr><td><span class="kind {{ i.kind }}">{{ i.kind == 'pro' ? 'Pro' : 'Cie' }}</span></td><td><b>{{ i.lastName }}</b></td><td>{{ i.firstName }}</td>
+              <td>{{ i.structure }}</td><td class="c">{{ i.places }}</td><td class="c box">☐</td></tr>
+          {% endfor %}</tbody>
+          <tfoot><tr><td colspan="4">Total</td><td class="c">{{ g.rows|reduce((s, i) => s + i.places, 0) }}</td><td></td></tr></tfoot>
+        </table>
+      {% else %}
+        <p class="muted">Aucune invitation.</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">Aucune invitation.</p>
+  {% endfor %}
+  <style>
+    .inv-group { page-break-inside: avoid; }
+    .inv-stats { margin: -2pt 0 4pt; color: #5b5873; }
+    .inv-stats .over { color: #d93a3f; font-weight: bold; }
+    .kind { display: inline-block; padding: 1pt 6pt; border-radius: 7pt; font-size: 7.3pt; font-weight: bold; }
+    .kind.company { background: #d8f6f1; color: #00695c; }
+    .kind.pro { background: #efeaff; color: #5b2eff; }
+    td.box { font-size: 11pt; color: #8a86a8; }
+  </style>
+{% endblock %}
