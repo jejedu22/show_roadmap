@@ -29,6 +29,10 @@ class ScheduleItem
     #[ORM\Column(length: 255, options: ['default' => ''])]
     public string $detail = '';
 
+    /** Pour une représentation : places d'invitation mises à disposition par le lieu */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $invitationQuota = 0;
+
     public function __construct(Event $event)
     {
         $this->event = $event;

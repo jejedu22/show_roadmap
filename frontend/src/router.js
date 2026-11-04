@@ -28,6 +28,7 @@ const routes = [
       { path: 'stay', component: () => import('./views/event/StayTab.vue'), meta: { step: 'stay' } },
       { path: 'travel', component: () => import('./views/event/TravelTab.vue'), meta: { step: 'travel' } },
       { path: 'quote', component: () => import('./views/event/QuoteTab.vue'), meta: { step: 'quote' } },
+      { path: 'invitations', component: () => import('./views/event/InvitationsTab.vue'), meta: { step: 'invitations' } },
       { path: 'roadmap', component: () => import('./views/event/RoadmapTab.vue'), meta: { step: 'roadmap' } },
     ],
   },

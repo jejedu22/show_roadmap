@@ -81,8 +81,8 @@ activités de traitement »). Coordonnées du responsable : _à compléter_.
 | | 1. Comptes utilisateurs | 2. Annuaire et équipes | 3. Déplacements, séjour, devis | 4. Journal de sécurité |
 |---|---|---|---|---|
 | **Finalité** | Authentifier, gérer les droits | Composer les équipes d'une tournée | Réserver, informer, calculer les frais | Sécurité, preuve des actions d'administration |
-| **Personnes** | Utilisateurs de l'outil | Artistes, techniciens, administrateurs de tournée | Les mêmes | Utilisateurs |
-| **Données** | E-mail, nom, mot de passe haché, droits, connexions | Nom, prénom, fonction, téléphone, e-mail, ville ; **régime alimentaire (sensible)** | Trajets, horaires, références et liens de billets, hébergement, repas, montants | E-mail, action, adresse IP, date |
+| **Personnes** | Utilisateurs de l'outil | Artistes, techniciens, administrateurs de tournée | Les mêmes ; invités de la compagnie et professionnels (invitations) | Utilisateurs |
+| **Données** | E-mail, nom, mot de passe haché, droits, connexions | Nom, prénom, fonction, téléphone, e-mail, ville ; **régime alimentaire (sensible)** | Trajets, horaires, références et liens de billets, hébergement, repas, montants ; invitations : nom, prénom, structure (pro), places | E-mail, action, adresse IP, date |
 | **Base légale** | Exécution du service | Contrat / intérêt légitime ; consentement pour le régime alimentaire | Contrat / intérêt légitime | Intérêt légitime |
 | **Destinataires** | Administrateurs | Utilisateurs habilités ; personnes disposant d'un lien de partage (feuille de route : équipe, trajets ; export des coûts : noms, fonctions, villes de départ, frais) | Utilisateurs habilités selon leurs droits | Administrateurs |
 | **Sous-traitants** | Hébergeur ; prestataire d'e-mails ; Google si connexion Google | Hébergeur ; Orfeo si la compagnie le relie (lecture) | Hébergeur | Hébergeur |

@@ -130,6 +130,15 @@ class Event
     #[ORM\OrderBy(['day' => 'ASC', 'time' => 'ASC'])]
     public Collection $schedule;
 
+    /** @var Collection<int, Invitation> invitations Cie et Pro, sur le contingent du lieu */
+    #[ORM\OneToMany(targetEntity: Invitation::class, mappedBy: 'event', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['kind' => 'ASC', 'lastName' => 'ASC', 'firstName' => 'ASC'])]
+    public Collection $invitations;
+
+    /** Places d'invitation mises à disposition par le lieu pour toute la date, quand le planning n'a pas de représentation */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $invitationQuota = 0;
+
     public function __construct(Show $show, string $venue, \DateTimeImmutable $firstDate, \DateTimeImmutable $lastDate)
     {
         $this->show = $show;
@@ -142,6 +151,7 @@ class Event
         $this->extras = new ArrayCollection();
         $this->sections = new ArrayCollection();
         $this->schedule = new ArrayCollection();
+        $this->invitations = new ArrayCollection();
     }
 
     /** Début de la présence de l'équipe (arrivées incluses). */

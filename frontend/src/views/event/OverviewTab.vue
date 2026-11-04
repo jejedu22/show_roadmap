@@ -12,7 +12,7 @@ const sharingCosts = ref(false)
 const FIELDS = ['venue', 'city', 'address', 'firstDate', 'lastDate', 'performances', 'techArrival', 'artisticArrival', 'departure', 'status', 'venueContact', 'notes']
 const form = reactive({})
 watch(ev, (e) => FIELDS.forEach((f) => { form[f] = e[f] ?? '' }), { immediate: true })
-const PATHS = { info: '', team: '/team', stay: '/stay', travel: '/travel', quote: '/quote', roadmap: '/roadmap' }
+const PATHS = { info: '', team: '/team', stay: '/stay', travel: '/travel', quote: '/quote', invitations: '/invitations', roadmap: '/roadmap' }
 
 async function save() { if (await apply(put(`/events/${ev.value.id}`, form))) toast('Informations enregistrées') }
 async function duplicate() {
