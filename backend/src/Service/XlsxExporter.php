@@ -72,6 +72,8 @@ class XlsxExporter
         $this->perDiemSheet($book, $ev);
         $this->travelSheet($book, $ev);
 
+        $this->invitationSheet($book, $ev);
+
         $withContacts && $this->table($book, $ev, 'Coordonnées', [['Nom', 'text', 22], ['Fonction', 'text', 20], ['Téléphone', 'text', 16],
             ['E-mail', 'text', 30], ['Régime', 'text', 22]],
             $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues(),
@@ -216,6 +218,30 @@ class XlsxExporter
         }
         $this->grandTotal($ws, $r, $width, 'Total défraiements (repas, petits-déjeuners, nuitées)', [$width => '='.($amounts ? implode('+', $amounts) : '0')]);
         $this->finish($ws, $ev, $width);
+    }
+
+    /** Onglet Invitations (export complet seulement) : invités par représentation, places mises à disposition et restantes. */
+    private function invitationSheet(Spreadsheet $book, Event $ev): void
+    {
+        $sum = Invitations::summary($ev);
+        $perfs = Invitations::performances($ev);
+        $rows = [];
+        foreach ([...array_map(fn ($s) => [$s->id, $s], $perfs), ['none', null]] as [$key, $s]) {
+            foreach ($ev->invitations as $i) {
+                // Représentation retirée du planning (ou renommée) : l'invitation est à répartir, comme dans le bilan
+                $of = $i->performance && isset($sum['byPerformance'][$i->performance->id]) ? $i->performance->id : 'none';
+                if ($of === $key) {
+                    $rows[] = [$s ? $s->day : '', $s ? trim($s->time.($s->detail ? ' · '.$s->detail : '')) : ($perfs ? 'À répartir' : 'Toutes'),
+                        \App\Entity\Invitation::KINDS[$i->kind], $i->lastName, $i->firstName, $i->structure, $i->places];
+                }
+            }
+        }
+        $ws = $this->newSheet($book, $ev, 'Invitations', self::MINT,
+            sprintf('Places mises à disposition par le lieu : %d · attribuées : %d (Cie %d, Pro %d) · restantes : %d', $sum['quota'], $sum['used'], $sum['company'], $sum['pro'], $sum['left']));
+        $b = $this->block($ws, self::HEADER_ROW, [['Date', 'date'], ['Représentation', 'text', 22], ['Type', 'text', 8], ['Nom', 'text', 20], ['Prénom', 'text', 16],
+            ['Structure', 'text', 28], ['Places', 'int']], $rows, ['total' => 'Total']);
+        $rows && $ws->setAutoFilter('A'.self::HEADER_ROW.':G'.$b['last']);
+        $this->finish($ws, $ev, $b['width'], self::HEADER_ROW);
     }
 
     private function book(Event $ev, string $kind): Spreadsheet

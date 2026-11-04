@@ -14,7 +14,7 @@ class Readiness
     {
     }
 
-    /** @return array{steps: list<array{key: string, label: string, done: bool, detail: string}>, done: int, total: int, todo: list<array{label: string, step: string}>, legsCovered: int, legsNeeded: int} */
+    /** @return array{steps: list<array{key: string, label: string, done: bool, detail: string, optional?: bool}>, done: int, total: int, todo: list<array{label: string, step: string}>, legsCovered: int, legsNeeded: int} */
     public function compute(Event $ev): array
     {
         $people = $ev->participations->count();
@@ -42,6 +42,7 @@ class Readiness
         $quote = $this->quotes->compute($ev);
         $hasInfo = '' !== trim($ev->address) || '' !== trim($ev->venueContact);
         $stayDone = $people > 0 && $ev->lodgings->count() > 0 && !$withoutLodging;
+        $inv = Invitations::summary($ev);
         $fmt = fn (float $x) => number_format($x, 0, ',', "\u{202F}")."\u{a0}€";
 
         $steps = [
@@ -51,6 +52,9 @@ class Readiness
                 'detail' => $stayDone ? $nights.' nuitée'.($nights > 1 ? 's' : '') : ($ev->lodgings->isEmpty() ? 'Hébergement à ajouter' : 'Hébergement à attribuer')],
             ['key' => 'travel', 'label' => 'Voyages', 'done' => $people > 0 && $covered === 2 * $people, 'detail' => $covered.' / '.(2 * $people).' trajets'],
             ['key' => 'quote', 'label' => 'Devis', 'done' => (float) $ev->fee > 0, 'detail' => (float) $ev->fee > 0 ? $fmt($quote['totalTtc']).' TTC' : 'Cachet à saisir'],
+            // Facultatif : affiché dans les étapes, sans compter dans l'avancement
+            ['key' => 'invitations', 'label' => 'Invitations', 'optional' => true, 'done' => $inv['used'] > 0,
+                'detail' => $inv['quota'] || $inv['used'] ? $inv['used'].' / '.$inv['quota'].' place'.($inv['quota'] > 1 ? 's' : '') : 'Facultatif'],
             ['key' => 'roadmap', 'label' => 'Feuille de route', 'done' => null !== $ev->sharedAt,
                 'detail' => $ev->sharedAt ? 'Partagée le '.$ev->sharedAt->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m') : 'Pas encore partagée'],
         ];
@@ -75,7 +79,9 @@ class Readiness
             $todo[] = ['label' => 'Partager la feuille de route avec l\'équipe', 'step' => 'roadmap'];
         }
 
-        return ['steps' => $steps, 'done' => count(array_filter($steps, fn ($s) => $s['done'])), 'total' => count($steps), 'todo' => $todo,
+        $counted = array_filter($steps, fn ($s) => !($s['optional'] ?? false));
+
+        return ['steps' => $steps, 'done' => count(array_filter($counted, fn ($s) => $s['done'])), 'total' => count($counted), 'todo' => $todo,
             'legsCovered' => $covered, 'legsNeeded' => 2 * $people];
     }
 }

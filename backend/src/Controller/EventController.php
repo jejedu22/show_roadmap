@@ -6,6 +6,7 @@ use App\Entity\Day;
 use App\Entity\Event;
 use App\Entity\ExtraCost;
 use App\Entity\Leg;
+use App\Entity\Invitation;
 use App\Entity\Lodging;
 use App\Entity\Participation;
 use App\Entity\Person;
@@ -16,6 +17,7 @@ use App\Entity\TruckLeg;
 use App\Service\Import\Sheet;
 use App\Service\Import\TrainSheetParser;
 use App\Service\Input;
+use App\Service\Invitations;
 use App\Service\PdfRenderer;
 use App\Service\Planning;
 use App\Service\XlsxExporter;
@@ -210,7 +212,7 @@ class EventController extends ApiController
 
     // ---- Lignes : hébergements, trajets, camion, frais, feuille de route ----
 
-    private const KINDS = ['lodging', 'leg', 'expense', 'truck', 'extra', 'section', 'schedule'];
+    private const KINDS = ['lodging', 'leg', 'expense', 'truck', 'extra', 'section', 'schedule', 'invitation'];
 
     /** Droit nécessaire pour modifier un type de ligne. */
     private static function itemPerm(string $kind): string
@@ -218,7 +220,7 @@ class EventController extends ApiController
         return match ($kind) {
             'leg', 'expense' => 'travel.edit',
             'truck', 'extra' => 'finance.edit',
-            'lodging', 'section', 'schedule' => 'events.edit',
+            'lodging', 'section', 'schedule', 'invitation' => 'events.edit',
             default => throw new NotFoundHttpException(),
         };
     }
@@ -249,6 +251,7 @@ class EventController extends ApiController
             'extra' => new ExtraCost($ev),
             'section' => new RoadmapSection($ev),
             'schedule' => new ScheduleItem($ev),
+            'invitation' => new Invitation($ev),
             default => throw new NotFoundHttpException(),
         };
         if ($item instanceof ScheduleItem) {
@@ -263,6 +266,7 @@ class EventController extends ApiController
             $item instanceof ExtraCost => $ev->extras->add($item),
             $item instanceof RoadmapSection => $ev->sections->add($item),
             $item instanceof ScheduleItem => $ev->schedule->add($item),
+            $item instanceof Invitation => $ev->invitations->add($item),
         };
 
         return $this->savedEvent($ev);
@@ -289,6 +293,14 @@ class EventController extends ApiController
                 }
             }
         }
+        if ($item instanceof ScheduleItem) {
+            // Représentation supprimée : ses invitations restent, à répartir
+            foreach ($ev->invitations as $i) {
+                if ($i->performance === $item) {
+                    $i->performance = null;
+                }
+            }
+        }
         match (true) {
             $item instanceof Leg => $item->participation->legs->removeElement($item),
             $item instanceof TravelExpense => $item->participation->expenses->removeElement($item),
@@ -297,6 +309,7 @@ class EventController extends ApiController
             $item instanceof ExtraCost => $ev->extras->removeElement($item),
             $item instanceof RoadmapSection => $ev->sections->removeElement($item),
             $item instanceof ScheduleItem => $ev->schedule->removeElement($item),
+            $item instanceof Invitation => $ev->invitations->removeElement($item),
         };
 
         return $this->savedEvent($ev);
@@ -415,6 +428,7 @@ class EventController extends ApiController
             'extra' => $find($ev->extras),
             'section' => $find($ev->sections),
             'schedule' => $find($ev->schedule),
+            'invitation' => $find($ev->invitations),
         };
 
         return $item ?? throw new NotFoundHttpException('Élément introuvable');
@@ -437,11 +451,44 @@ class EventController extends ApiController
                     'team_transport' === ($d['kind'] ?? null) ? 'team_transport' : 'other'],
             $item instanceof RoadmapSection => [$item->title, $item->body, $item->position] =
                 [Input::str($d, 'title') ?: throw new BadRequestHttpException('Titre obligatoire'), Input::text($d, 'body'), Input::int($d, 'position')],
+            $item instanceof Invitation => $this->fillInvitation($item, $d),
             $item instanceof ScheduleItem => [$item->day, $item->time, $item->label, $item->detail] =
                 [Input::date($d, 'day') ?? $item->day, Input::str($d, 'time', 20),
                     $this->lists->check('schedule', Input::str($d, 'label') ?: throw new BadRequestHttpException('Intitulé obligatoire'), $item->label),
                     Input::str($d, 'detail')],
         };
+    }
+
+    private function fillInvitation(Invitation $i, array $d): void
+    {
+        $i->kind = 'pro' === ($d['kind'] ?? null) ? 'pro' : 'company';
+        $i->lastName = Input::str($d, 'lastName', 120) ?: throw new BadRequestHttpException('Nom obligatoire');
+        $i->firstName = Input::str($d, 'firstName', 120);
+        $i->structure = 'pro' === $i->kind ? Input::str($d, 'structure') : '';
+        $i->places = max(1, min(50, Input::int($d, 'places', 1)));
+        $pid = Input::int($d, 'performanceId');
+        $i->performance = $pid ? (array_values(array_filter(Invitations::performances($i->event), fn ($s) => $s->id === $pid))[0]
+            ?? throw new BadRequestHttpException('Représentation introuvable')) : null;
+    }
+
+    /**
+     * Places d'invitation mises à disposition par le lieu : par représentation ({performances: {id: places}}),
+     * ou pour toute la date ({total: places}) quand le planning n'a pas de représentation.
+     */
+    #[Route('/invitation-quotas', methods: ['PUT'])]
+    public function invitationQuotas(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'events.edit');
+        $d = $this->body($request);
+        $ev->invitationQuota = max(0, min(10000, Input::int($d, 'total')));
+        $quotas = is_array($d['performances'] ?? null) ? $d['performances'] : [];
+        foreach (Invitations::performances($ev) as $s) {
+            if (isset($quotas[$s->id]) && is_scalar($quotas[$s->id])) {
+                $s->invitationQuota = max(0, min(10000, (int) $quotas[$s->id]));
+            }
+        }
+
+        return $this->savedEvent($ev);
     }
 
     // ---- Import de l'onglet « Horaires TGV » d'un classeur de devis vers les voyages ----

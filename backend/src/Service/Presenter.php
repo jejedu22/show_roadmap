@@ -37,8 +37,9 @@ class Presenter
         if (!in_array('finance.view', $perms, true)) {
             $r['steps'] = array_values(array_filter($r['steps'], fn ($s) => 'quote' !== $s['key']));
             $r['todo'] = array_values(array_filter($r['todo'], fn ($t) => 'quote' !== $t['step']));
-            $r['done'] = count(array_filter($r['steps'], fn ($s) => $s['done']));
-            $r['total'] = count($r['steps']);
+            $counted = array_filter($r['steps'], fn ($s) => !($s['optional'] ?? false));
+            $r['done'] = count(array_filter($counted, fn ($s) => $s['done']));
+            $r['total'] = count($counted);
         }
         if (!in_array('share.manage', $perms, true)) {
             $r['todo'] = array_values(array_filter($r['todo'], fn ($t) => 'roadmap' !== $t['step']));
@@ -107,7 +108,14 @@ class Presenter
                 }
 
                 return $this->eventSummary($e) + [
-                    'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue], $overlaps),
+                    // Invitations : jamais dans la feuille de route
+            'invitationQuota' => $e->invitationQuota,
+            'invitationPerformances' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time, 'detail' => $s->detail,
+                'quota' => $s->invitationQuota], Invitations::performances($e)),
+            'invitations' => $e->invitations->map(fn ($i) => ['id' => $i->id, 'kind' => $i->kind, 'lastName' => $i->lastName, 'firstName' => $i->firstName,
+                'structure' => $i->structure, 'places' => $i->places, 'performanceId' => $i->performance?->id])->getValues(),
+            'invitationSummary' => Invitations::summary($e),
+            'overlaps' => array_map(fn (Event $o) => ['id' => $o->id, 'showTitle' => $o->show->title, 'venue' => $o->venue], $overlaps),
                     'conflicts' => array_values($conflicts),
                     'team' => $this->team($e),
                     'readiness' => $this->readinessFor($e, $perms),

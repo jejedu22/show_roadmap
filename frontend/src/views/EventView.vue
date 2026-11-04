@@ -10,7 +10,7 @@ const props = defineProps({ id: String })
 const route = useRoute()
 const ev = ref(null)
 const sharing = ref(false)
-const PATHS = { info: '', team: '/team', stay: '/stay', travel: '/travel', quote: '/quote', roadmap: '/roadmap' }
+const PATHS = { info: '', team: '/team', stay: '/stay', travel: '/travel', quote: '/quote', invitations: '/invitations', roadmap: '/roadmap' }
 
 watch(() => props.id, async (id) => {
   ev.value = null
