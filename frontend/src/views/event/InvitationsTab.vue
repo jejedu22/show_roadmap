@@ -36,7 +36,7 @@ const groups = computed(() => {
 const sortRows = (rows) => [...rows].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'company' ? -1 : 1) || a.lastName.localeCompare(b.lastName, 'fr'))
 
 async function saveQuotas() {
-  if (await apply(put(`/events/${ev.value.id}/invitation-quotas`, quotas))) toast('Places enregistrées')
+  if (await apply(put(`/events/${ev.value.id}/invitation-quotas`, quotas))) toast('Nombre d\'invitations enregistré')
 }
 function edit(i) {
   editing.value = i.id
@@ -70,6 +70,33 @@ async function remove(i) {
         <RouterLink class="btn btn-sm" style="margin-left:auto" :to="`/events/${ev.id}/print/invitations`" target="_blank"><Icon name="file" :size="16" />Liste PDF</RouterLink>
       </div>
 
+      <form class="card quota-card" :class="{ unset: !summary.quota }" @submit.prevent="saveQuotas">
+        <fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;min-width:0">
+          <h3 style="margin-bottom:4px">Nombre d'invitations mises à disposition par le lieu</h3>
+          <p v-if="!allowed('events.edit')" class="muted small" style="margin:0 0 10px">Le droit « Organiser les dates » est nécessaire pour le modifier.</p>
+          <template v-if="ev.invitationPerformances.length">
+            <p class="muted small" style="margin:0 0 12px">Une case par représentation du planning
+              (onglet <RouterLink :to="`/events/${ev.id}/roadmap`">Feuille de route</RouterLink>).</p>
+            <div class="quota-list">
+              <div v-for="s in ev.invitationPerformances" :key="s.id" class="quota-row">
+                <label class="field quota-field"><span><b>{{ perfLabel(s) }}</b></span>
+                  <span class="quota-input"><input v-model.number="quotas.performances[s.id]" type="number" min="0" inputmode="numeric"> invitations</span></label>
+                <span class="small muted">Cie {{ summary.byPerformance[s.id].company }} · Pro {{ summary.byPerformance[s.id].pro }}</span>
+                <span class="chip" :class="summary.byPerformance[s.id].left < 0 ? 'bad' : summary.byPerformance[s.id].left ? 'ok' : 'info'">
+                  {{ summary.byPerformance[s.id].left < 0 ? `dépassement de ${-summary.byPerformance[s.id].left}` : `${summary.byPerformance[s.id].left} restante${summary.byPerformance[s.id].left > 1 ? 's' : ''}` }}</span>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <label class="field quota-field"><span>Pour toute la date</span>
+              <span class="quota-input"><input v-model.number="quotas.total" type="number" min="0" inputmode="numeric"> invitations</span></label>
+            <p class="muted small" style="margin:8px 0 0">Pour un nombre par représentation, ajoutez les lignes « Représentation » au planning
+              (onglet <RouterLink :to="`/events/${ev.id}/roadmap`">Feuille de route</RouterLink>).</p>
+          </template>
+          <div v-if="allowed('events.edit')" class="actions" style="margin-top:14px"><button class="btn btn-primary">Enregistrer</button></div>
+        </fieldset>
+      </form>
+
       <div class="tiles inv-tiles">
         <div class="card"><span class="muted small">Mises à disposition</span><b class="inv-num">{{ summary.quota }}</b></div>
         <div class="card"><span class="muted small">Attribuées</span><b class="inv-num">{{ summary.used }}</b>
@@ -77,32 +104,6 @@ async function remove(i) {
         <div class="card" :class="{ warn: summary.left < 0 }"><span class="muted small">{{ summary.left < 0 ? 'Dépassement' : 'Restantes' }}</span>
           <b class="inv-num" :style="summary.left < 0 ? 'color:var(--coral-dark)' : ''">{{ Math.abs(summary.left) }}</b></div>
       </div>
-
-      <form class="card" @submit.prevent="saveQuotas">
-        <fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;min-width:0">
-          <h3 style="margin-bottom:6px">Places mises à disposition par le lieu</h3>
-          <template v-if="ev.invitationPerformances.length">
-            <p class="muted small" style="margin:0 0 10px">Par représentation, d'après le planning (onglet <RouterLink :to="`/events/${ev.id}/roadmap`">Feuille de route</RouterLink>).</p>
-            <div class="table-wrap">
-              <table class="table">
-                <thead><tr><th>Représentation</th><th class="r">Places</th><th class="c">Cie</th><th class="c">Pro</th><th class="r">Restantes</th></tr></thead>
-                <tbody><tr v-for="s in ev.invitationPerformances" :key="s.id">
-                  <td><b>{{ perfLabel(s) }}</b></td>
-                  <td class="r"><input v-model.number="quotas.performances[s.id]" class="grid-input" type="number" min="0" :aria-label="`Places pour ${perfLabel(s)}`"></td>
-                  <td class="c">{{ summary.byPerformance[s.id].company }}</td><td class="c">{{ summary.byPerformance[s.id].pro }}</td>
-                  <td class="r"><span class="chip" :class="summary.byPerformance[s.id].left < 0 ? 'bad' : summary.byPerformance[s.id].left ? 'ok' : 'info'">{{ summary.byPerformance[s.id].left }}</span></td>
-                </tr></tbody>
-              </table>
-            </div>
-          </template>
-          <template v-else>
-            <p class="muted small" style="margin:0 0 10px">Pour répartir les places par représentation, ajoutez les lignes « Représentation » au planning
-              (onglet <RouterLink :to="`/events/${ev.id}/roadmap`">Feuille de route</RouterLink>).</p>
-            <label class="field" style="max-width:220px">Places pour toute la date<input v-model.number="quotas.total" type="number" min="0"></label>
-          </template>
-          <div v-if="allowed('events.edit')" class="actions" style="margin-top:12px"><button class="btn btn-primary">Enregistrer les places</button></div>
-        </fieldset>
-      </form>
 
       <p v-if="!ev.invitations.length" class="card empty">Aucune invitation pour l'instant.</p>
       <section v-for="g in groups.filter((g) => g.rows.length || g.key !== 'none')" :key="g.key" class="card">
@@ -154,5 +155,14 @@ async function remove(i) {
 .inv-tiles .card { display: flex; flex-direction: column; gap: 2px; }
 .inv-num { font-family: var(--display); font-size: 26px; line-height: 1.1; }
 .row-editing td { background: var(--sun-soft); }
+.quota-card.unset { border: 2px solid var(--sun); }
+.quota-list { display: flex; flex-direction: column; gap: 8px; }
+.quota-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--violet-soft); }
+.quota-field { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; color: var(--ink); }
+@media (max-width: 600px) { .quota-row { grid-template-columns: 1fr auto; } .quota-row .quota-field { grid-column: 1 / -1; } }
+.quota-field > span:first-child { flex: 1 1 auto; min-width: 0; }
+.quota-input { display: inline-flex; flex: none; align-items: center; gap: 8px; font-weight: 600; }
+@media (min-width: 601px) { .quota-row .quota-field { flex-wrap: nowrap; } }
+.quota-input input { width: 96px; font-size: 18px; font-weight: 700; text-align: center; }
 @media (max-width: 600px) { .inv-tiles .card { padding: 12px; } .inv-num { font-size: 22px; } }
 </style>
