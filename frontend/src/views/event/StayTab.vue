@@ -9,7 +9,7 @@ const GRIDS = [['night', 'Nuitées', 1, 'Nuit du jour au lendemain'], ['meals', 
 const grid = reactive({})
 const lodgings = reactive({})
 const kind = ref('night')
-const blankLodging = () => ({ name: '', address: '', phone: '', details: '' })
+const blankLodging = () => ({ name: '', address: '', phone: '', website: '', details: '' })
 const fresh = ref(blankLodging())
 const editing = ref(null)
 
@@ -81,6 +81,7 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
           <label class="field">Nom<input v-model="lodgings[l.id].name" required></label>
           <label class="field">Adresse<input v-model="lodgings[l.id].address"></label>
           <label class="field">Téléphone<input v-model="lodgings[l.id].phone" type="tel"></label>
+          <label class="field">Site web<input v-model="lodgings[l.id].website" type="url" placeholder="https://…"></label>
           <label class="field">Infos pratiques<textarea v-model="lodgings[l.id].details" placeholder="Horaires, code d'accès, distances…" /></label>
           <div class="actions"><button class="btn btn-primary">Enregistrer</button><button type="button" class="btn btn-ghost" @click="editing = null">Annuler</button></div>
         </form>
@@ -89,6 +90,7 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
             <span v-if="allowed('events.edit')" class="actions"><button class="btn btn-sm btn-icon" :aria-label="`Modifier ${l.name}`" @click="editing = l.id"><Icon name="edit" :size="16" /></button>
               <button class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ${l.name}`" @click="removeLodging(l)"><Icon name="trash" :size="16" /></button></span></div>
           <p class="muted small" style="margin:0">{{ [l.address, l.phone].filter(Boolean).join(' · ') }}</p>
+          <p v-if="l.website" style="margin:6px 0 0"><a class="btn-ticket" :href="l.website" target="_blank" rel="noopener noreferrer">Site web ↗</a></p>
           <p v-if="l.details" class="small" style="margin:6px 0 0;white-space:pre-wrap">{{ l.details }}</p>
           <p class="small" style="margin:8px 0 0"><b>{{ guests(l).length ? guests(l).join(', ') : 'Personne attribué' }}</b></p>
         </template>
@@ -98,6 +100,7 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
         <label class="field">Nom<input v-model="fresh.name" required placeholder="Hôtel, appartement du théâtre…"></label>
         <label class="field">Adresse<input v-model="fresh.address"></label>
         <label class="field">Téléphone<input v-model="fresh.phone" type="tel"></label>
+        <label class="field">Site web<input v-model="fresh.website" type="url" placeholder="https://…"></label>
         <button class="btn btn-primary">Ajouter</button>
       </form>
     </aside>
