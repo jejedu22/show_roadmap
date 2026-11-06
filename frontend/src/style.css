@@ -208,6 +208,8 @@ input[type=checkbox], input[type=radio] { width: 20px; min-height: 20px; height:
 .leg.expense.back { border-color: var(--coral-soft); }
 .legs { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .panel { position: sticky; top: 20px; background: var(--ink); color: #fff; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+/* Hauteur limitée à l'écran (onglet Voyages) : les éléments gardent leur taille et le panneau défile, sans se chevaucher */
+.panel > * { flex-shrink: 0; }
 .panel .field { color: var(--muted-on-dark); }
 .panel input, .panel select { border: 0; }
 .panel .eyebrow { color: var(--sun); }
