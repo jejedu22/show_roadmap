@@ -17,22 +17,11 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 /**
  * Exports Excel d'une date : complet (devis, rooming, défraiements, voyages, coordonnées) ou coûts seuls (lien de partage).
  *
- * Chaque onglet est un tableau mis en forme aux couleurs de l'application : bandeau de titre (spectacle, lieu, dates),
+ * Chaque onglet est un tableau mis en forme aux couleurs du thème choisi dans l'administration : bandeau de titre (spectacle, lieu, dates),
  * en-têtes colorés, montants en euros, vraies dates Excel, ligne de total, volets figés, filtres et mise en page d'impression.
  */
 class XlsxExporter
 {
-    // Couleurs de l'application (style.css, PDF)
-    private const VIOLET = '5B2EFF';
-    private const VIOLET_SOFT = 'EFEAFF';
-    private const STRIPE = 'FAF8FF';
-    private const LINE = 'E4DEFA';
-    private const SUN = 'FFC93C';
-    private const INK = '1B1B3A';
-    private const MUTED = '6B6B85';
-    private const CORAL = 'FF5A5F';
-    private const MINT = '00C2A8';
-
     private const MONEY = '#,##0.00\ "€";[Red]\-#,##0.00\ "€"';
     /** Première ligne sous le bandeau */
     private const HEADER_ROW = 4;
@@ -49,8 +38,17 @@ class XlsxExporter
         'url' => ['width' => 12, 'format' => null, 'align' => Alignment::HORIZONTAL_CENTER, 'sum' => false],
     ];
 
-    public function __construct(private QuoteCalculator $quotes)
+    /** Couleurs du thème actif (RRGGBB), lues à chaque export */
+    private array $c = [];
+
+    public function __construct(private QuoteCalculator $quotes, private Themes $themes)
     {
+    }
+
+    /** Couleur du thème actif au format Excel (RRGGBB). */
+    private function rgb(string $role): string
+    {
+        return strtoupper(ltrim($this->c[$role], '#'));
     }
 
     /** $withContacts : inclut l'onglet Coordonnées (droit « Voir les coordonnées »). */
@@ -67,7 +65,7 @@ class XlsxExporter
         }
         $this->table($book, $ev, 'Rooming', [['Nom', 'text', 22], ['Fonction', 'text', 20], ['Chambre', 'text', 12], ['Hébergement', 'text', 24],
             ...array_map(fn ($d) => [ExcelDate::PHPToExcel($d), 'int', 11, '[$-40C]ddd dd/mm'], $dates), ['Nuitées', 'int']], $rows,
-            ['total' => 'Total', 'tab' => self::MINT]);
+            ['total' => 'Total', 'tab' => $this->rgb('mint')]);
 
         $this->perDiemSheet($book, $ev);
         $this->travelSheet($book, $ev);
@@ -77,7 +75,7 @@ class XlsxExporter
         $withContacts && $this->table($book, $ev, 'Coordonnées', [['Nom', 'text', 22], ['Fonction', 'text', 20], ['Téléphone', 'text', 16],
             ['E-mail', 'text', 30], ['Régime', 'text', 22]],
             $ev->participations->map(fn ($p) => [$p->person->fullName(), $p->role, $p->person->phone, $p->person->email, $p->person->diet])->getValues(),
-            ['tab' => self::INK]);
+            ['tab' => $this->rgb('ink')]);
 
         return $this->write($book);
     }
@@ -94,7 +92,7 @@ class XlsxExporter
         $this->table($book, $ev, 'Tarifs', [['Tarif', 'text', 30], ['Valeur', 'rate', 14]], [
             ['Cachet HT', (float) $ev->fee], ['Repas / personne / jour', (float) $ev->mealRate], ['Petit-déjeuner', (float) $ev->breakfastRate],
             ['Nuitée', (float) $ev->nightRate], ['Camion (HT / km)', (float) $ev->truckRate], ['TVA', [(float) $ev->vatRate, 'percent']],
-        ], ['tab' => self::VIOLET, 'filter' => false]);
+        ], ['tab' => $this->rgb('violet'), 'filter' => false]);
 
         $rows = [];
         $costs = array_column($this->quotes->personCosts($ev), null, 'participationId');
@@ -111,7 +109,7 @@ class XlsxExporter
         $this->table($book, $ev, 'Par personne', [['Nom', 'text', 22], ['Fonction', 'text', 18], ['Départ de', 'text', 14], ['Repas', 'int'],
             ['Petits-déj.', 'int', 11], ['Nuitées', 'int'], ['Défraiements', 'money', 14], ['Billets aller', 'money', 14], ['Billets retour', 'money', 14],
             ['Dépenses / remb.', 'money', 16], ['Total voyages', 'money', 14], ['Total', 'money', 14]], $rows,
-            ['total' => 'Total', 'tab' => self::SUN, 'emphasis' => 11]);
+            ['total' => 'Total', 'tab' => $this->rgb('sun'), 'emphasis' => 11]);
 
         $this->perDiemSheet($book, $ev);
         $this->travelSheet($book, $ev);
@@ -147,7 +145,7 @@ class XlsxExporter
             $rows[] = ['dont dépenses et remboursements de trajet', $q['travelExpenses']];
         }
         $this->table($book, $ev, 'Devis', [['Poste', 'text', 52], ['Montant', 'rate', 16]], $rows,
-            ['styles' => $styles, 'tab' => self::VIOLET, 'filter' => false, 'stripes' => false]);
+            ['styles' => $styles, 'tab' => $this->rgb('violet'), 'filter' => false, 'stripes' => false]);
     }
 
     /**
@@ -156,7 +154,7 @@ class XlsxExporter
      */
     private function travelSheet(Spreadsheet $book, Event $ev): void
     {
-        $ws = $this->newSheet($book, $ev, 'Voyages', self::CORAL);
+        $ws = $this->newSheet($book, $ev, 'Voyages', $this->rgb('coral'));
         $rows = [];
         foreach ($ev->participations as $p) {
             // Allers puis retours, chacun dans l'ordre chronologique
@@ -196,7 +194,7 @@ class XlsxExporter
      */
     private function perDiemSheet(Spreadsheet $book, Event $ev): void
     {
-        $ws = $this->newSheet($book, $ev, 'Défraiements', self::SUN);
+        $ws = $this->newSheet($book, $ev, 'Défraiements', $this->rgb('sun'));
         $dates = $ev->spanDates();
         $r = self::HEADER_ROW;
         $amounts = [];
@@ -236,7 +234,7 @@ class XlsxExporter
                 }
             }
         }
-        $ws = $this->newSheet($book, $ev, 'Invitations', self::MINT,
+        $ws = $this->newSheet($book, $ev, 'Invitations', $this->rgb('mint'),
             sprintf('Places mises à disposition par le lieu : %d · attribuées : %d (Cie %d, Pro %d) · restantes : %d', $sum['quota'], $sum['used'], $sum['company'], $sum['pro'], $sum['left']));
         $b = $this->block($ws, self::HEADER_ROW, [['Date', 'date'], ['Représentation', 'text', 22], ['Type', 'text', 8], ['Nom', 'text', 20], ['Prénom', 'text', 16],
             ['Structure', 'text', 28], ['Places', 'int']], $rows, ['total' => 'Total']);
@@ -246,11 +244,13 @@ class XlsxExporter
 
     private function book(Event $ev, string $kind): Spreadsheet
     {
+        $this->c = $this->themes->colors();
+        $this->c['stripe'] = Themes::tint($this->c['violetSoft'], 0.55);
         $book = new Spreadsheet();
         $book->removeSheetByIndex(0);
         $book->getProperties()->setCreator('Show Roadmap')->setTitle($kind.' — '.$ev->show->title.' — '.$ev->venue)
             ->setSubject($ev->show->title)->setCompany($ev->show->company->name);
-        $book->getDefaultStyle()->getFont()->setName('Calibri')->setSize(10)->getColor()->setRGB(self::INK);
+        $book->getDefaultStyle()->getFont()->setName('Calibri')->setSize(10)->getColor()->setRGB($this->rgb('ink'));
 
         return $book;
     }
@@ -258,7 +258,7 @@ class XlsxExporter
     /** Un onglet d'un seul tableau : bandeau, tableau, filtres, volets figés, impression. */
     private function table(Spreadsheet $book, Event $ev, string $title, array $columns, array $rows, array $opts = []): void
     {
-        $ws = $this->newSheet($book, $ev, $title, $opts['tab'] ?? self::VIOLET, $opts['note'] ?? null);
+        $ws = $this->newSheet($book, $ev, $title, $opts['tab'] ?? $this->rgb('violet'), $opts['note'] ?? null);
         $b = $this->block($ws, self::HEADER_ROW, $columns, $rows, $opts);
         if (($opts['filter'] ?? true) && $rows) {
             $ws->setAutoFilter('A'.self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($b['width']).($b['last']));
@@ -274,14 +274,14 @@ class XlsxExporter
         $ws->getTabColor()->setRGB($tab);
         $ws->setShowGridlines(false);
         $ws->setCellValueExplicit('A1', $title, DataType::TYPE_STRING);
-        $ws->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB(self::VIOLET);
+        $ws->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB($this->rgb('violet'));
         $ws->getRowDimension(1)->setRowHeight(24);
         $period = $ev->firstDate->format('d/m/Y').($ev->lastDate != $ev->firstDate ? ' au '.$ev->lastDate->format('d/m/Y') : '');
         $ws->setCellValueExplicit('A2', implode(' · ', array_filter([$ev->show->title, trim($ev->venue.($ev->city ? ', '.$ev->city : '')), $period])), DataType::TYPE_STRING);
-        $ws->getStyle('A2')->getFont()->setSize(10)->getColor()->setRGB(self::MUTED);
+        $ws->getStyle('A2')->getFont()->setSize(10)->getColor()->setRGB($this->rgb('muted'));
         if (null !== $note) {
             $ws->setCellValueExplicit('A3', $note, DataType::TYPE_STRING);
-            $ws->getStyle('A3')->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB(self::MUTED);
+            $ws->getStyle('A3')->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB($this->rgb('muted'));
         }
 
         return $ws;
@@ -315,7 +315,7 @@ class XlsxExporter
 
         if (isset($opts['heading'])) {
             $ws->setCellValueExplicit("A$h", $opts['heading'], DataType::TYPE_STRING);
-            $ws->getStyle("A$h")->getFont()->setBold(true)->setSize(12)->getColor()->setRGB(self::INK);
+            $ws->getStyle("A$h")->getFont()->setBold(true)->setSize(12)->getColor()->setRGB($this->rgb('ink'));
             $ws->getRowDimension($h)->setRowHeight(20);
             ++$h;
         }
@@ -332,7 +332,7 @@ class XlsxExporter
         }
         $head = $ws->getStyle("A$h:$last$h");
         $head->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
-        $head->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::VIOLET);
+        $head->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->rgb('violet'));
         $head->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         $ws->getRowDimension($h)->setRowHeight(28);
         foreach ($columns as $c => $col) {
@@ -350,24 +350,24 @@ class XlsxExporter
             }
             $style = $opts['styles'][$i] ?? null;
             $range = $ws->getStyle("A$r:$last$r");
-            $range->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB(self::LINE);
+            $range->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB($this->rgb('line'));
             $range->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
             if ('subtotal' === $style) {
                 $range->getFont()->setBold(true);
-                $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::VIOLET_SOFT);
+                $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->rgb('violetSoft'));
             } elseif ('grand' === $style) {
                 $range->getFont()->setBold(true)->setSize(12);
-                $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::SUN);
+                $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->rgb('sun'));
                 $ws->getRowDimension($r)->setRowHeight(22);
             } elseif ('note' === $style) {
-                $range->getFont()->setItalic(true)->getColor()->setRGB(self::MUTED);
+                $range->getFont()->setItalic(true)->getColor()->setRGB($this->rgb('muted'));
                 $range->getAlignment()->setIndent(1);
             } elseif (($opts['stripes'] ?? true) && 1 === $i % 2) {
-                $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::STRIPE);
+                $range->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->rgb('stripe'));
             }
             if (isset($opts['direction'])) {
                 $ws->getStyle([$cols[$opts['direction']], $r])->getFont()->setBold(true)
-                    ->getColor()->setRGB('Retour' === $row[$opts['direction']] ? 'D93A3F' : self::VIOLET);
+                    ->getColor()->setRGB('Retour' === $row[$opts['direction']] ? $this->rgb('coralDark') : $this->rgb('violet'));
             }
             if (isset($opts['emphasis'])) {
                 $ws->getStyle([$cols[$opts['emphasis']], $r])->getFont()->setBold(true);
@@ -377,7 +377,7 @@ class XlsxExporter
             ++$r;
             $ws->setCellValueExplicit("A$r", 'Aucune ligne', DataType::TYPE_STRING);
             $this->format($ws, 1, $r, 'text');
-            $ws->getStyle("A$r")->getFont()->setItalic(true)->getColor()->setRGB(self::MUTED);
+            $ws->getStyle("A$r")->getFont()->setItalic(true)->getColor()->setRGB($this->rgb('muted'));
         }
         $lastRow = $r;
 
@@ -398,8 +398,8 @@ class XlsxExporter
             }
             $total = $ws->getStyle("A$r:$last$r");
             $total->getFont()->setBold(true);
-            $total->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::SUN);
-            $total->getBorders()->getTop()->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB(self::INK);
+            $total->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->rgb('sun'));
+            $total->getBorders()->getTop()->setBorderStyle(Border::BORDER_MEDIUM)->getColor()->setRGB($this->rgb('ink'));
             $ws->getRowDimension($r)->setRowHeight(20);
         }
 
@@ -418,7 +418,7 @@ class XlsxExporter
         }
         $style = $ws->getStyle("A$r:$last$r");
         $style->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('FFFFFF');
-        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::INK);
+        $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($this->rgb('ink'));
         $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         $ws->getRowDimension($r)->setRowHeight(24);
     }
@@ -446,7 +446,7 @@ class XlsxExporter
             if (preg_match('~^https?://~i', (string) $v)) {
                 $ws->setCellValueExplicit([$col, $row], 'Ouvrir ↗', DataType::TYPE_STRING);
                 $ws->getCell([$col, $row])->getHyperlink()->setUrl((string) $v)->setTooltip((string) $v);
-                $ws->getStyle([$col, $row])->getFont()->setUnderline(true)->getColor()->setRGB(self::VIOLET);
+                $ws->getStyle([$col, $row])->getFont()->setUnderline(true)->getColor()->setRGB($this->rgb('violet'));
             } elseif ('' !== (string) $v) {
                 $ws->setCellValueExplicit([$col, $row], (string) $v, DataType::TYPE_STRING);
             }

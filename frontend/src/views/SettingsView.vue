@@ -72,7 +72,7 @@ async function remove() {
         <button v-if="company.orfeo.connected" type="button" class="btn btn-danger" style="align-self:flex-end" @click="disconnectOrfeo">Délier</button>
       </form>
     </section>
-    <section v-if="can('companies.delete')" class="card" style="border:2px solid #f3b9bb">
+    <section v-if="can('companies.delete')" class="card" style="border:2px solid var(--coral-line)">
       <h2 style="margin-bottom:6px">Supprimer la compagnie</h2>
       <p class="muted" style="margin:0 0 14px">Supprime définitivement <b>{{ company.name }}</b>, ses spectacles, dates, équipes et voyages. Pour confirmer, saisissez son nom.</p>
       <div class="actions">

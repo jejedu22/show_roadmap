@@ -9,6 +9,7 @@ const routes = [
   { path: '/admin/users', component: () => import('./views/admin/UsersView.vue'), meta: { perm: 'users.manage' } },
   { path: '/admin/groups', component: () => import('./views/admin/GroupsView.vue'), meta: { perm: 'groups.manage' } },
   { path: '/admin/lists', component: () => import('./views/admin/ListsView.vue'), meta: { perm: 'lists.manage' } },
+  { path: '/admin/appearance', component: () => import('./views/admin/AppearanceView.vue'), meta: { perm: 'theme.manage' } },
   { path: '/admin/audit', component: () => import('./views/admin/AuditView.vue'), meta: { perm: 'users.manage' } },
   { path: '/mentions-legales', component: () => import('./views/LegalNoticeView.vue'), meta: { public: true, bare: true, anyone: true } },
   { path: '/confidentialite', component: () => import('./views/PrivacyView.vue'), meta: { public: true, bare: true, anyone: true } },
