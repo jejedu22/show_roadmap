@@ -48,13 +48,21 @@ class Themes
             'mint' => '#1fae8c', 'mintSoft' => '#d8f3ea', 'mintDark' => '#0b6650',
             'bg' => '#fbf6fa', 'line' => '#ecdfe9', 'line2' => '#e0cfdc', 'muted' => '#655a68', 'mutedOnDark' => '#c4b2c6',
         ]],
-        'graphite' => ['name' => 'Graphite', 'description' => 'Bleu ardoise et gris, sobre', 'colors' => [
+        'graphite' => ['name' => 'Graphite', 'description' => 'Bleu ardoise et gris', 'colors' => [
             'ink' => '#1c232c', 'ink2' => '#262f3a', 'ink3' => '#3a4654',
             'violet' => '#2f4b6e', 'violetDark' => '#1d3250', 'violetSoft' => '#e9eef4', 'violetMid' => '#4f6a8e',
             'coral' => '#e8635e', 'coralDark' => '#a02a27', 'coralSoft' => '#fdeeee',
             'sun' => '#e8b84a', 'sunSoft' => '#faf0d6', 'sunDark' => '#6a4b00',
             'mint' => '#2e8b6e', 'mintSoft' => '#dff1ea', 'mintDark' => '#1c5c48',
             'bg' => '#f5f6f8', 'line' => '#e0e4e9', 'line2' => '#d2d8df', 'muted' => '#59626e', 'mutedOnDark' => '#b3bcc7',
+        ]],
+        'sobre' => ['name' => 'Sobre', 'description' => 'Gris anthracite et blanc, couleurs discrètes', 'colors' => [
+            'ink' => '#202327', 'ink2' => '#2b2f34', 'ink3' => '#40454c',
+            'violet' => '#3c4148', 'violetDark' => '#25292e', 'violetSoft' => '#eef0f2', 'violetMid' => '#5f656d',
+            'coral' => '#e2867d', 'coralDark' => '#9c3a32', 'coralSoft' => '#f9eeed',
+            'sun' => '#e3d7c1', 'sunSoft' => '#f5f1e8', 'sunDark' => '#5c4f37',
+            'mint' => '#8fbfa6', 'mintSoft' => '#e8f2ec', 'mintDark' => '#2f5c45',
+            'bg' => '#f6f6f5', 'line' => '#e3e3e1', 'line2' => '#d5d5d2', 'muted' => '#5d6166', 'mutedOnDark' => '#b6babf',
         ]],
     ];
 
