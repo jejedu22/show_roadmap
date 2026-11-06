@@ -12,6 +12,7 @@ use App\Service\PasswordPolicy;
 use App\Service\UserTokens;
 use App\Service\Input;
 use App\Service\SncfTimetable;
+use App\Service\Themes;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -44,12 +45,14 @@ class AuthController extends ApiController
     }
 
     #[Route('/api/config', methods: ['GET'])]
-    public function config(GoogleOAuth $google, SncfTimetable $sncf, #[Autowire(env: 'MAILER_DSN')] string $mailerDsn): JsonResponse
+    public function config(GoogleOAuth $google, SncfTimetable $sncf, Themes $themes, #[Autowire(env: 'MAILER_DSN')] string $mailerDsn): JsonResponse
     {
         $user = $this->getUser();
 
         return $this->json(['google' => $google->enabled(), 'sncf' => $sncf->enabled(), 'passwordReset' => self::mailEnabled($mailerDsn),
             'sncfCoverage' => $sncf->enabled() ? $sncf->coverage() : null,
+            // Thème par défaut (connexion, administration) et catalogue : chaque compagnie peut avoir le sien
+            'theme' => $themes->active(), 'themes' => Themes::catalog(),
             'user' => $user instanceof User ? $this->presenter->user($user) : null]);
     }
 

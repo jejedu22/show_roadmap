@@ -27,6 +27,10 @@ class Company
     #[ORM\Column(length: 255, options: ['default' => ''])]
     public string $orfeoOrganization = '';
 
+    /** Thème de couleurs de la compagnie (écrans, PDF, exports Excel) ; null = thème par défaut de l'application */
+    #[ORM\Column(length: 20, nullable: true)]
+    public ?string $theme = null;
+
     /** @var Collection<int, Show> */
     #[ORM\OneToMany(targetEntity: Show::class, mappedBy: 'company', cascade: ['remove'])]
     #[ORM\OrderBy(['title' => 'ASC'])]

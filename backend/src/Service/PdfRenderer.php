@@ -27,7 +27,7 @@ class PdfRenderer
         'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view', 'invitations' => 'company.view',
     ];
 
-    public function __construct(private Environment $twig, private Presenter $presenter)
+    public function __construct(private Environment $twig, private Presenter $presenter, private Themes $themes)
     {
     }
 
@@ -37,6 +37,7 @@ class PdfRenderer
         $ev = $this->presenter->event($event, $user);
         $html = $this->twig->render("pdf/$doc.html.twig", [
             'ev' => $ev,
+            'theme' => Themes::forTemplates($this->themes->colorsFor($event->show->company)), // couleurs de la compagnie
             'title' => self::DOCS[$doc],
             'outbound' => self::travel($ev, 'outbound'),
             'inbound' => self::travel($ev, 'return'),

@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { setThemes } from './theme.js'
 
 /** État global minimal : utilisateur connecté et options du serveur. */
 const storedCompany = () => { try { return Number(localStorage.getItem('companyId')) || null } catch { return null } }
@@ -59,6 +60,7 @@ export const del = (p) => api(p, { method: 'DELETE', body: {} })
 
 export async function loadConfig() {
   const c = await get('/config')
+  setThemes(c.themes, c.theme?.key) // appliqué ensuite selon la compagnie affichée (App.vue)
   Object.assign(session, { user: c.user, google: c.google, passwordReset: c.passwordReset, sncf: c.sncf, sncfCoverage: c.sncfCoverage, loaded: true })
 }
 

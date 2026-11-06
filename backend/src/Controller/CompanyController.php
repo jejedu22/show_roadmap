@@ -9,6 +9,7 @@ use App\Entity\Show;
 use App\Entity\Group;
 use App\Security\Permissions;
 use App\Service\Input;
+use App\Service\Themes;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -23,7 +24,7 @@ class CompanyController extends ApiController
     {
         $me = $this->me();
 
-        return $this->json(array_map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name, 'showCount' => $c->shows->count(),
+        return $this->json(array_map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name, 'theme' => $c->theme, 'showCount' => $c->shows->count(),
             'permissions' => $this->authz->companyPerms($me, $c)], $this->authz->visibleCompanies($me)));
     }
 
@@ -57,6 +58,24 @@ class CompanyController extends ApiController
         $d = $this->body($request);
         $company->name = Input::str($d, 'name') ?: $company->name;
         $company->notes = Input::text($d, 'notes');
+
+        return $this->savedCompany($company);
+    }
+
+    /** Thème de couleurs de la compagnie (écrans, PDF, exports Excel) ; « » ou null = thème par défaut. */
+    #[Route('/api/companies/{id<\d+>}/theme', methods: ['PUT'])]
+    public function theme(int $id, Request $request): JsonResponse
+    {
+        $company = $this->company($id, 'company.manage');
+        $key = $this->body($request)['theme'] ?? null;
+        $key = '' === $key ? null : $key;
+        if (null !== $key && !isset(Themes::THEMES[$key])) {
+            throw new BadRequestHttpException('Thème inconnu');
+        }
+        if ($company->theme !== $key) {
+            $this->audit->log('company.theme', $company->name, ['thème' => null === $key ? 'par défaut' : Themes::THEMES[$key]['name']]);
+            $company->theme = $key;
+        }
 
         return $this->savedCompany($company);
     }

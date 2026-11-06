@@ -33,11 +33,11 @@
   {% endfor %}
   <style>
     .inv-group { page-break-inside: avoid; }
-    .inv-stats { margin: -2pt 0 4pt; color: #5b5873; }
-    .inv-stats .over { color: #d93a3f; font-weight: bold; }
+    .inv-stats { margin: -2pt 0 4pt; color: {{ theme.muted }}; }
+    .inv-stats .over { color: {{ theme.coralDark }}; font-weight: bold; }
     .kind { display: inline-block; padding: 1pt 6pt; border-radius: 7pt; font-size: 7.3pt; font-weight: bold; }
-    .kind.company { background: #d8f6f1; color: #00695c; }
-    .kind.pro { background: #efeaff; color: #5b2eff; }
-    td.box { font-size: 11pt; color: #8a86a8; }
+    .kind.company { background: {{ theme.mintSoft }}; color: {{ theme.mintDark }}; }
+    .kind.pro { background: {{ theme.violetSoft }}; color: {{ theme.violet }}; }
+    td.box { font-size: 11pt; color: {{ theme.muted }}; }
   </style>
 {% endblock %}

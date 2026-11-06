@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { session, get, post, can } from './api.js'
 import Icon from './components/Icon.vue'
+import { applyThemeKey, themeColor, themes } from './theme.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,13 +18,17 @@ watch(() => route.fullPath, () => { menuOpen.value = false; switcherOpen.value =
 
 const current = computed(() => companies.value.find((c) => c.id === session.companyId) || null)
 const shell = computed(() => session.user && !route.meta.bare)
+// Couleurs : celles de la compagnie sur ses pages (tableau de bord, dates, documents…), sinon le thème par défaut
+const inCompany = computed(() => /^\/(companies\/\d+|events\/)/.test(route.path))
+watch(() => [inCompany.value && session.user ? current.value?.theme : null, themes.defaultKey, Object.keys(themes.catalog).length],
+  ([key]) => applyThemeKey(key), { immediate: true })
 const cid = computed(() => current.value?.id)
 const NAV = computed(() => [['', 'Tableau de bord', 'dashboard'], ['/calendar', 'Calendrier', 'calendar'], ['/shows', 'Spectacles', 'shows'],
   ['/people', 'Annuaire', 'people'],
   ...(can('events.edit', current.value?.permissions) && can('people.edit', current.value?.permissions) ? [['/import', 'Importer des devis', 'upload']] : []),
   ...(can('company.manage', current.value?.permissions) || can('companies.delete') ? [['/settings', 'Paramètres', 'settings']] : [])])
 const ADMIN = computed(() => [['/admin/users', 'Utilisateurs', 'user', 'users.manage'], ['/admin/groups', 'Groupes et droits', 'people', 'groups.manage'],
-  ['/admin/lists', 'Listes', 'menu', 'lists.manage'], ['/admin/audit', 'Journal', 'file', 'users.manage']].filter(([, , , perm]) => can(perm)))
+  ['/admin/lists', 'Listes', 'menu', 'lists.manage'], ['/admin/appearance', 'Apparence', 'palette', 'theme.manage'], ['/admin/audit', 'Journal', 'file', 'users.manage']].filter(([, , , perm]) => can(perm)))
 const isActive = (suffix) => suffix === '' ? route.path === `/companies/${cid.value}` || route.path.startsWith('/events/') : route.path === `/companies/${cid.value}${suffix}`
 const abbr = (name) => name.split(/\s+/).filter((w) => w.length > 2 || /^[A-Z]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || name.slice(0, 2).toUpperCase()
 
@@ -46,7 +51,7 @@ async function logout() {
 <template>
   <main v-if="session.unreachable" style="min-height:100vh;display:grid;place-items:center;padding:16px">
     <div class="card" style="max-width:420px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center">
-      <span class="brand-mark" style="width:48px;height:48px;border-radius:14px"><Icon name="logo" :size="26" style="color:#1b1b3a" /></span>
+      <span class="brand-mark" style="width:48px;height:48px;border-radius:14px"><Icon name="logo" :size="26" style="color:var(--ink)" /></span>
       <h1 style="font-size:22px;margin:0">Show Roadmap</h1>
       <p class="muted" style="margin:0">{{ session.unreachable }}</p>
       <button type="button" class="btn btn-primary" @click="retry">Réessayer</button>
@@ -54,11 +59,11 @@ async function logout() {
   </main>
   <div v-else-if="shell" class="shell">
     <div class="topbar">
-      <RouterLink class="brand" to="/" style="display:flex"><span class="brand-mark"><Icon name="logo" :size="20" style="color:#1b1b3a" /></span>Show Roadmap</RouterLink>
+      <RouterLink class="brand" to="/" style="display:flex"><span class="brand-mark"><Icon name="logo" :size="20" style="color:var(--ink)" /></span>Show Roadmap</RouterLink>
       <button type="button" :aria-expanded="menuOpen" aria-controls="sidebar" aria-label="Menu" @click="menuOpen = !menuOpen"><Icon :name="menuOpen ? 'close' : 'menu'" :size="22" /></button>
     </div>
     <nav id="sidebar" class="sidebar" :class="{ open: menuOpen }" aria-label="Navigation principale">
-      <RouterLink class="brand" to="/"><span class="brand-mark"><Icon name="logo" :size="20" style="color:#1b1b3a" /></span>Show Roadmap</RouterLink>
+      <RouterLink class="brand" to="/"><span class="brand-mark"><Icon name="logo" :size="20" style="color:var(--ink)" /></span>Show Roadmap</RouterLink>
 
       <div style="display:flex;flex-direction:column;gap:6px">
         <span class="side-label">Compagnie</span>
@@ -71,7 +76,8 @@ async function logout() {
             <Icon name="chevron" :size="16" />
           </button>
           <div v-if="switcherOpen" class="switcher-menu">
-            <RouterLink v-for="c in companies" :key="c.id" :to="`/companies/${c.id}`" :class="{ current: c.id === cid }">{{ c.name }}</RouterLink>
+            <RouterLink v-for="c in companies" :key="c.id" :to="`/companies/${c.id}`" :class="{ current: c.id === cid }">
+              <span class="company-dot" :style="{ background: themeColor(c.theme) }" aria-hidden="true" />{{ c.name }}</RouterLink>
             <hr>
             <RouterLink to="/companies">Toutes les compagnies</RouterLink>
           </div>
