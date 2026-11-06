@@ -51,6 +51,7 @@ h3 { font-size: 17px; margin: 0; }
 .switcher-menu { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); background: #fff; color: var(--ink); border-radius: var(--radius-sm); box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 25%, transparent); padding: 6px; display: flex; flex-direction: column; }
 .switcher-menu a { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 10px; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 500; }
 .switcher-menu a:hover, .switcher-menu a.current { background: var(--violet-soft); }
+.company-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--line-2); }
 .switcher-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
 .side-add { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; color: var(--sun); text-decoration: none; font-size: 14px; font-weight: 600; }
 .side-add:hover { color: var(--sun-light); }

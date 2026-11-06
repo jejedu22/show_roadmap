@@ -218,8 +218,10 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
   voir / gérer les coordonnées, voir / modifier les montants, gérer les spectacles, partager la feuille de route,
   paramètres. Administration : gérer les utilisateurs, les groupes, créer / supprimer des compagnies, gérer les listes,
   choisir le thème.
-- **Thème** : Administration → Apparence propose plusieurs thèmes de couleurs (Violet, Océan, Forêt, Prune, Graphite, Sobre).
-  Le thème choisi s'applique à tous les utilisateurs : écrans, documents PDF, e-mails et exports Excel.
+- **Thèmes** : six thèmes de couleurs (Violet, Océan, Forêt, Prune, Graphite, Sobre). Chaque compagnie choisit le sien
+  (Paramètres de la compagnie, droit « Paramètres ») : ses écrans, ses PDF et ses exports Excel en prennent les couleurs, pour
+  reconnaître d'un coup d'œil sur quelle compagnie on travaille. Le thème par défaut (Administration → Apparence, droit
+  « Choisir le thème ») vaut pour la connexion, l'administration, les e-mails et les compagnies sans thème.
 - **Groupes** : des droits + un périmètre (toutes les compagnies ou certaines) + des membres. Les droits de plusieurs
   groupes s'additionnent. Groupes fournis : « Équipe <compagnie> » (tous les droits sur une compagnie, repris des anciens
   accès), « Régie et logistique », « Consultation », « Administration ».

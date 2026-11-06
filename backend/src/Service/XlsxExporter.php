@@ -17,7 +17,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 /**
  * Exports Excel d'une date : complet (devis, rooming, défraiements, voyages, coordonnées) ou coûts seuls (lien de partage).
  *
- * Chaque onglet est un tableau mis en forme aux couleurs du thème choisi dans l'administration : bandeau de titre (spectacle, lieu, dates),
+ * Chaque onglet est un tableau mis en forme aux couleurs du thème de la compagnie : bandeau de titre (spectacle, lieu, dates),
  * en-têtes colorés, montants en euros, vraies dates Excel, ligne de total, volets figés, filtres et mise en page d'impression.
  */
 class XlsxExporter
@@ -244,8 +244,7 @@ class XlsxExporter
 
     private function book(Event $ev, string $kind): Spreadsheet
     {
-        $this->c = $this->themes->colors();
-        $this->c['stripe'] = Themes::tint($this->c['violetSoft'], 0.55);
+        $this->c = Themes::forTemplates($this->themes->colorsFor($ev->show->company)); // couleurs de la compagnie
         $book = new Spreadsheet();
         $book->removeSheetByIndex(0);
         $book->getProperties()->setCreator('Show Roadmap')->setTitle($kind.' — '.$ev->show->title.' — '.$ev->venue)

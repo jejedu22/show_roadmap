@@ -3,10 +3,13 @@
 namespace App\Service;
 
 use App\Entity\AppSetting;
+use App\Entity\Company;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Thèmes de couleurs, choisis dans l'administration : ils habillent l'application, les PDF et les exports Excel.
+ * Thèmes de couleurs : chaque compagnie choisit le sien (Paramètres), pour reconnaître d'un coup d'œil sur quelle compagnie
+ * on travaille ; le thème par défaut (Administration → Apparence) vaut pour la connexion, l'administration et les compagnies
+ * sans thème. Ils habillent l'application, les PDF et les exports Excel.
  * Chaque thème garde les mêmes rôles (couleur principale, accent, surlignage, réussite, encre, fonds) ; les contrastes
  * de lecture (texte blanc sur la couleur principale, texte foncé sur les fonds clairs…) respectent le niveau AA.
  */
@@ -86,6 +89,30 @@ class Themes
     public function colors(): array
     {
         return self::THEMES[$this->currentKey()]['colors'];
+    }
+
+    /** Clé du thème d'une compagnie : le sien, sinon le thème par défaut. */
+    public function keyFor(?Company $company): string
+    {
+        return $company && isset(self::THEMES[$company->theme]) ? $company->theme : $this->currentKey();
+    }
+
+    /** @return array<string, string> couleurs d'une compagnie (documents PDF et Excel de ses dates) */
+    public function colorsFor(?Company $company): array
+    {
+        return self::THEMES[$this->keyFor($company)]['colors'];
+    }
+
+    /** Couleurs pour les modèles Twig : celles du thème, plus le fond très clair des lignes alternées. */
+    public static function forTemplates(array $colors): array
+    {
+        return $colors + ['stripe' => self::tint($colors['violetSoft'], 0.55)];
+    }
+
+    /** @return array<string, array{name: string, description: string, colors: array<string, string>}> catalogue envoyé à l'interface */
+    public static function catalog(): array
+    {
+        return self::THEMES;
     }
 
     public function set(string $key): void

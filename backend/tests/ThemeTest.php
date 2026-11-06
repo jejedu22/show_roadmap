@@ -5,7 +5,7 @@ namespace App\Tests;
 use App\Entity\AuditLog;
 use App\Service\Themes;
 
-/** Thème de couleurs : choix réservé au droit « Choisir le thème », appliqué à l'interface, aux PDF et aux exports Excel. */
+/** Thèmes de couleurs : par défaut (administration) et par compagnie, appliqués à l'interface, aux PDF et aux exports Excel. */
 class ThemeTest extends ApiTestCase
 {
     public function testThemeChoiceAppliesEverywhere(): void
@@ -29,17 +29,41 @@ class ThemeTest extends ApiTestCase
         self::assertSame(['foret', Themes::THEMES['foret']['colors']['violet']], [$config['theme']['key'], $config['theme']['colors']['violet']]);
         self::assertSame(1, $this->em()->getRepository(AuditLog::class)->count(['action' => 'settings.theme']));
 
-        // Export Excel : en-têtes aux couleurs du thème ; PDF généré avec le thème
-        [, [$show]] = $this->buildCompany();
+        self::assertArrayHasKey('prune', $config['themes'], 'catalogue des thèmes pour l\'interface');
+
+        // Thème propre à une compagnie : ses exports et ses PDF le prennent ; sans thème, le thème par défaut
+        [$cid, [$show]] = $this->buildCompany();
         $ev = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => '2027-01-19']);
-        $this->client->request('GET', "/api/events/{$ev['id']}/costs.xlsx");
+        self::assertSame(Themes::THEMES['foret']['colors']['violet'], $this->headerColor($ev['id']), 'compagnie sans thème : thème par défaut');
+        $this->call('PUT', "/api/companies/$cid/theme", ['theme' => 'inconnu']);
+        self::assertSame(400, $this->code());
+        self::assertSame('ocean', $this->call('PUT', "/api/companies/$cid/theme", ['theme' => 'ocean'])['theme']);
+        self::assertSame('ocean', array_column($this->call('GET', '/api/companies'), null, 'id')[$cid]['theme']);
+        self::assertSame(Themes::THEMES['ocean']['colors']['violet'], $this->headerColor($ev['id']), 'export aux couleurs de la compagnie');
+        $this->client->request('GET', "/api/events/{$ev['id']}/pdf/roadmap");
+        self::assertSame(200, $this->code());
+        self::assertSame(1, $this->em()->getRepository(AuditLog::class)->count(['action' => 'company.theme']));
+        self::assertNull($this->call('PUT', "/api/companies/$cid/theme", ['theme' => null])['theme']);
+        self::assertSame(Themes::THEMES['foret']['colors']['violet'], $this->headerColor($ev['id']), 'retour au thème par défaut');
+
+        // Choisir le thème d'une compagnie demande « Paramètres de la compagnie »
+        $this->call('POST', '/api/logout');
+        $this->grant(['ed@test.io'], ['company.view'], [$cid]);
+        $this->login('ed@test.io', 'ed-password-12345');
+        $this->call('PUT', "/api/companies/$cid/theme", ['theme' => 'prune']);
+        self::assertSame(403, $this->code());
+    }
+
+    /** Couleur de l'en-tête du devis dans l'export des coûts d'une date (#rrggbb). */
+    private function headerColor(int $eventId): string
+    {
+        $this->client->request('GET', "/api/events/$eventId/costs.xlsx");
         $file = tempnam(sys_get_temp_dir(), 'x');
         file_put_contents($file, $this->client->getInternalResponse()->getContent());
         $ws = \PhpOffice\PhpSpreadsheet\IOFactory::load($file)->getSheetByName('Devis');
         unlink($file);
-        self::assertSame(strtoupper(ltrim(Themes::THEMES['foret']['colors']['violet'], '#')), $ws->getStyle('A4')->getFill()->getStartColor()->getRGB());
-        $this->client->request('GET', "/api/events/{$ev['id']}/pdf/roadmap");
-        self::assertSame(200, $this->code());
+
+        return '#'.strtolower($ws->getStyle('A4')->getFill()->getStartColor()->getRGB());
     }
 
     public function testThemesAreReadable(): void

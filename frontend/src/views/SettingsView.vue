@@ -2,6 +2,8 @@
 import { reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, can, get, put, del, showError, toast, setCompany } from '../api.js'
+import { themes } from '../theme.js'
+import ThemePicker from '../components/ThemePicker.vue'
 
 const props = defineProps({ id: String })
 const router = useRouter()
@@ -21,6 +23,16 @@ async function save() {
     window.dispatchEvent(new Event('companies-changed'))
     toast('Paramètres enregistrés')
   } catch (e) { showError(e) }
+}
+// Thème de la compagnie : ses écrans, ses PDF et ses exports Excel (null = thème par défaut de l'application)
+const themeBusy = ref(false)
+async function chooseTheme(key) {
+  themeBusy.value = true
+  try {
+    company.value = await put(`/companies/${props.id}/theme`, { theme: key })
+    window.dispatchEvent(new Event('companies-changed')) // le menu applique aussitôt les nouvelles couleurs
+    toast(key ? `Thème « ${themes.catalog[key].name} » choisi pour ${company.value.name}` : 'La compagnie suit le thème par défaut')
+  } catch (e) { showError(e) } finally { themeBusy.value = false }
 }
 // Orfeo : la clé est envoyée une fois, vérifiée par le serveur puis stockée chiffrée ; elle n'est jamais réaffichée
 const orfeoKey = ref('')
@@ -57,6 +69,13 @@ async function remove() {
       </div>
       <div class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
     </fieldset></form>
+    <section class="card">
+      <h2 style="margin-bottom:4px">Thème de couleurs</h2>
+      <p class="muted small" style="margin:0 0 14px">Les écrans de la compagnie, ses PDF (feuille de route, devis…) et ses exports Excel prennent
+        ces couleurs : d'un coup d'œil, on sait sur quelle compagnie on travaille.</p>
+      <ThemePicker :themes="themes.catalog" :model-value="company.theme" none="Thème par défaut" :none-key="themes.defaultKey"
+        :disabled="themeBusy || !can('company.manage', company.permissions)" @update:model-value="chooseTheme" />
+    </section>
     <section v-if="can('company.manage', company.permissions)" class="card">
       <div class="card-head" style="margin-bottom:6px">
         <h2>Orfeo</h2>

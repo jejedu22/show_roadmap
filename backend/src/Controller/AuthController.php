@@ -51,7 +51,8 @@ class AuthController extends ApiController
 
         return $this->json(['google' => $google->enabled(), 'sncf' => $sncf->enabled(), 'passwordReset' => self::mailEnabled($mailerDsn),
             'sncfCoverage' => $sncf->enabled() ? $sncf->coverage() : null,
-            'theme' => $themes->active(), // aussi avant connexion : la page de connexion prend les couleurs choisies
+            // Thème par défaut (connexion, administration) et catalogue : chaque compagnie peut avoir le sien
+            'theme' => $themes->active(), 'themes' => Themes::catalog(),
             'user' => $user instanceof User ? $this->presenter->user($user) : null]);
     }
 

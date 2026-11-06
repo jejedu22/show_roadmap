@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { session, get, post, can } from './api.js'
 import Icon from './components/Icon.vue'
+import { applyThemeKey, themeColor, themes } from './theme.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,10 @@ watch(() => route.fullPath, () => { menuOpen.value = false; switcherOpen.value =
 
 const current = computed(() => companies.value.find((c) => c.id === session.companyId) || null)
 const shell = computed(() => session.user && !route.meta.bare)
+// Couleurs : celles de la compagnie sur ses pages (tableau de bord, dates, documents…), sinon le thème par défaut
+const inCompany = computed(() => /^\/(companies\/\d+|events\/)/.test(route.path))
+watch(() => [inCompany.value && session.user ? current.value?.theme : null, themes.defaultKey, Object.keys(themes.catalog).length],
+  ([key]) => applyThemeKey(key), { immediate: true })
 const cid = computed(() => current.value?.id)
 const NAV = computed(() => [['', 'Tableau de bord', 'dashboard'], ['/calendar', 'Calendrier', 'calendar'], ['/shows', 'Spectacles', 'shows'],
   ['/people', 'Annuaire', 'people'],
@@ -71,7 +76,8 @@ async function logout() {
             <Icon name="chevron" :size="16" />
           </button>
           <div v-if="switcherOpen" class="switcher-menu">
-            <RouterLink v-for="c in companies" :key="c.id" :to="`/companies/${c.id}`" :class="{ current: c.id === cid }">{{ c.name }}</RouterLink>
+            <RouterLink v-for="c in companies" :key="c.id" :to="`/companies/${c.id}`" :class="{ current: c.id === cid }">
+              <span class="company-dot" :style="{ background: themeColor(c.theme) }" aria-hidden="true" />{{ c.name }}</RouterLink>
             <hr>
             <RouterLink to="/companies">Toutes les compagnies</RouterLink>
           </div>
