@@ -34,11 +34,6 @@ const byMonth = (list) => {
 const allUpcoming = computed(() => company.value.events.filter((e) => daysFrom(e.end) >= 0))
 const next = computed(() => allUpcoming.value[0])
 const missingLegs = computed(() => allUpcoming.value.flatMap((e) => e.readiness.todo.filter((t) => t.step === 'travel').map((t) => ({ ...t, e }))))
-const conflicts = computed(() => {
-  const people = new Map()
-  for (const e of allUpcoming.value) for (const name of e.conflicts) (people.get(name) || people.set(name, []).get(name)).push(e)
-  return [...people.entries()]
-})
 const todo = computed(() => allUpcoming.value.flatMap((e) => e.readiness.todo.map((t) => ({ ...t, e }))))
 const stepPath = (t) => `/events/${t.e.id}${t.step === 'info' ? '' : '/' + t.step}`
 const greeting = computed(() => (session.user.name || '').split(' ')[0] || 'à vous')
@@ -69,12 +64,6 @@ const greeting = computed(() => (session.user.name || '').split(' ')[0] || 'à v
         <span class="small">{{ missingLegs.slice(0, 3).map((t) => t.label.replace('Réserver ', '')).join(', ') }}{{ missingLegs.length > 3 ? '…' : '' }}</span>
       </RouterLink>
       <div v-else class="tile calm"><span class="eyebrow">Voyages</span><span class="big">Tous les trajets sont saisis</span></div>
-      <RouterLink v-if="conflicts.length" class="tile outline" :to="`/events/${conflicts[0][1][0].id}/team`">
-        <span class="eyebrow">Conflit de planning</span>
-        <span class="big">{{ conflicts.map(([n]) => n).join(', ') }} sur 2 dates</span>
-        <span class="small muted">{{ [...new Set(conflicts.flatMap(([, evs]) => evs.map((e) => e.venue)))].join(' et ') }} se chevauchent</span>
-      </RouterLink>
-      <div v-else class="tile calm"><span class="eyebrow">Planning</span><span class="big">Aucun conflit</span><span class="small muted">Personne n'est engagé sur deux dates à la fois</span></div>
     </section>
 
     <div v-if="!company.shows.length" class="card empty">
