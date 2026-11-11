@@ -3,6 +3,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { get, post, showError, lastCompany, toast, can } from '../api.js'
 import { themeColor } from '../theme.js'
+import CompanyLogo from '../components/CompanyLogo.vue'
 
 const props = defineProps({ stay: Boolean })
 const route = useRoute()
@@ -38,6 +39,7 @@ async function create() {
   <div v-if="companies" class="tiles">
     <RouterLink v-for="c in companies" :key="c.id" class="tile calm company-tile" :to="`/companies/${c.id}`"
       :style="{ borderTop: `6px solid ${themeColor(c.theme)}` }">
+      <CompanyLogo v-if="c.logo" :company="c" :size="44" style="align-self:flex-start;margin-bottom:6px" />
       <span class="eyebrow">{{ c.showCount }} spectacle{{ c.showCount > 1 ? 's' : '' }}</span>
       <span class="big">{{ c.name }}</span>
     </RouterLink>

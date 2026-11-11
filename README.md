@@ -220,6 +220,8 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
   voir / gérer les coordonnées, voir / modifier les montants, gérer les spectacles, partager la feuille de route,
   paramètres. Administration : gérer les utilisateurs, les groupes, créer / supprimer des compagnies, gérer les listes,
   choisir le thème.
+- **Logo** : chaque compagnie peut avoir un logo (Paramètres de la compagnie, PNG, JPEG ou WebP, 2 Mo au plus, réencodé
+  par le serveur ; SVG refusé). Il apparaît dans les PDF (feuille de route partagée comprise) et dans les écrans de la compagnie.
 - **Thèmes** : six thèmes de couleurs (Violet, Océan, Forêt, Prune, Graphite, Sobre). Chaque compagnie choisit le sien
   (Paramètres de la compagnie, droit « Paramètres ») : ses écrans, ses PDF et ses exports Excel en prennent les couleurs, pour
   reconnaître d'un coup d'œil sur quelle compagnie on travaille. Le thème par défaut (Administration → Apparence, droit

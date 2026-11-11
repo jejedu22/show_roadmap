@@ -19,6 +19,10 @@
   .hero .blob1 { position: absolute; right: -30pt; top: -40pt; width: 150pt; height: 150pt; border-radius: 75pt; background: {{ theme.coral }}; }
   .hero .blob2 { position: absolute; right: 95pt; bottom: -38pt; width: 70pt; height: 70pt; border-radius: 35pt; background: {{ theme.sun }}; }
   .hero .blob3 { position: absolute; right: 150pt; top: 14pt; width: 22pt; height: 22pt; border-radius: 11pt; background: {{ theme.mint }}; }
+  /* Logo de la compagnie (Paramètres) : à la place du grand disque, dans un cartouche blanc */
+  .hero .logo { position: absolute; right: 18pt; top: 16pt; padding: 7pt 9pt; border-radius: 10pt; background: #fff; }
+  .hero .logo img { display: block; }
+  .hero.with-logo h1, .hero.with-logo .where { margin-right: 160pt; }
   .kicker { position: relative; font-size: 8.5pt; font-weight: bold; letter-spacing: 2pt; color: {{ theme.sun }}; text-transform: uppercase; }
   .hero h1 { position: relative; font-size: 24pt; margin: 4pt 0 2pt; line-height: 1.1; }
   .hero .where { position: relative; font-size: 11pt; }
@@ -76,8 +80,9 @@
 <div id="band"><b>{{ title|upper }}</b> · {{ ev.showTitle }} · {{ ev.venue }}{% if ev.city %} ({{ ev.city }}){% endif %}</div>
 <div id="foot">Show Roadmap — {{ ev.companyName }} — édité le {{ generatedAt }}</div>
 
-<div class="hero">
-  <div class="blob1"></div><div class="blob2"></div><div class="blob3"></div>
+<div class="hero{{ logo ? ' with-logo' }}">
+  {% if logo %}<div class="logo"><img src="{{ logo.src }}" style="width:{{ logo.w }}pt;height:{{ logo.h }}pt" alt="{{ ev.companyName }}"></div>
+  {% else %}<div class="blob1"></div><div class="blob3"></div>{% endif %}<div class="blob2"></div>
   <div class="kicker">{{ title }}</div>
   <h1>{{ ev.showTitle }}</h1>
   <div class="where">{{ ev.venue }}{% if ev.city %} · {{ ev.city }}{% endif %}</div>

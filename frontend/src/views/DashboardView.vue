@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { can, get, session, setCompany } from '../api.js'
 import { daysFrom, fdate, monthLabel, relative } from '../format.js'
 import Icon from '../components/Icon.vue'
+import CompanyLogo from '../components/CompanyLogo.vue'
 import EventRow from '../components/EventRow.vue'
 import NewEventDialog from '../components/NewEventDialog.vue'
 
@@ -42,9 +43,12 @@ const greeting = computed(() => (session.user.name || '').split(' ')[0] || 'à v
 <template>
   <template v-if="company">
     <header class="page-head">
-      <div>
+      <div class="dash-title">
+        <CompanyLogo v-if="company.logo" :company="company" :size="56" />
+        <div>
         <h1>Bonjour {{ greeting }}</h1>
         <p>{{ company.name }} · {{ allUpcoming.length }} date{{ allUpcoming.length > 1 ? 's' : '' }} à venir<template v-if="todo.length"> · {{ todo.length }} point{{ todo.length > 1 ? 's' : '' }} à régler</template></p>
+        </div>
       </div>
       <div class="actions">
         <RouterLink v-if="can('events.edit', company.permissions) && can('people.edit', company.permissions)" class="btn" :to="`/companies/${company.id}/import`"><Icon name="upload" />Importer des devis</RouterLink>
@@ -117,3 +121,7 @@ const greeting = computed(() => (session.user.name || '').split(' ')[0] || 'à v
     <NewEventDialog :open="creating" :company="company" @close="creating = false" />
   </template>
 </template>
+
+<style scoped>
+.dash-title { display: flex; align-items: center; gap: 16px; min-width: 0; }
+</style>

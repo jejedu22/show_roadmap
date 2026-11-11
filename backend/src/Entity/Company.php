@@ -31,6 +31,10 @@ class Company
     #[ORM\Column(length: 20, nullable: true)]
     public ?string $theme = null;
 
+    /** Date du logo (Paramètres) ; null = pas de logo. L'image est dans CompanyLogo. */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $logoAt = null;
+
     /** @var Collection<int, Show> */
     #[ORM\OneToMany(targetEntity: Show::class, mappedBy: 'company', cascade: ['remove'])]
     #[ORM\OrderBy(['title' => 'ASC'])]
