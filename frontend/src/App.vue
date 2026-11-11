@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { session, get, post, can } from './api.js'
 import Icon from './components/Icon.vue'
+import CompanyLogo from './components/CompanyLogo.vue'
 import { applyThemeKey, themeColor, themes } from './theme.js'
 
 const route = useRoute()
@@ -30,7 +31,6 @@ const NAV = computed(() => [['', 'Tableau de bord', 'dashboard'], ['/calendar', 
 const ADMIN = computed(() => [['/admin/users', 'Utilisateurs', 'user', 'users.manage'], ['/admin/groups', 'Groupes et droits', 'people', 'groups.manage'],
   ['/admin/lists', 'Listes', 'menu', 'lists.manage'], ['/admin/appearance', 'Apparence', 'palette', 'theme.manage'], ['/admin/audit', 'Journal', 'file', 'users.manage']].filter(([, , , perm]) => can(perm)))
 const isActive = (suffix) => suffix === '' ? route.path === `/companies/${cid.value}` || route.path.startsWith('/events/') : route.path === `/companies/${cid.value}${suffix}`
-const abbr = (name) => name.split(/\s+/).filter((w) => w.length > 2 || /^[A-Z]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || name.slice(0, 2).toUpperCase()
 
 const retry = () => window.location.reload()
 window.addEventListener('online', () => { if (session.unreachable) retry() })
@@ -70,7 +70,7 @@ async function logout() {
         <div class="switcher">
           <button type="button" :aria-expanded="switcherOpen" @click="switcherOpen = !switcherOpen">
             <span style="display:flex;align-items:center;gap:10px;min-width:0">
-              <span class="brand-mark" style="width:26px;height:26px;border-radius:8px;background:var(--coral);font-size:11px;font-weight:800;color:var(--ink)">{{ current ? abbr(current.name) : '?' }}</span>
+              <CompanyLogo :company="current" :size="26" :max-ratio="1.8" />
               <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ current?.name || 'Choisir une compagnie' }}</span>
             </span>
             <Icon name="chevron" :size="16" />
@@ -79,6 +79,7 @@ async function logout() {
             <RouterLink v-for="c in companies" :key="c.id" :to="`/companies/${c.id}`" :class="{ current: c.id === cid }">
               <span class="company-dot" :style="{ background: themeColor(c.theme) }" aria-hidden="true" />{{ c.name }}</RouterLink>
             <hr>
+            <RouterLink v-if="current && can('company.manage', current.permissions)" :to="`/companies/${current.id}/settings`"><Icon name="settings" :size="16" />Paramètres de {{ current.name }}</RouterLink>
             <RouterLink to="/companies">Toutes les compagnies</RouterLink>
           </div>
         </div>

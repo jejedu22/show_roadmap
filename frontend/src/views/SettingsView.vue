@@ -1,9 +1,10 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, can, get, put, del, showError, toast, setCompany } from '../api.js'
+import { api, can, get, put, del, upload, showError, toast, setCompany } from '../api.js'
 import { themes } from '../theme.js'
 import ThemePicker from '../components/ThemePicker.vue'
+import Icon from '../components/Icon.vue'
 
 const props = defineProps({ id: String })
 const router = useRouter()
@@ -23,6 +24,28 @@ async function save() {
     window.dispatchEvent(new Event('companies-changed'))
     toast('Paramètres enregistrés')
   } catch (e) { showError(e) }
+}
+// Logo : PNG, JPEG ou WebP (2 Mo au plus), réencodé par le serveur ; dans les PDF et les écrans de la compagnie
+const logoBusy = ref(false)
+async function sendLogo(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) return showError('Image trop lourde : 2 Mo au plus.')
+  logoBusy.value = true
+  try {
+    company.value = await upload(`/companies/${props.id}/logo`, 'logo', [file])
+    window.dispatchEvent(new Event('companies-changed'))
+    toast('Logo enregistré')
+  } catch (err) { showError(err) } finally { logoBusy.value = false }
+}
+async function removeLogo() {
+  if (!confirm('Retirer le logo de la compagnie ?')) return
+  try {
+    company.value = await del(`/companies/${props.id}/logo`)
+    window.dispatchEvent(new Event('companies-changed'))
+    toast('Logo retiré')
+  } catch (err) { showError(err) }
 }
 // Thème de la compagnie : ses écrans, ses PDF et ses exports Excel (null = thème par défaut de l'application)
 const themeBusy = ref(false)
@@ -70,6 +93,20 @@ async function remove() {
       <div class="actions" style="margin-top:16px"><button class="btn btn-primary">Enregistrer</button></div>
     </fieldset></form>
     <section class="card">
+      <h2 style="margin-bottom:4px">Logo</h2>
+      <p class="muted small" style="margin:0 0 14px">Affiché dans les documents PDF (feuille de route, devis…) et dans les écrans de la compagnie.
+        PNG, JPEG ou WebP, 2 Mo au plus ; un logo sur fond transparent rend le mieux.</p>
+      <div class="logo-row">
+        <span class="logo-preview" :class="{ empty: !company.logo }">
+          <img v-if="company.logo" :src="company.logo" :alt="`Logo ${company.name}`"><span v-else class="muted small">Aucun logo</span></span>
+        <div v-if="can('company.manage', company.permissions)" class="actions">
+          <label class="btn" :class="{ disabled: logoBusy }"><Icon name="upload" :size="16" />{{ company.logo ? 'Remplacer' : 'Choisir une image' }}
+            <input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" :disabled="logoBusy" @change="sendLogo"></label>
+          <button v-if="company.logo" type="button" class="btn btn-danger" @click="removeLogo"><Icon name="trash" :size="16" />Retirer</button>
+        </div>
+      </div>
+    </section>
+    <section class="card">
       <h2 style="margin-bottom:4px">Thème de couleurs</h2>
       <p class="muted small" style="margin:0 0 14px">Les écrans de la compagnie, ses PDF (feuille de route, devis…) et ses exports Excel prennent
         ces couleurs : d'un coup d'œil, on sait sur quelle compagnie on travaille.</p>
@@ -101,3 +138,11 @@ async function remove() {
     </section>
   </template>
 </template>
+
+<style scoped>
+.logo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.logo-preview { display: grid; place-items: center; width: 220px; height: 100px; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--line);
+  background: repeating-conic-gradient(#f2f2f2 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+.logo-preview.empty { background: var(--bg); border-style: dashed; }
+.logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+</style>

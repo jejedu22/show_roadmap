@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { can, get, setCompany, showError } from '../api.js'
 import { fperiod } from '../format.js'
 import Icon from '../components/Icon.vue'
+import CompanyLogo from '../components/CompanyLogo.vue'
 import ShareDialog from '../components/ShareDialog.vue'
 
 const props = defineProps({ id: String })
@@ -34,7 +35,8 @@ const status = computed(() => ({ confirmed: ['Confirmé', 'ok'], option: ['Optio
 
     <header class="hero">
       <div style="min-width:0">
-        <span class="eyebrow">{{ ev.showTitle }}</span>
+        <CompanyLogo v-if="ev.companyLogo" :company="{ logo: ev.companyLogo, name: ev.companyName }" :size="40" style="margin-bottom:10px" />
+        <span class="eyebrow" :style="ev.companyLogo ? 'display:block' : null">{{ ev.showTitle }}</span>
         <h1>{{ ev.venue }}</h1>
         <div class="hero-chips">
           <span class="dates">{{ fperiod(ev.firstDate, ev.lastDate) }}</span>

@@ -8,6 +8,7 @@ use App\Entity\Person;
 use App\Entity\Show;
 use App\Entity\Group;
 use App\Security\Permissions;
+use App\Service\CompanyLogos;
 use App\Service\Input;
 use App\Service\Themes;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,7 +25,7 @@ class CompanyController extends ApiController
     {
         $me = $this->me();
 
-        return $this->json(array_map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name, 'theme' => $c->theme, 'showCount' => $c->shows->count(),
+        return $this->json(array_map(fn (Company $c) => ['id' => $c->id, 'name' => $c->name, 'theme' => $c->theme, 'logo' => CompanyLogos::url($c), 'showCount' => $c->shows->count(),
             'permissions' => $this->authz->companyPerms($me, $c)], $this->authz->visibleCompanies($me)));
     }
 

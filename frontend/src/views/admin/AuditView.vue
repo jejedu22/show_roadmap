@@ -12,7 +12,8 @@ const ACTIONS = {
   'user.password_change_failed': ['Changement refusé', 'bad'], 'user.update': ['Compte modifié', 'info'], 'user.delete': ['Compte supprimé', 'bad'],
   'group.create': ['Groupe créé', 'info'], 'group.update': ['Groupe modifié', 'info'], 'group.delete': ['Groupe supprimé', 'bad'],
   'company.create': ['Compagnie créée', 'info'], 'company.delete': ['Compagnie supprimée', 'bad'],
-  'settings.theme': ['Thème changé', 'info'], 'lists.update': ['Liste modifiée', 'info'],
+  'settings.theme': ['Thème changé', 'info'], 'company.theme': ['Thème de compagnie', 'info'],
+  'company.logo': ['Logo ajouté', 'info'], 'company.logo_removed': ['Logo retiré', 'info'], 'lists.update': ['Liste modifiée', 'info'],
   'event.cost_share': ['Lien des coûts créé', 'warn'], 'event.cost_unshare': ['Lien des coûts révoqué', 'info'],
 }
 async function load() { entries.value = await get(`/admin/audit?q=${encodeURIComponent(query.value)}`) }

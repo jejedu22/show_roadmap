@@ -92,6 +92,7 @@ class Presenter
         return [
             'id' => $c->id, 'name' => $c->name, 'notes' => $c->notes, 'permissions' => $perms,
             'orfeo' => ['connected' => null !== $c->orfeoToken, 'organization' => $c->orfeoOrganization], 'theme' => $c->theme,
+            'logo' => CompanyLogos::url($c),
             'shows' => $c->shows->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'description' => $s->description,
                 'eventCount' => $s->events->count()])->getValues(),
             'people' => $c->people->map(fn (Person $p) => $this->personFor($p, $perms))->getValues(),
@@ -131,7 +132,7 @@ class Presenter
 
         $data = $this->eventSummary($e) + [
             'permissions' => $perms,
-            'companyId' => $e->show->company->id, 'companyName' => $e->show->company->name,
+            'companyId' => $e->show->company->id, 'companyName' => $e->show->company->name, 'companyLogo' => CompanyLogos::url($e->show->company),
             'address' => $e->address, 'venueContact' => $e->venueContact, 'notes' => $e->notes,
             'techArrival' => Input::iso($e->techArrival), 'artisticArrival' => Input::iso($e->artisticArrival),
             'departure' => Input::iso($e->departure), 'performances' => $e->performances,
