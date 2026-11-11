@@ -4,22 +4,25 @@ import { can, get, post, put, del, showError, toast, setCompany } from '../api.j
 import { daysFrom, fperiod } from '../format.js'
 import Icon from '../components/Icon.vue'
 import NewEventDialog from '../components/NewEventDialog.vue'
+import PeoplePicker from '../components/PeoplePicker.vue'
 
 const props = defineProps({ id: String })
 const company = ref(null)
 const editing = ref(null)
-const edit = reactive({ title: '', description: '' })
-const fresh = reactive({ title: '', description: '' })
+const edit = reactive({ title: '', description: '', defaultPersonIds: [] })
+const fresh = reactive({ title: '', description: '', defaultPersonIds: [] })
 const newDateFor = ref(null)
 
 watch(() => props.id, async (id) => { setCompany(Number(id)); company.value = await get(`/companies/${id}`) }, { immediate: true })
 
 const eventsOf = (s) => company.value.events.filter((e) => e.showId === s.id)
 const run = async (promise, msg) => { try { company.value = await promise; toast(msg); return true } catch (e) { showError(e) } }
-function startEdit(s) { editing.value = s.id; Object.assign(edit, { title: s.title, description: s.description }) }
+function startEdit(s) { editing.value = s.id; Object.assign(edit, { title: s.title, description: s.description, defaultPersonIds: [...(s.defaultPersonIds || [])] }) }
+// Équipe habituelle : proposée, toute cochée, à la création d'une date du spectacle
+const teamOf = (s) => company.value.people.filter((p) => (s.defaultPersonIds || []).includes(p.id))
 async function save(s) { if (await run(put(`/shows/${s.id}`, edit), 'Spectacle enregistré')) editing.value = null }
 const remove = (s) => confirm(`Supprimer « ${s.title} » ?`) && run(del(`/shows/${s.id}`), 'Spectacle supprimé')
-async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh), `« ${fresh.title} » ajouté`)) Object.assign(fresh, { title: '', description: '' }) }
+async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh), `« ${fresh.title} » ajouté`)) Object.assign(fresh, { title: '', description: '', defaultPersonIds: [] }) }
 </script>
 
 <template>
@@ -31,11 +34,14 @@ async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh)
           <label class="field">Titre<input v-model="edit.title" required></label>
           <label class="field">Description<input v-model="edit.description"></label>
         </div>
+        <PeoplePicker v-model="edit.defaultPersonIds" :people="company.people" label="Équipe habituelle (cochée d'office à la création d'une date)" style="margin-top:12px" />
         <div class="actions" style="margin-top:12px"><button class="btn btn-primary">Enregistrer</button><button type="button" class="btn btn-ghost" @click="editing = null">Annuler</button></div>
       </form>
       <template v-else>
         <div class="card-head" style="margin-bottom:6px">
-          <div><h2>{{ s.title }}</h2><p v-if="s.description" class="muted" style="margin:4px 0 0">{{ s.description }}</p></div>
+          <div><h2>{{ s.title }}</h2><p v-if="s.description" class="muted" style="margin:4px 0 0">{{ s.description }}</p>
+            <p class="small" style="margin:6px 0 0"><span class="muted">Équipe habituelle :</span>
+              {{ teamOf(s).length ? teamOf(s).map((p) => p.firstName || p.lastName).join(', ') : 'aucune' }}</p></div>
           <div class="actions">
             <button v-if="can('events.edit', company.permissions)" class="btn btn-sm btn-primary" @click="newDateFor = s.id"><Icon name="plus" :size="16" />Nouvelle date</button>
             <button v-if="can('shows.edit', company.permissions)" class="btn btn-sm btn-icon" :aria-label="`Modifier ${s.title}`" @click="startEdit(s)"><Icon name="edit" :size="16" /></button>
@@ -57,6 +63,7 @@ async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh)
         <label class="field">Titre<input v-model="fresh.title" required></label>
         <label class="field">Description<input v-model="fresh.description"></label>
       </div>
+      <PeoplePicker v-model="fresh.defaultPersonIds" :people="company.people" label="Équipe habituelle : les personnes qui participent d'ordinaire au spectacle" style="margin-top:12px" />
       <div class="actions" style="margin-top:12px"><button class="btn btn-primary">Ajouter le spectacle</button></div>
     </form>
     <NewEventDialog :open="!!newDateFor" :company="company" :show-id="newDateFor" @close="newDateFor = null" />
