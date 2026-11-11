@@ -1,8 +1,12 @@
+# Build rapide : chaque étape lente est dans sa propre couche, refaite seulement quand ce dont elle dépend change
+# (extensions PHP : image de base ; dépendances : fichiers lock) ; les téléchargements npm et Composer restent en cache
+# d'un build à l'autre (« --mount=type=cache »), même quand un fichier lock change.
+
 # 1) Front Vue
 FROM node:22-alpine AS front
 WORKDIR /front
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
@@ -10,15 +14,19 @@ RUN npm run build
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
+RUN --mount=type=cache,target=/tmp/composer-cache COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-progress --ignore-platform-reqs
 COPY backend/ ./
 RUN test -f .env || (echo "backend/.env manquant" >&2 && exit 1)
 RUN composer dump-autoload --no-dev --classmap-authoritative \
  && rm -rf tests var .env.local .env.*.local public/dev-router.php phpunit.dist.xml
 
-# 3) Image finale : FrankenPHP (Caddy + PHP) sert l'API Symfony et le front
-FROM dunglas/frankenphp:1-php8.3
+# 3) Extensions PHP : l'étape la plus longue (compilation), gardée en cache tant que l'image de base ne change pas
+FROM dunglas/frankenphp:1-php8.3 AS php
 RUN install-php-extensions pdo_mysql intl zip gd opcache
+
+# 4) Image finale : FrankenPHP (Caddy + PHP) sert l'API Symfony et le front
+FROM php
 COPY docker/php.ini $PHP_INI_DIR/conf.d/zz-app.ini
 COPY docker/Caddyfile /etc/app/Caddyfile
 COPY docker/entrypoint.sh /usr/local/bin/app-entrypoint
