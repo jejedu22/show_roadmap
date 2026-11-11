@@ -8,3 +8,7 @@ backend/.env.*.local
 backend/public/index.html
 backend/public/assets
 /.env
+# Inutile à l'image
+docs
+backend/tests
+backend/phpunit.dist.xml
