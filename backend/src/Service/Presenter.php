@@ -147,7 +147,7 @@ class Presenter
                 ) ?: new \stdClass(),
                 'legs' => array_map(fn ($l) => ['id' => $l->id, 'direction' => $l->direction, 'day' => Input::iso($l->day),
                     'origin' => $l->origin, 'destination' => $l->destination, 'depTime' => $l->depTime, 'arrTime' => $l->arrTime,
-                    'mode' => $l->mode, 'reference' => $l->reference, 'price' => $finance ? (float) $l->price : null,
+                    'mode' => $l->mode, 'travelClass' => $l->travelClass, 'reference' => $l->reference, 'price' => $finance ? (float) $l->price : null,
                     'bookedOn' => Input::iso($l->bookedOn), 'note' => $l->note, 'bookingUrl' => $l->bookingUrl], self::byTime($p->legs->toArray(), 'depTime')),
                 // Dépenses et remboursements : montants seulement, jamais dans la feuille de route
                 'expenses' => $finance ? $p->expenses->map(fn ($x) => ['id' => $x->id, 'direction' => $x->direction, 'day' => Input::iso($x->day),

@@ -69,6 +69,42 @@ class ListsTest extends ApiTestCase
         self::assertSame('Covoiturage', $ev['participations'][0]['legs'][0]['mode']);
     }
 
+    public function testTravelClassForModesWithClass(): void
+    {
+        $this->login();
+        [, [$show]] = $this->buildCompany();
+        // « Classe » coché pour le TGV seulement ; une entrée sans précision garde sa case
+        $res = $this->call('PUT', '/api/admin/lists/mode', ['items' => [['label' => 'TGV INOUI', 'withClass' => true], ['label' => 'Bus', 'withClass' => false], 'Avion']]);
+        self::assertSame(['TGV INOUI'], $res['modeClass']);
+        self::assertSame(['TGV INOUI'], $this->call('GET', '/api/lists')['modeClass']);
+
+        $ev = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => '2027-01-19']);
+        $ev = $this->call('POST', "/api/events/{$ev['id']}/participations", ['personIds' => [$ev['availablePeople'][0]['id']]]);
+        $url = "/api/events/{$ev['id']}/items/leg";
+        $leg = ['participationId' => $ev['participations'][0]['id'], 'day' => '2027-01-18'];
+        $ev = $this->call('POST', $url, $leg + ['mode' => 'TGV INOUI', 'travelClass' => '1']);
+        self::assertSame('1', $ev['participations'][0]['legs'][0]['travelClass']);
+        $id = $ev['participations'][0]['legs'][0]['id'];
+        $ev = $this->call('PUT', "$url/$id", $leg + ['mode' => 'TGV INOUI', 'travelClass' => '3']);
+        self::assertSame('', $ev['participations'][0]['legs'][0]['travelClass'], 'seulement 1re ou 2nde');
+        $ev = $this->call('PUT', "$url/$id", $leg + ['mode' => 'Bus', 'travelClass' => '2']);
+        self::assertSame('', $ev['participations'][0]['legs'][0]['travelClass'], 'pas de classe pour un mode sans classe');
+        $ev = $this->call('PUT', "$url/$id", $leg + ['mode' => 'TGV INOUI', 'travelClass' => '2']);
+
+        // Export Excel : colonne Classe
+        $this->client->request('GET', "/api/events/{$ev['id']}/export.xlsx");
+        $file = tempnam(sys_get_temp_dir(), 'x');
+        file_put_contents($file, $this->client->getInternalResponse()->getContent());
+        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($file)->getSheetByName('Voyages')->toArray(null, true, false);
+        unlink($file);
+        $header = $rows[array_search('Nom', array_column($rows, 0), true)];
+        $first = $rows[array_search('Nom', array_column($rows, 0), true) + 1];
+        self::assertSame('2nde', $first[array_search('Classe', $header, true)]);
+
+        // Ne pas toucher à la case en réordonnant la liste sans la préciser
+        self::assertSame(['TGV INOUI'], $this->call('PUT', '/api/admin/lists/mode', ['items' => ['Avion', 'TGV INOUI', 'Bus']])['modeClass']);
+    }
+
     public function testOnlyListManagersEdit(): void
     {
         $this->createUser('ed@test.io', 'ed-password-12345');

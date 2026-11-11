@@ -38,6 +38,10 @@ class Leg
     #[ORM\Column(length: 60)]
     public string $mode = 'Train';
 
+    /** Classe du billet : « 1 » (1re), « 2 » (2nde) ou vide ; seulement pour un mode avec classe (Administration → Listes) */
+    #[ORM\Column(length: 1, options: ['default' => ''])]
+    public string $travelClass = '';
+
     #[ORM\Column(length: 60)]
     public string $reference = '';
 

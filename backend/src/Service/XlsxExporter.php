@@ -163,11 +163,12 @@ class XlsxExporter
                 <=> [$b->direction !== 'outbound', $b->day, self::minutes($b->depTime)]);
             foreach ($legs as $l) {
                 $rows[] = [$p->person->fullName(), 'return' === $l->direction ? 'Retour' : 'Aller', $l->day,
-                    $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, $l->reference, (float) $l->price, $l->bookingUrl];
+                    $l->origin, $l->destination, $l->depTime, $l->arrTime, $l->mode, ['1' => '1re', '2' => '2nde'][$l->travelClass] ?? '',
+                    $l->reference, (float) $l->price, $l->bookingUrl];
             }
         }
         $tickets = $this->block($ws, self::HEADER_ROW, [['Nom', 'text', 22], ['Sens', 'text', 8], ['Date', 'date'], ['De', 'text', 18], ['À', 'text', 18],
-            ['Départ', 'text', 8], ['Arrivée', 'text', 8], ['Mode', 'text', 12], ['Référence', 'text', 12], ['Prix', 'money', 12], ['Billet', 'url']],
+            ['Départ', 'text', 8], ['Arrivée', 'text', 8], ['Mode', 'text', 12], ['Classe', 'text', 8], ['Référence', 'text', 12], ['Prix', 'money', 12], ['Billet', 'url']],
             $rows, ['heading' => 'Billets', 'total' => 'Total billets', 'direction' => 1]);
 
         $rows = [];
@@ -178,14 +179,14 @@ class XlsxExporter
         }
         // Type sous « De », commentaire sur « À » → « Référence », montant sous « Prix »
         $expenses = $this->block($ws, $tickets['next'], [['Nom', 'text'], ['Sens', 'text'], ['Date', 'date'], ['Type', 'text'],
-            ['Commentaire', 'text', null, null, 5], ['Montant', 'money'], ['', 'text']], $rows,
+            ['Commentaire', 'text', null, null, 6], ['Montant', 'money'], ['', 'text']], $rows,
             ['heading' => 'Dépenses et remboursements (montant négatif = remboursement)', 'total' => 'Total dépenses et remboursements',
                 'direction' => 1, 'widths' => false]);
 
-        $price = Coordinate::stringFromColumnIndex(10);
+        $price = Coordinate::stringFromColumnIndex(11);
         $sum = array_filter([$tickets['total'] ? $price.$tickets['total'] : null, $expenses['total'] ? $price.$expenses['total'] : null]);
-        $this->grandTotal($ws, $expenses['next'], 11, 'Total voyages', [10 => '='.($sum ? implode('+', $sum) : '0')]);
-        $this->finish($ws, $ev, 11);
+        $this->grandTotal($ws, $expenses['next'], 12, 'Total voyages', [11 => '='.($sum ? implode('+', $sum) : '0')]);
+        $this->finish($ws, $ev, 12);
     }
 
     /**
