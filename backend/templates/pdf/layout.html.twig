@@ -39,8 +39,12 @@
   /* Trajets */
   table.trips { width: 100%; border-collapse: separate; border-spacing: 0 3pt; }
   table.trips td { background: {{ theme.violetSoft }}; padding: 5pt 6pt; vertical-align: middle; }
-  table.trips td.who { border-left: 4pt solid {{ theme.violet }}; font-weight: bold; width: 16%; }
-  table.trips.back td.who { border-left-color: {{ theme.coral }}; }
+  /* Trajets regroupés par personne */
+  .traveller { margin: 7pt 0 2pt; page-break-inside: avoid; }
+  .who-head { padding: 0 0 1pt 7pt; border-left: 4pt solid {{ theme.violet }}; font-weight: bold; font-size: 10pt; }
+  .who-head.back { border-left-color: {{ theme.coral }}; }
+  table.trips td.when { border-left: 4pt solid {{ theme.violet }}; font-weight: bold; width: 17%; white-space: nowrap; }
+  table.trips.back td.when { border-left-color: {{ theme.coral }}; }
   table.trips.back .arrow { color: {{ theme.violet }}; }
   table.trips.back td { background: {{ theme.coralSoft }}; }
   table.trips td.last { border-radius: 0 6pt 6pt 0; text-align: right; width: 14%; }

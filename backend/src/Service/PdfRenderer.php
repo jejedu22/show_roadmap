@@ -72,23 +72,22 @@ class PdfRenderer
         return str_replace([' ', '/', '\''], ['_', '-', ''], self::DOCS[$doc].'_'.$event->show->title.'_'.$event->venue).'.pdf';
     }
 
-    /** Trajets d'un sens, par jour puis heure de départ : [jour => [[participation, trajet], …]]. */
+    /** Trajets d'un sens, regroupés par personne : [[p => participation, legs => trajets dans l'ordre chronologique], …]. */
     private static function travel(array $ev, string $direction): array
     {
-        $days = [];
+        $key = fn (array $l) => [$l['day'], self::minutes($l['depTime'])];
+        $people = [];
         foreach ($ev['participations'] as $p) {
-            foreach ($p['legs'] as $l) {
-                if ($l['direction'] === $direction) {
-                    $days[$l['day']][] = ['p' => $p, 'l' => $l];
-                }
+            $legs = array_values(array_filter($p['legs'], fn ($l) => $l['direction'] === $direction));
+            if ($legs) {
+                usort($legs, fn ($a, $b) => $key($a) <=> $key($b));
+                $people[] = ['p' => $p, 'legs' => $legs];
             }
         }
-        ksort($days);
-        foreach ($days as &$items) {
-            usort($items, fn ($a, $b) => self::minutes($a['l']['depTime']) <=> self::minutes($b['l']['depTime']));
-        }
+        // Personnes dans l'ordre de leur premier départ, puis par nom
+        usort($people, fn ($a, $b) => [$key($a['legs'][0]), $a['p']['person']['fullName']] <=> [$key($b['legs'][0]), $b['p']['person']['fullName']]);
 
-        return $days;
+        return $people;
     }
 
     /**

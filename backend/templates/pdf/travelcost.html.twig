@@ -10,9 +10,9 @@
   </table>
 
   <div class="sec"><span class="dot mint"></span>Détail des billets aller</div>
-  {% include 'pdf/_trips.html.twig' with { days: outbound, back: false } %}
+  {% include 'pdf/_trips.html.twig' with { people: outbound, back: false } %}
   <div class="sec"><span class="dot coral"></span>Détail des billets retour</div>
-  {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
+  {% include 'pdf/_trips.html.twig' with { people: inbound, back: true } %}
 
   {% set expenses = [] %}
   {% for p in ev.participations %}{% for x in p.expenses %}{% set expenses = expenses|merge([{ p: p, x: x }]) %}{% endfor %}{% endfor %}
