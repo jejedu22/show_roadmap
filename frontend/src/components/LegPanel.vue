@@ -67,6 +67,13 @@ function suggest(value) {
     places.value.forEach((p) => ids.set(p.name, p.id))
   }, 250)
 }
+// Inverser départ et destination (villes, et gares SNCF) : par exemple pour saisir le retour à partir de l'aller
+function swap() {
+  ;[form.origin, form.destination] = [form.destination, form.origin]
+  ;[stations.from, stations.to] = [stations.to, stations.from]
+  touched = true
+  if (session.sncf && ids.has(stations.from) && ids.has(stations.to) && form.day) search()
+}
 async function search() {
   trains.value = []; picked.value = null
   if (!ids.has(stations.from) || !ids.has(stations.to) || !form.day) {
@@ -123,9 +130,13 @@ async function save() {
       <h2>{{ title }}</h2>
       <button type="button" class="btn btn-sm btn-icon" aria-label="Fermer" @click="emit('close')"><Icon name="close" :size="18" /></button>
     </div>
-    <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="route">
       <label class="field">De<input v-model="form.origin" required></label>
+      <button type="button" class="btn btn-sm btn-icon swap" aria-label="Inverser départ et destination" title="Inverser départ et destination"
+        @click="swap"><Icon name="swap" :size="16" /></button>
       <label class="field">À<input v-model="form.destination" required></label>
+    </div>
+    <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <label class="field">Date<input v-model="form.day" type="date" required></label>
       <label class="field">Sens<select v-model="form.direction"><option value="outbound">Aller</option><option value="return">Retour</option></select></label>
     </div>
@@ -133,9 +144,12 @@ async function save() {
     <template v-if="session.sncf">
       <span class="eyebrow">Trains (horaires SNCF, direct ou une correspondance)</span>
       <datalist :id="`gares-${part.id}`"><option v-for="p in places" :key="p.id" :value="p.name" /></datalist>
-      <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="route">
         <label class="field">Gare de départ<input v-model="stations.from" :list="`gares-${part.id}`" autocomplete="off" @input="suggest(stations.from)"></label>
+        <button type="button" class="btn btn-sm btn-icon swap" aria-label="Inverser les gares" title="Inverser les gares" @click="swap"><Icon name="swap" :size="16" /></button>
         <label class="field">Gare d'arrivée<input v-model="stations.to" :list="`gares-${part.id}`" autocomplete="off" @input="suggest(stations.to)"></label>
+      </div>
+      <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <label class="field">Partir après<input v-model="after" type="time"></label>
         <button type="button" class="btn btn-sun" style="align-self:flex-end" @click="search"><Icon name="search" :size="16" />Chercher</button>
       </div>
@@ -165,3 +179,8 @@ async function save() {
     </div>
   </form>
 </template>
+
+<style scoped>
+.route { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
+.route .swap { margin-bottom: 4px; }
+</style>
