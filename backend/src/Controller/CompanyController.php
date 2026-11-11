@@ -5,10 +5,12 @@ namespace App\Controller;
 use App\Entity\Company;
 use App\Entity\Event;
 use App\Entity\Person;
+use App\Entity\Participation;
 use App\Entity\Show;
 use App\Entity\Group;
 use App\Security\Permissions;
 use App\Service\CompanyLogos;
+use App\Service\Planning;
 use App\Service\Input;
 use App\Service\Themes;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -106,6 +108,7 @@ class CompanyController extends ApiController
         $d = $this->body($request);
         $show = new Show($company, Input::str($d, 'title') ?: throw new BadRequestHttpException('Titre obligatoire'));
         $show->description = Input::text($d, 'description');
+        $this->setDefaultPeople($show, $d);
         $this->em->persist($show);
 
         return $this->savedCompany($company);
@@ -118,6 +121,7 @@ class CompanyController extends ApiController
         $d = $this->body($request);
         $show->title = Input::str($d, 'title') ?: $show->title;
         $show->description = Input::text($d, 'description');
+        $this->setDefaultPeople($show, $d);
 
         return $this->savedCompany($show->company);
     }
@@ -168,7 +172,7 @@ class CompanyController extends ApiController
     // ---- Création d'une date ----
 
     #[Route('/api/shows/{id<\d+>}/events', methods: ['POST'])]
-    public function createEvent(int $id, Request $request): JsonResponse
+    public function createEvent(int $id, Request $request, Planning $planning): JsonResponse
     {
         $show = $this->showOr404($id, 'events.edit');
         $d = $this->body($request);
@@ -182,8 +186,30 @@ class CompanyController extends ApiController
         $event->performances = $first->diff($last)->days + 1;
         $event->departure = $last;
         $this->em->persist($event);
+        // Équipe de la date : l'équipe habituelle du spectacle, moins les personnes décochées (« personIds » ; absent = tout le monde)
+        $ids = array_key_exists('personIds', $d) ? array_map('intval', (array) $d['personIds']) : $show->defaultPeople->map(fn ($p) => $p->id)->getValues();
+        foreach ($show->company->people as $person) {
+            if (in_array($person->id, $ids, true)) {
+                $part = new Participation($event, $person);
+                $event->participations->add($part);
+                $planning->fillDefaultDays($part);
+            }
+        }
 
         return $this->savedEvent($event);
+    }
+
+    /** Équipe habituelle d'un spectacle (« defaultPersonIds ») : seulement des personnes de la compagnie ; absent = inchangée. */
+    private function setDefaultPeople(Show $show, array $d): void
+    {
+        if (!array_key_exists('defaultPersonIds', $d)) {
+            return;
+        }
+        $ids = array_map('intval', (array) $d['defaultPersonIds']);
+        $show->defaultPeople->clear();
+        foreach ($show->company->people as $person) {
+            in_array($person->id, $ids, true) && $show->defaultPeople->add($person);
+        }
     }
 
     private function showOr404(int $id, string $perm): Show

@@ -34,10 +34,18 @@ class Show
     #[ORM\OrderBy(['firstDate' => 'ASC'])]
     public Collection $events;
 
+    /** @var Collection<int, Person> équipe habituelle : proposée, toute cochée, à la création d'une date */
+    #[ORM\ManyToMany(targetEntity: Person::class)]
+    #[ORM\JoinTable(name: 'show_default_person')]
+    #[ORM\JoinColumn(onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(onDelete: 'CASCADE')]
+    public Collection $defaultPeople;
+
     public function __construct(Company $company, string $title)
     {
         $this->company = $company;
         $this->title = $title;
         $this->events = new ArrayCollection();
+        $this->defaultPeople = new ArrayCollection();
     }
 }

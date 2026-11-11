@@ -94,7 +94,7 @@ class Presenter
             'orfeo' => ['connected' => null !== $c->orfeoToken, 'organization' => $c->orfeoOrganization], 'theme' => $c->theme,
             'logo' => CompanyLogos::url($c),
             'shows' => $c->shows->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'description' => $s->description,
-                'eventCount' => $s->events->count()])->getValues(),
+                'eventCount' => $s->events->count(), 'defaultPersonIds' => $s->defaultPeople->map(fn ($p) => $p->id)->getValues()])->getValues(),
             'people' => $c->people->map(fn (Person $p) => $this->personFor($p, $perms))->getValues(),
             'events' => array_map(function (Event $e) use ($events, $perms) {
                 $overlaps = array_values(array_filter($events, fn (Event $o) => $e->overlaps($o)));

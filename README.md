@@ -21,6 +21,8 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - **Envoyer à l'équipe** : lien secret et révocable vers la feuille de route PDF, à copier ou à envoyer par la messagerie.
 
 - **Compagnie** → **spectacles** (plusieurs possibles, y compris sur les mêmes dates) et **annuaire** de personnes.
+- **Équipe habituelle** d'un spectacle (page Spectacles) : à la création d'une date, ces personnes sont cochées d'office ;
+  on décoche celles qui n'y seront pas, et l'on peut en ajouter d'autres de l'annuaire.
 - **Date de tournée** (un spectacle × un lieu × une période) : équipe, voyages, nuitées/repas/petits-déjeuners, hébergements, devis, feuille de route.
 - Une personne engagée sur deux dates qui se chevauchent est signalée dans le planning et sur la fiche équipe.
 - Documents en **vrais PDF** générés par le serveur (feuille de route, devis, rooming-list, défraiements, suivi des frais,
