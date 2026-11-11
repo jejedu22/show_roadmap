@@ -25,6 +25,10 @@ class ListItem
     #[ORM\Column]
     public int $position = 0;
 
+    /** Modes de transport : le trajet précise une classe (1re / 2nde) */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $withClass = false;
+
     public function __construct(string $kind, string $label, int $position = 0)
     {
         $this->kind = $kind;

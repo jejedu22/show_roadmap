@@ -15,7 +15,13 @@ class ListController extends ApiController
     #[Route('/api/lists', methods: ['GET'])]
     public function all(Lists $lists): JsonResponse
     {
-        return $this->json($lists->all());
+        return $this->json(self::payload($lists));
+    }
+
+    /** Listes, plus les modes de transport qui demandent une classe (« modeClass »). */
+    private static function payload(Lists $lists): array
+    {
+        return $lists->all() + ['modeClass' => $lists->classModes()];
     }
 
     #[Route('/api/admin/lists/{kind}', methods: ['PUT'])]
@@ -26,11 +32,14 @@ class ListController extends ApiController
             throw new NotFoundHttpException('Liste inconnue');
         }
         $before = $lists->entries($kind);
+        $classBefore = $lists->classModes();
         $after = $lists->replace($kind, (array) ($this->body($request)['items'] ?? []));
-        $this->audit->log('lists.update', ListItem::KINDS[$kind], [
-            'added' => array_values(array_diff($after, $before)), 'removed' => array_values(array_diff($before, $after)),
-        ], flush: true);
+        $details = ['added' => array_values(array_diff($after, $before)), 'removed' => array_values(array_diff($before, $after))];
+        if ('mode' === $kind && $classBefore !== $lists->classModes()) {
+            $details['avec classe'] = $lists->classModes();
+        }
+        $this->audit->log('lists.update', ListItem::KINDS[$kind], $details, flush: true);
 
-        return $this->json($lists->all());
+        return $this->json(self::payload($lists));
     }
 }

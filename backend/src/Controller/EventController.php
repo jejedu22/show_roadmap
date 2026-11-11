@@ -581,6 +581,9 @@ class EventController extends ApiController
         $leg->depTime = Input::str($d, 'depTime', 20);
         $leg->arrTime = Input::str($d, 'arrTime', 20);
         $leg->mode = $mode ?? Input::str($d, 'mode', 60);
+        // Classe : seulement pour un mode qui en a une (sinon effacée, par exemple si le mode change)
+        $class = Input::str($d, 'travelClass', 1);
+        $leg->travelClass = in_array($class, ['1', '2'], true) && $this->lists->hasClass($leg->mode) ? $class : '';
         $leg->reference = Input::str($d, 'reference', 60);
         $leg->price = Input::decimal($d, 'price');
         $leg->bookedOn = Input::date($d, 'bookedOn');

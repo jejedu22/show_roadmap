@@ -82,7 +82,7 @@ async function remove(p, l) {
             <div v-for="l in legsOf(p, dir)" :key="l.id" class="leg" :class="{ back: dir === 'return' }">
               <span class="dir">{{ label }}</span>
               <span class="what"><b>{{ fdate(l.day, true) }}</b> · {{ l.origin }} → {{ l.destination }}<template v-if="l.depTime"> · <b>{{ l.depTime }}<template v-if="l.arrTime"> – {{ l.arrTime }}</template></b></template></span>
-              <span v-if="l.mode" class="mode">{{ l.mode }}</span>
+              <span v-if="l.mode" class="mode">{{ l.mode }}<template v-if="l.travelClass"> · {{ l.travelClass === '1' ? '1re' : '2nde' }}</template></span>
               <span v-if="l.reference" class="ref mono">{{ l.reference }}</span>
               <span v-if="l.price" class="small muted">{{ money(l.price) }}</span>
               <a v-if="l.bookingUrl" class="btn-ticket" :href="l.bookingUrl" target="_blank" rel="noopener noreferrer">Billet ↗</a>

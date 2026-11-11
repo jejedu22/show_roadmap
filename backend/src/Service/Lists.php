@@ -13,6 +13,9 @@ class Lists
     /** @var array<string, list<string>>|null */
     private ?array $cache = null;
 
+    /** @var list<string>|null modes de transport avec une classe */
+    private ?array $classModes = null;
+
     public function __construct(private EntityManagerInterface $em)
     {
     }
@@ -22,12 +25,29 @@ class Lists
     {
         if (null === $this->cache) {
             $this->cache = array_fill_keys(array_keys(ListItem::KINDS), []);
+            $this->classModes = [];
             foreach ($this->em->getRepository(ListItem::class)->findBy([], ['position' => 'ASC', 'label' => 'ASC']) as $item) {
                 $this->cache[$item->kind][] = $item->label;
+                if ('mode' === $item->kind && $item->withClass) {
+                    $this->classModes[] = $item->label;
+                }
             }
         }
 
         return $this->cache;
+    }
+
+    /** @return list<string> modes de transport pour lesquels le trajet précise une classe (1re / 2nde) */
+    public function classModes(): array
+    {
+        $this->all();
+
+        return $this->classModes;
+    }
+
+    public function hasClass(string $mode): bool
+    {
+        return '' !== $mode && in_array(Sheet::norm($mode), array_map([Sheet::class, 'norm'], $this->classModes()), true);
     }
 
     /** @return list<string> */
@@ -36,14 +56,20 @@ class Lists
         return $this->all()[$kind] ?? [];
     }
 
-    /** Remplace une liste (ordre compris). Les données déjà saisies ne changent pas : une valeur retirée devient « hors liste ». */
+    /**
+     * Remplace une liste (ordre compris). Les données déjà saisies ne changent pas : une valeur retirée devient « hors liste ».
+     * Une entrée est un libellé, ou {label, withClass} pour les modes de transport (sinon la case « Classe » est conservée).
+     */
     public function replace(string $kind, array $labels): array
     {
-        $clean = [];
-        foreach ($labels as $label) {
-            $label = trim(preg_replace('/\s+/u', ' ', (string) $label));
-            if ('' !== $label && mb_strlen($label) <= 120) {
-                $clean[Sheet::norm($label)] ??= $label; // pas de doublon à la casse ou aux accents près
+        $clean = $flags = [];
+        foreach ($labels as $entry) {
+            $label = trim(preg_replace('/\s+/u', ' ', (string) (is_array($entry) ? ($entry['label'] ?? '') : $entry)));
+            if ('' !== $label && mb_strlen($label) <= 120 && !isset($clean[Sheet::norm($label)])) {
+                $clean[Sheet::norm($label)] = $label; // pas de doublon à la casse ou aux accents près
+                if (is_array($entry) && array_key_exists('withClass', $entry)) {
+                    $flags[Sheet::norm($label)] = 'mode' === $kind && (bool) $entry['withClass'];
+                }
             }
         }
         if (count($clean) > 500) {
@@ -57,15 +83,15 @@ class Lists
         foreach ($clean as $key => $label) {
             $item = $existing[$key] ?? null;
             unset($existing[$key]);
-            if ($item) {
-                [$item->label, $item->position] = [$label, ++$position];
-            } else {
-                $this->em->persist(new ListItem($kind, $label, ++$position));
+            if (!$item) {
+                $this->em->persist($item = new ListItem($kind, $label));
             }
+            [$item->label, $item->position] = [$label, ++$position];
+            $item->withClass = $flags[$key] ?? $item->withClass;
         }
         array_map(fn ($item) => $this->em->remove($item), $existing);
         $this->em->flush();
-        $this->cache = null;
+        [$this->cache, $this->classModes] = [null, null];
 
         return $this->entries($kind);
     }

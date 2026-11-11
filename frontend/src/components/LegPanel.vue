@@ -24,6 +24,8 @@ function listMode(raw) {
     ?? modes.find((m) => fold(m) === 'train') ?? ''
 }
 const defaultMode = () => listMode('Train')
+// Classe (1re / 2nde) : seulement pour les modes cochés « Classe » dans Administration → Listes ; absente de la feuille de route
+const withClass = computed(() => lists.modeClass.includes(form.mode))
 loadLists().then(() => { if (!props.leg && !form.mode) form.mode = defaultMode() })
 const form = reactive({})
 const stations = reactive({ from: '', to: '' })
@@ -40,7 +42,7 @@ function defaults() {
   const out = props.direction === 'outbound'
   const day = out ? ((isTech(props.part) ? props.ev.techArrival : props.ev.artisticArrival) || props.ev.start) : (props.ev.departure || props.ev.lastDate)
   return { participationId: props.part.id, direction: props.direction, day, origin: out ? props.part.departureCity : props.ev.city,
-    destination: out ? props.ev.city : props.part.departureCity, depTime: '', arrTime: '', mode: defaultMode(), reference: '', price: '', bookedOn: '', note: '', bookingUrl: '' }
+    destination: out ? props.ev.city : props.part.departureCity, depTime: '', arrTime: '', mode: defaultMode(), travelClass: '', reference: '', price: '', bookedOn: '', note: '', bookingUrl: '' }
 }
 let touched = false // gares modifiées à la main : la détection automatique ne les écrase pas
 async function init() {
@@ -150,6 +152,7 @@ async function save() {
       <label class="field">Départ<input v-model="form.depTime" placeholder="14h27"></label>
       <label class="field">Arrivée<input v-model="form.arrTime" placeholder="17h25"></label>
       <label class="field">Mode<ListSelect v-model="form.mode" kind="mode" /></label>
+      <label v-if="withClass" class="field">Classe<select v-model="form.travelClass"><option value="">—</option><option value="1">1re classe</option><option value="2">2nde classe</option></select></label>
       <label class="field">Prix (€)<input v-model="form.price" inputmode="decimal" placeholder="0,00"></label>
       <label class="field">Référence<input v-model="form.reference" placeholder="ABC123"></label>
       <label class="field">Réservé le<input v-model="form.bookedOn" type="date"></label>

@@ -199,12 +199,14 @@ Seuls les comptes déjà créés par un administrateur (même e-mail, vérifié 
   - le détail des repas et nuitées jour par jour : la présence est pré-remplie d'après la période de la date.
 - **Accès à l'API :** lecture seule, au plus 10 requêtes par seconde (limite d'Orfeo). Une période chargée peut prendre jusqu'à une minute.
 
-## Listes paramétrées (fonctions, intitulés de planning)
+## Listes paramétrées (fonctions, intitulés de planning, modes de transport, types de dépense)
 
 **Administration → Listes** (droit global « Gérer les listes ») : les fonctions des personnes et les intitulés du planning
 sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, planning). Chaque ligne de planning a en plus une
 **précision** libre (« #1 scolaire », un lieu…), affichée dans la feuille de route.
 
+- **Modes de transport** : la case « Classe » d'un mode (cochée au départ pour Train, TER, TGV INOUI, Intercités, ICE)
+  ajoute au trajet un champ 1re / 2nde classe, visible dans l'onglet Voyages et l'export Excel, pas dans la feuille de route.
 - Retirer une entrée ne modifie pas les fiches existantes : la valeur y reste, marquée « hors liste ».
 - Au premier démarrage, les listes sont pré-remplies avec des valeurs courantes et les fonctions déjà saisies.
 - **Import des devis** : les valeurs des fichiers sont rapprochées des listes, sans tenir compte de la casse, des accents ni
