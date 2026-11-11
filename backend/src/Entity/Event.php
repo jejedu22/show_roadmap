@@ -165,11 +165,18 @@ class Event
         return max(array_filter([$this->departure, $this->lastDate]));
     }
 
-    /** @return list<\DateTimeImmutable> */
+    /** @return list<\DateTimeImmutable> jours de la date, élargis aux jours de présence des participants (voyages) */
     public function spanDates(): array
     {
+        [$from, $to] = [$this->start(), $this->end()];
+        foreach ($this->participations as $p) {
+            foreach ($p->days as $d) {
+                $from = min($from, $d->day);
+                $to = max($to, $d->day);
+            }
+        }
         $out = [];
-        for ($d = $this->start(); $d <= $this->end(); $d = $d->modify('+1 day')) {
+        for ($d = $from; $d <= $to; $d = $d->modify('+1 day')) {
             $out[] = $d;
         }
 

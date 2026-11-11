@@ -48,9 +48,9 @@ class Readiness
         $steps = [
             ['key' => 'info', 'label' => 'Infos', 'done' => $hasInfo, 'detail' => $hasInfo ? 'Lieu et contacts' : 'Adresse et contacts à saisir'],
             ['key' => 'team', 'label' => 'Équipe', 'done' => $people > 0, 'detail' => $people ? $people.' personne'.($people > 1 ? 's' : '') : 'Personne pour l\'instant'],
+            ['key' => 'travel', 'label' => 'Voyages', 'done' => $people > 0 && $covered === 2 * $people, 'detail' => $covered.' / '.(2 * $people).' trajets'],
             ['key' => 'stay', 'label' => 'Séjour', 'done' => $stayDone,
                 'detail' => $stayDone ? $nights.' nuitée'.($nights > 1 ? 's' : '') : ($ev->lodgings->isEmpty() ? 'Hébergement à ajouter' : 'Hébergement à attribuer')],
-            ['key' => 'travel', 'label' => 'Voyages', 'done' => $people > 0 && $covered === 2 * $people, 'detail' => $covered.' / '.(2 * $people).' trajets'],
             ['key' => 'quote', 'label' => 'Devis', 'done' => (float) $ev->fee > 0, 'detail' => (float) $ev->fee > 0 ? $fmt($quote['totalTtc']).' TTC' : 'Cachet à saisir'],
             // Facultatif : affiché dans les étapes, sans compter dans l'avancement
             ['key' => 'invitations', 'label' => 'Invitations', 'optional' => true, 'done' => $inv['used'] > 0,
@@ -66,12 +66,12 @@ class Readiness
         if (!$people) {
             $todo[] = ['label' => 'Composer l\'équipe', 'step' => 'team'];
         }
+        array_push($todo, ...$missingLegs);
         if ($people && $ev->lodgings->isEmpty()) {
             $todo[] = ['label' => 'Ajouter un hébergement', 'step' => 'stay'];
         } elseif ($withoutLodging) {
             $todo[] = ['label' => 'Attribuer un hébergement à '.implode(', ', $withoutLodging), 'step' => 'stay'];
         }
-        array_push($todo, ...$missingLegs);
         if ((float) $ev->fee <= 0) {
             $todo[] = ['label' => 'Saisir le cachet du devis', 'step' => 'quote'];
         }
