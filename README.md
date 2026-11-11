@@ -15,7 +15,11 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 
 - **Tableau de bord** : prochaine date, trajets sans billet, conflits de planning, dates par mois avec leur avancement,
   liste « À faire » calculée automatiquement. **Calendrier** mensuel des présences.
-- **Fiche d'une date en 6 étapes** (Infos, Équipe, Séjour, Voyages, Devis, Feuille de route), chacune avec son avancement.
+- **Fiche d'une date** par étapes (Infos, Équipe, Voyages, Séjour, Devis, Invitations, Feuille de route), chacune avec son avancement.
+- **Séjour pré-rempli d'après les voyages** : nuitées, repas et petits-déjeuners de chaque personne sont recalculés quand ses
+  trajets changent — à l'aller, arrivée après 12h00 : dîner seulement (sinon déjeuner et dîner) ; au retour, départ après
+  12h00 : déjeuner compté (sinon aucun repas) ; nuitées de la nuit d'arrivée à la veille du départ. Sans trajet, les dates
+  d'arrivée et de départ de la fiche.
 - **Voyages** : une carte par personne, ajout de l'aller ou du retour pré-rempli (villes, date) avec les trains SNCF (directs ou avec une correspondance) ;
   les gares les mieux reliées sont choisies automatiquement (Paris → Beauvais : Paris Gare du Nord).
 - **Envoyer à l'équipe** : lien secret et révocable vers la feuille de route PDF, à copier ou à envoyer par la messagerie.

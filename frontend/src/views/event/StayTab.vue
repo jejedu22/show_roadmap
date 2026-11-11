@@ -28,7 +28,7 @@ const guests = (l) => ev.value.participations.filter((p) => p.lodgingId === l.id
 const homeless = () => ev.value.participations.filter((p) => !p.lodgingId && Object.values(p.days).some((d) => d.night))
 
 async function save() { if (await apply(put(`/events/${ev.value.id}/days`, { days: grid }))) toast('Grilles enregistrées') }
-const reset = () => confirm('Recalculer toutes les grilles à partir des dates d\'arrivée et de départ ?') && apply(post(`/events/${ev.value.id}/days/reset`))
+const reset = () => confirm('Recalculer toutes les grilles d\'après les voyages (ou, sans voyage, les dates d\'arrivée et de départ) ? Les modifications faites à la main seront remplacées.') && apply(post(`/events/${ev.value.id}/days/reset`))
 async function saveLodging(l) { if (await apply(put(`/events/${ev.value.id}/items/lodging/${l.id}`, lodgings[l.id]))) { editing.value = null; toast('Hébergement enregistré') } }
 const removeLodging = (l) => confirm(`Supprimer ${l.name} ?`) && apply(del(`/events/${ev.value.id}/items/lodging/${l.id}`))
 async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items/lodging`, fresh.value))) { toast(`${fresh.value.name} ajouté`); fresh.value = blankLodging() } }
@@ -46,7 +46,8 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
         </div>
         <p v-if="!ev.participations.length" class="empty">Ajoutez d'abord des personnes à l'étape Équipe.</p>
         <form v-else @submit.prevent="save"><fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;min-width:0">
-          <p class="muted small" style="margin:0 0 8px">{{ GRIDS.find((g) => g[0] === kind)[3] }}</p>
+          <p class="muted small" style="margin:0 0 8px">Pré-remplies d'après les voyages : arrivée après 12h00, dîner seulement ; départ après 12h00, déjeuner compté.
+            {{ GRIDS.find((g) => g[0] === kind)[3] }}</p>
           <div class="table-wrap">
             <table class="table">
               <thead><tr><th>Nom</th><th v-for="d in ev.dates" :key="d" class="c">{{ fdate(d, true) }}</th><th class="r">Total</th></tr></thead>
@@ -64,7 +65,7 @@ async function addLodging() { if (await apply(post(`/events/${ev.value.id}/items
           </div>
           <div class="actions" style="margin-top:14px">
             <button v-if="allowed('events.edit')" class="btn btn-primary">Enregistrer les grilles</button>
-            <button v-if="allowed('events.edit')" type="button" class="btn" @click="reset">Recalculer depuis les dates</button>
+            <button v-if="allowed('events.edit')" type="button" class="btn" @click="reset">Recalculer depuis les voyages</button>
             <RouterLink class="btn btn-ghost" :to="`/events/${ev.id}/print/rooming`" target="_blank">Rooming-list PDF</RouterLink>
             <RouterLink v-if="allowed('finance.view')" class="btn btn-ghost" :to="`/events/${ev.id}/print/perdiem`" target="_blank">Défraiements PDF</RouterLink>
           </div>

@@ -60,7 +60,7 @@ async function createAndAdd() {
       </article>
       <div v-if="!ev.participations.length" class="card empty"><h3>Personne n'est encore affecté</h3><p>Choisissez les membres de l'équipe dans la colonne de droite.</p></div>
       <div v-if="ev.participations.length" class="actions"><button v-if="allowed('events.edit')" class="btn btn-primary">Enregistrer l'équipe</button>
-        <RouterLink class="btn" :to="`/events/${ev.id}/stay`">Étape suivante : séjour →</RouterLink></div>
+        <RouterLink class="btn" :to="`/events/${ev.id}/travel`">Étape suivante : voyages →</RouterLink></div>
     </fieldset></form>
 
     <aside v-if="allowed('events.edit')" class="side-col">

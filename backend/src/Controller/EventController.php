@@ -237,7 +237,7 @@ class EventController extends ApiController
     }
 
     #[Route('/items/{kind}', methods: ['POST'])]
-    public function createItem(int $id, string $kind, Request $request): JsonResponse
+    public function createItem(int $id, string $kind, Request $request, Planning $planning): JsonResponse
     {
         $ev = $this->eventForItem($id, $kind);
         $d = $this->body($request);
@@ -268,21 +268,39 @@ class EventController extends ApiController
             $item instanceof ScheduleItem => $ev->schedule->add($item),
             $item instanceof Invitation => $ev->invitations->add($item),
         };
+        $item instanceof Leg && $this->daysFromTravel($planning, $item->participation);
 
         return $this->savedEvent($ev);
     }
 
     #[Route('/items/{kind}/{itemId<\d+>}', methods: ['PUT'])]
-    public function updateItem(int $id, string $kind, int $itemId, Request $request): JsonResponse
+    public function updateItem(int $id, string $kind, int $itemId, Request $request, Planning $planning): JsonResponse
     {
         $ev = $this->eventForItem($id, $kind);
-        $this->fill($this->item($ev, $kind, $itemId), $this->body($request));
+        $item = $this->item($ev, $kind, $itemId);
+        $this->fill($item, $this->body($request));
+        $item instanceof Leg && $this->daysFromTravel($planning, $item->participation);
 
         return $this->savedEvent($ev);
     }
 
+    /**
+     * Les voyages d'une personne changent : ses nuitées, repas et petits-déjeuners sont recalculés d'après eux
+     * (arrivée du dernier trajet aller, départ du premier trajet retour ; voir Planning::fillDefaultDays).
+     */
+    private function daysFromTravel(Planning $planning, Participation ...$parts): void
+    {
+        foreach ($parts as $p) {
+            $p->days->clear();
+        }
+        $this->em->flush(); // supprime avant de recréer (contrainte d'unicité participation/jour)
+        foreach ($parts as $p) {
+            $planning->fillDefaultDays($p);
+        }
+    }
+
     #[Route('/items/{kind}/{itemId<\d+>}', methods: ['DELETE'])]
-    public function deleteItem(int $id, string $kind, int $itemId): JsonResponse
+    public function deleteItem(int $id, string $kind, int $itemId, Planning $planning): JsonResponse
     {
         $ev = $this->eventForItem($id, $kind);
         $item = $this->item($ev, $kind, $itemId);
@@ -311,6 +329,7 @@ class EventController extends ApiController
             $item instanceof ScheduleItem => $ev->schedule->removeElement($item),
             $item instanceof Invitation => $ev->invitations->removeElement($item),
         };
+        $item instanceof Leg && $this->daysFromTravel($planning, $item->participation);
 
         return $this->savedEvent($ev);
     }
@@ -536,7 +555,7 @@ class EventController extends ApiController
 
     /** Enregistre les trajets retenus à l'écran ; « replace » efface d'abord les trajets des personnes concernées. */
     #[Route('/legs/import', methods: ['POST'])]
-    public function importLegs(int $id, Request $request): JsonResponse
+    public function importLegs(int $id, Request $request, Planning $planning): JsonResponse
     {
         $ev = $this->event($id, 'travel.edit');
         $d = $this->body($request);
@@ -564,6 +583,7 @@ class EventController extends ApiController
             $this->fillLeg($leg, $row);
             $part->legs->add($leg);
         }
+        $this->daysFromTravel($planning, ...array_values($parts));
         $this->audit->log('event.legs_import', sprintf('%s — %s', $ev->show->title, $ev->venue), [
             'trajets' => count($rows), 'personnes' => count($parts), 'remplacés' => $removed,
         ]);
