@@ -12,14 +12,61 @@ const query = ref('')
 const creating = ref(false)
 const person = reactive({ lastName: '', firstName: '', function: '', homeCity: '', phone: '', email: '' })
 watch(ev, (e) => {
-  for (const p of e.participations) rows[p.id] = { id: p.id, role: p.role, roomType: p.roomType, departureCity: p.departureCity, lodgingId: p.lodgingId ?? '', note: p.note }
+  // group : même valeur pour les occupants d'une même chambre partagée
+  for (const p of e.participations) rows[p.id] = { id: p.id, role: p.role, roomType: p.roomType, group: p.roomWith?.length ? `g${Math.min(p.id, ...p.roomWith)}` : '',
+    departureCity: p.departureCity, lodgingId: p.lodgingId ?? '', note: p.note }
 }, { immediate: true })
+
+// Chambres partagées : double, twin (deux personnes) ou appartement (plusieurs) ; « group » relie les occupants
+const ROOMS = { single: 'Single', double: 'Double (grand lit)', twin: 'Twin (deux lits)', appartement: 'Appartement' }
+const MAX = { double: 2, twin: 2, appartement: Infinity }
+const shared = (r) => r.roomType in MAX
+const nameOf = (id) => { const p = ev.value.participations.find((x) => x.id === id); return p ? p.person.fullName : '' }
+const occupants = (id) => rows[id]?.group ? Object.values(rows).filter((r) => r.group === rows[id].group).map((r) => r.id) : [id]
+const others = (id) => occupants(id).filter((x) => x !== id)
+const leave = (id) => {
+  const rest = others(id)
+  rows[id].group = ''
+  if (rest.length === 1) rows[rest[0]].group = '' // une personne seule ne partage plus rien
+}
+// Double, twin : une seule autre personne ; libres, ou déjà dans cette chambre
+const mates = (p) => ev.value.participations.filter((o) => o.id !== p.id && (!rows[o.id]?.group || rows[o.id].group === rows[p.id].group))
+function setMate(id, mateId) {
+  others(id).forEach(leave)
+  if (!mateId) return leave(id)
+  leave(mateId)
+  rows[id].group = rows[mateId].group = `g${Math.min(id, mateId)}`
+  rows[mateId].roomType = rows[id].roomType
+}
+// Appartement : on coche ou décoche les colocataires
+function toggleFlatmate(id, otherId) {
+  if (others(id).includes(otherId)) return leave(otherId)
+  leave(otherId)
+  rows[id].group ||= `g${id}`
+  Object.assign(rows[otherId], { group: rows[id].group, roomType: rows[id].roomType })
+}
+function setRoomType(id, type) {
+  const group = others(id)
+  rows[id].roomType = type
+  if (!shared(rows[id]) || group.length + 1 > MAX[type]) leave(id) // plus de partage, ou chambre trop petite
+  else group.forEach((o) => { rows[o].roomType = type })
+}
+const roomWarning = (p) => {
+  const r = rows[p.id]
+  if (!r || !shared(r)) return ''
+  if (!others(p.id).length) return r.roomType === 'appartement' ? '' : 'Chambre à partager : choisissez le second occupant'
+  const diff = others(p.id).filter((o) => String(rows[o].lodgingId ?? '') !== String(r.lodgingId ?? ''))
+  return diff.length ? `Hébergement différent de ${diff.map(nameOf).join(', ')}` : ''
+}
 
 const available = computed(() => {
   const q = query.value.trim().toLowerCase()
   return ev.value.availablePeople.filter((p) => !q || `${p.fullName} ${p.function}`.toLowerCase().includes(q))
 })
-async function save() { if (await apply(put(`/events/${ev.value.id}/participations`, { participations: Object.values(rows) }))) toast('Équipe enregistrée') }
+async function save() {
+  const participations = Object.values(rows).map(({ group, ...r }) => ({ ...r, roomWith: others(r.id) }))
+  if (await apply(put(`/events/${ev.value.id}/participations`, { participations }))) toast('Équipe enregistrée')
+}
 const remove = (p) => confirm(`Retirer ${p.person.fullName} de cette date ?`) && apply(del(`/events/${ev.value.id}/participations/${p.id}`))
 async function add() {
   const n = selected.value.length
@@ -53,10 +100,19 @@ async function createAndAdd() {
         <div class="form-grid" style="margin-top:12px">
           <label class="field">Fonction sur cette date<ListSelect v-model="rows[p.id].role" kind="function" /></label>
           <label class="field">Ville de départ<input v-model="rows[p.id].departureCity"></label>
-          <label class="field">Chambre<select v-model="rows[p.id].roomType"><option v-for="r in ['single', 'double', 'twin', 'appartement']" :key="r">{{ r }}</option></select></label>
+          <label class="field">Chambre<select :value="rows[p.id].roomType" @change="setRoomType(p.id, $event.target.value)">
+            <option v-for="(label, r) in ROOMS" :key="r" :value="r">{{ label }}</option></select></label>
+          <label v-if="shared(rows[p.id]) && rows[p.id].roomType !== 'appartement'" class="field">Partagée avec
+            <select :value="others(p.id)[0] ?? ''" @change="setMate(p.id, Number($event.target.value) || '')">
+              <option value="">— à choisir —</option><option v-for="o in mates(p)" :key="o.id" :value="o.id">{{ o.person.fullName }}</option></select></label>
+          <fieldset v-if="rows[p.id].roomType === 'appartement'" class="field wide flatmates"><legend>Partagé avec</legend>
+            <label v-for="o in ev.participations.filter((x) => x.id !== p.id)" :key="o.id" class="flatmate">
+              <input type="checkbox" :checked="others(p.id).includes(o.id)" @change="toggleFlatmate(p.id, o.id)">{{ o.person.fullName }}</label>
+          </fieldset>
           <label class="field">Hébergement<select v-model="rows[p.id].lodgingId"><option value="">— à choisir —</option><option v-for="l in ev.lodgings" :key="l.id" :value="l.id">{{ l.name }}</option></select></label>
           <label class="field wide">Note<input v-model="rows[p.id].note" placeholder="Arrive en voiture, allergie…"></label>
         </div>
+        <p v-if="roomWarning(p)" class="chip warn" style="margin:10px 0 0;white-space:normal">{{ roomWarning(p) }}</p>
       </article>
       <div v-if="!ev.participations.length" class="card empty"><h3>Personne n'est encore affecté</h3><p>Choisissez les membres de l'équipe dans la colonne de droite.</p></div>
       <div v-if="ev.participations.length" class="actions"><button v-if="allowed('events.edit')" class="btn btn-primary">Enregistrer l'équipe</button>
@@ -90,3 +146,10 @@ async function createAndAdd() {
     </aside>
   </div>
 </template>
+
+<style scoped>
+.flatmates { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.flatmates legend { padding: 0; margin-bottom: 4px; }
+.flatmate { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 14px; }
+.flatmate input { width: 16px; height: 16px; min-height: 0; }
+</style>

@@ -35,6 +35,7 @@ class QuoteCalculator
         $truck = $km * (float) $ev->truckRate;
         $mealsAmount = $meals * (float) $ev->mealRate;
         $bfAmount = $bf * (float) $ev->breakfastRate;
+        $nights = Rooming::roomNights($ev); // par chambre : une chambre double partagée compte une nuitée
         $nightsAmount = $nights * (float) $ev->nightRate;
         $team = $tickets + $expenses + $teamExtras;
         $budget = (float) $ev->transportBudget;
@@ -63,7 +64,7 @@ class QuoteCalculator
                 ...($budget ? [['label' => 'Budget transport', 'amount' => $r($budget)]] : []),
                 ['label' => sprintf('Défraiements repas (%d × %s €)', $meals, self::n((float) $ev->mealRate)), 'amount' => $r($mealsAmount)],
                 ['label' => sprintf('Petits-déjeuners (%d × %s €)', $bf, self::n((float) $ev->breakfastRate)), 'amount' => $r($bfAmount)],
-                ['label' => sprintf('Nuitées (%d × %s €)', $nights, self::n((float) $ev->nightRate)), 'amount' => $r($nightsAmount)],
+                ['label' => sprintf('Nuitées (%d × %s €, par chambre)', $nights, self::n((float) $ev->nightRate)), 'amount' => $r($nightsAmount)],
                 ['label' => 'Autres frais', 'amount' => $r($otherExtras)],
             ],
             'annexTotal' => $r($annex),

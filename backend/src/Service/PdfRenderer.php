@@ -45,6 +45,7 @@ class PdfRenderer
             'lodgingNames' => array_column($ev['lodgings'], 'name', 'id'),
             'schedule' => self::groupBy($ev['schedule'], 'day'),
             'invitationGroups' => 'invitations' === $doc ? self::invitationGroups($ev) : [],
+            'rooms' => 'rooming' === $doc ? Rooming::rooms($event) : [],
             'generatedAt' => (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('d/m/Y à H:i'),
         ]);
 

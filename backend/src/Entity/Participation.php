@@ -11,7 +11,6 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(columns: ['event_id', 'person_id'])]
 class Participation
 {
-    public const ROOM_TYPES = ['single', 'double', 'twin', 'appartement'];
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     public ?int $id = null;
@@ -27,8 +26,20 @@ class Participation
     #[ORM\Column(length: 120)]
     public string $role = '';
 
+    /** single / double / twin / appartement */
     #[ORM\Column(length: 40)]
     public string $roomType = 'single';
+
+    /**
+     * Chambre partagée : les participants de la date qui ont le même numéro occupent la même chambre (double, twin : deux
+     * personnes au plus ; appartement : autant que nécessaire). null = seul dans sa chambre.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $roomGroup = null;
+
+    /** Types de chambre qui se partagent, avec le nombre d'occupants au plus (null = sans limite) */
+    public const SHARED_ROOMS = ['double' => 2, 'twin' => 2, 'appartement' => null];
+    public const ROOM_TYPES = ['single' => 'Single', 'double' => 'Double', 'twin' => 'Twin', 'appartement' => 'Appartement'];
 
     #[ORM\Column(length: 120)]
     public string $departureCity = '';

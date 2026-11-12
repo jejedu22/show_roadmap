@@ -1,16 +1,32 @@
 {% extends 'pdf/layout.html.twig' %}
+{# Une ligne par chambre : une chambre partagée (double, twin, appartement) réunit ses occupants #}
 {% block body %}
-  <table class="grid">
-    <thead><tr><th>Nom</th><th>Fonction</th><th>Chambre</th><th>Hébergement</th>{% for d in ev.dates %}<th class="c">{{ d|ddmm }}</th>{% endfor %}<th class="c">Total</th></tr></thead>
+  <table class="grid rooming">
+    <thead><tr><th>Occupant(s)</th><th>Fonction</th><th>Chambre</th><th>Hébergement</th>{% for d in ev.dates %}<th class="c">{{ d|ddmm }}</th>{% endfor %}<th class="c">Nuits</th></tr></thead>
     <tbody>
-    {% for p in ev.participations %}
-      <tr><td><b>{{ p.person.fullName }}</b></td><td>{{ p.role }}</td><td>{{ p.roomType }}</td><td>{{ lodgingNames[p.lodgingId] ?? '' }}</td>
-        {% for d in ev.dates %}{% set n = p.days[d].night ?? 0 %}<td class="c">{{ n ? '●' : '' }}</td>{% endfor %}
-        <td class="c"><b>{{ ev.personCosts[loop.index0].nights }}</b></td></tr>
+    {% for r in rooms %}
+      <tr>
+        <td>{% for o in r.occupants %}<b>{{ o.person.fullName }}</b>{% if not loop.last %}<br>{% endif %}{% endfor %}
+          {% if r.warning %}<div class="warn">⚠ {{ r.warning }}</div>{% endif %}</td>
+        <td>{% for o in r.occupants %}{{ o.role }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+        <td>{{ r.type }}{% if r.occupants|length > 1 %}<div class="muted">partagée</div>{% endif %}</td>
+        <td>{{ r.lodging }}</td>
+        {% for d in ev.dates %}<td class="c">{{ r.nights[d] ? '●' : '' }}</td>{% endfor %}
+        <td class="c"><b>{{ r.total }}</b></td>
+      </tr>
     {% endfor %}
     </tbody>
-    <tfoot><tr><td colspan="4">Nuitées prises en charge par l'organisateur</td>
-      {% for d in ev.dates %}<td class="c">{{ ev.participations|reduce((s, p) => s + (p.days[d].night ?? 0), 0) }}</td>{% endfor %}
-      <td class="c">{{ ev.quote.nightsCount }}</td></tr></tfoot>
+    <tfoot>
+      <tr><td colspan="4">Personnes logées</td>
+        {% for d in ev.dates %}<td class="c">{{ ev.participations|reduce((s, p) => s + (p.days[d].night ?? 0), 0) }}</td>{% endfor %}
+        <td class="c">{{ ev.participations|reduce((s, p) => s + (p.days|reduce((t, x) => t + x.night, 0)), 0) }}</td></tr>
+      <tr><td colspan="4">Chambres (nuitées prises en charge par l'organisateur)</td>
+        {% for d in ev.dates %}<td class="c">{{ rooms|filter(r => r.nights[d])|length }}</td>{% endfor %}
+        <td class="c">{{ ev.quote.nightsCount ?? rooms|reduce((s, r) => s + r.total, 0) }}</td></tr>
+    </tfoot>
   </table>
+  <style>
+    table.rooming .warn { margin-top: 2pt; color: {{ theme.coralDark }}; font-size: 7.5pt; font-weight: bold; }
+    table.rooming tfoot tr + tr td { border-top: .6pt solid {{ theme.ink }}; }
+  </style>
 {% endblock %}

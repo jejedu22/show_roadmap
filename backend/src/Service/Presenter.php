@@ -140,7 +140,8 @@ class Presenter
                 'truckRate' => $dec($e->truckRate), 'vatRate' => $dec($e->vatRate), 'fee' => $dec($e->fee), 'transportBudget' => $dec($e->transportBudget)],
             'dates' => array_map(fn ($d) => $d->format('Y-m-d'), $e->spanDates()),
             'participations' => $e->participations->map(fn ($p) => [
-                'id' => $p->id, 'person' => $this->personFor($p->person, $perms), 'role' => $p->role, 'roomType' => $p->roomType,
+                'id' => $p->id, 'person' => $this->personFor($p->person, $perms), 'role' => $p->role, 'roomType' => $p->roomType, 'roomWith' => null === $p->roomGroup ? [] : array_values(array_map(fn ($o) => $o->id,
+                    array_filter($e->participations->toArray(), fn ($o) => $o !== $p && $o->roomGroup === $p->roomGroup))),
                 'departureCity' => $p->departureCity, 'lodgingId' => $p->lodging?->id, 'note' => $p->note,
                 'days' => array_combine(
                     $p->days->map(fn ($d) => $d->day->format('Y-m-d'))->getValues(),

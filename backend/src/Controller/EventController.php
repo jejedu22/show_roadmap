@@ -88,11 +88,22 @@ class EventController extends ApiController
             [$copy->name, $copy->address, $copy->phone, $copy->website, $copy->details] = [$l->name, $l->address, $l->phone, $l->website, $l->details];
             $new->lodgings->add($copy);
         }
+        $copies = [];
         foreach ($ev->participations as $p) {
             $copy = new Participation($new, $p->person);
             [$copy->role, $copy->roomType, $copy->departureCity] = [$p->role, $p->roomType, $p->departureCity];
             $new->participations->add($copy);
             $planning->fillDefaultDays($copy);
+            $copies[spl_object_id($p)] = $copy;
+        }
+        // Chambres partagées reprises à l'identique (numéros de chambre recalculés à l'enregistrement de la copie)
+        $this->em->persist($new);
+        $this->em->flush();
+        foreach ($ev->participations as $p) {
+            if (null !== $p->roomGroup) {
+                $first = array_values(array_filter($ev->participations->toArray(), fn ($o) => $o->roomGroup === $p->roomGroup))[0];
+                $copies[spl_object_id($p)]->roomGroup = $copies[spl_object_id($first)]->id;
+            }
         }
         $this->em->persist($new);
 
@@ -146,21 +157,81 @@ class EventController extends ApiController
             }
             $d = $rows[$p->id];
             $p->role = $this->lists->check('function', Input::str($d, 'role', 120), $p->role);
-            $p->roomType = Input::str($d, 'roomType', 40) ?: 'single';
+            $type = Input::str($d, 'roomType', 40);
+            $p->roomType = isset(Participation::ROOM_TYPES[$type]) ? $type : 'single';
             $p->departureCity = Input::str($d, 'departureCity', 120);
             $p->note = Input::str($d, 'note');
             $lid = Input::int($d, 'lodgingId');
             $p->lodging = $ev->lodgings->findFirst(fn ($k, $l) => $l->id === $lid);
         }
+        $this->pairRooms($ev, $rows);
 
         return $this->savedEvent($ev);
+    }
+
+    /**
+     * Chambres partagées : « roomWith » de chaque ligne (les autres occupants de sa chambre). Les occupants reliés forment une
+     * chambre, avec le type de chambre de la première personne qui la choisit ; double et twin : deux personnes au plus.
+     * Une chambre qui n'est plus double, twin ou appartement n'est plus partagée.
+     */
+    private function pairRooms(Event $ev, array $rows): void
+    {
+        $byId = $parent = [];
+        foreach ($ev->participations as $p) {
+            [$byId[$p->id], $parent[$p->id]] = [$p, $p->id];
+        }
+        $find = function (int $x) use (&$parent, &$find): int {
+            return $parent[$x] === $x ? $x : ($parent[$x] = $find($parent[$x]));
+        };
+        $shared = fn ($p) => array_key_exists($p->roomType, Participation::SHARED_ROOMS);
+        // Liens : ceux des lignes envoyées, ou, pour les autres personnes, leur chambre actuelle
+        $order = [];
+        foreach ($ev->participations as $p) {
+            $with = isset($rows[$p->id]) && array_key_exists('roomWith', $rows[$p->id])
+                ? array_map('intval', (array) $rows[$p->id]['roomWith'])
+                : array_values(array_map(fn ($o) => $o->id, array_filter($ev->participations->toArray(), fn ($o) => $o !== $p && null !== $p->roomGroup && $o->roomGroup === $p->roomGroup)));
+            foreach ($with as $oid) {
+                if (isset($byId[$oid]) && $oid !== $p->id && $shared($p) && $shared($byId[$oid])) { // une personne en single reste seule
+                    $order[] = [$p->id, $oid];
+                }
+            }
+        }
+        $size = array_fill_keys(array_keys($byId), 1);
+        $type = array_map(fn ($p) => $p->roomType, $byId);
+        foreach ($order as [$a, $b]) {
+            [$ra, $rb] = [$find($a), $find($b)];
+            if (!array_key_exists($type[$ra], Participation::SHARED_ROOMS)) {
+                continue;
+            }
+            $max = Participation::SHARED_ROOMS[$type[$ra]]; // null : appartement, sans limite
+            if ($ra === $rb || null !== $max && $size[$ra] + $size[$rb] > $max) {
+                continue; // déjà ensemble, ou chambre pleine
+            }
+            [$parent[$rb], $size[$ra]] = [$ra, $size[$ra] + $size[$rb]];
+        }
+        foreach ($byId as $id => $p) {
+            $root = $find($id);
+            if ($size[$root] > 1) {
+                [$p->roomGroup, $p->roomType] = [$root, $type[$root]]; // même type pour toute la chambre
+            } else {
+                $p->roomGroup = null;
+            }
+        }
     }
 
     #[Route('/participations/{pid<\d+>}', methods: ['DELETE'])]
     public function removePerson(int $id, int $pid): JsonResponse
     {
         $ev = $this->event($id, 'events.edit');
-        $ev->participations->removeElement($this->participation($ev, $pid));
+        $part = $this->participation($ev, $pid);
+        $ev->participations->removeElement($part);
+        // Chambre partagée : celle des autres occupants reste partagée s'ils sont encore au moins deux
+        if (null !== $part->roomGroup) {
+            $left = array_filter($ev->participations->toArray(), fn ($p) => $p->roomGroup === $part->roomGroup);
+            if (count($left) < 2) {
+                array_map(fn ($p) => $p->roomGroup = null, $left);
+            }
+        }
 
         return $this->savedEvent($ev);
     }

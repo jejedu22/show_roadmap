@@ -57,15 +57,17 @@ class XlsxExporter
         $book = $this->book($ev, 'Export');
         $this->quoteSheet($book, $ev, false);
 
+        // Rooming : une ligne par chambre (une chambre partagée — double, twin, appartement — réunit ses occupants)
         $dates = $ev->spanDates();
         $rows = [];
-        foreach ($ev->participations as $p) {
-            $nights = array_map(fn ($d) => $p->day($d)?->night ?? 0, $dates);
-            $rows[] = [$p->person->fullName(), $p->role, ucfirst($p->roomType), $p->lodging?->name ?? '', ...$nights, array_sum($nights)];
+        foreach (Rooming::rooms($ev) as $room) {
+            $rows[] = [implode(' + ', array_map(fn ($o) => $o->person->fullName(), $room['occupants'])),
+                implode(' / ', array_filter(array_map(fn ($o) => $o->role, $room['occupants']))), $room['type'].(count($room['occupants']) > 1 ? ' (partagée)' : ''),
+                $room['lodging'], ...array_map(fn ($d) => (int) $room['nights'][$d->format('Y-m-d')], $dates), $room['total'], $room['warning']];
         }
-        $this->table($book, $ev, 'Rooming', [['Nom', 'text', 22], ['Fonction', 'text', 20], ['Chambre', 'text', 12], ['Hébergement', 'text', 24],
-            ...array_map(fn ($d) => [ExcelDate::PHPToExcel($d), 'int', 11, '[$-40C]ddd dd/mm'], $dates), ['Nuitées', 'int']], $rows,
-            ['total' => 'Total', 'tab' => $this->rgb('mint')]);
+        $this->table($book, $ev, 'Rooming', [['Occupant(s)', 'text', 30], ['Fonction', 'text', 22], ['Chambre', 'text', 18], ['Hébergement', 'text', 24],
+            ...array_map(fn ($d) => [ExcelDate::PHPToExcel($d), 'int', 11, '[$-40C]ddd dd/mm'], $dates), ['Nuits', 'int'], ['À vérifier', 'text', 30]], $rows,
+            ['total' => 'Chambres', 'tab' => $this->rgb('mint')]);
 
         $this->perDiemSheet($book, $ev);
         $this->travelSheet($book, $ev);
