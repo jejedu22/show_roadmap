@@ -12,6 +12,7 @@ use App\Entity\Participation;
 use App\Entity\Person;
 use App\Entity\RoadmapSection;
 use App\Entity\ScheduleItem;
+use App\Entity\Show;
 use App\Entity\TravelExpense;
 use App\Entity\TruckLeg;
 use App\Service\Import\Sheet;
@@ -43,6 +44,14 @@ class EventController extends ApiController
     {
         $ev = $this->event($id, 'events.edit');
         $d = $this->body($request);
+        // Changement de spectacle (erreur de saisie) : uniquement vers un spectacle de la même compagnie
+        if (isset($d['showId']) && (int) $d['showId'] !== $ev->show->id) {
+            $show = $this->em->find(Show::class, (int) $d['showId']);
+            if (!$show || $show->company !== $ev->show->company) {
+                throw new BadRequestHttpException('Spectacle introuvable dans cette compagnie');
+            }
+            $ev->show = $show;
+        }
         $ev->venue = Input::str($d, 'venue') ?: $ev->venue;
         $ev->city = Input::str($d, 'city', 120);
         $ev->address = Input::str($d, 'address');

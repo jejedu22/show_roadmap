@@ -9,7 +9,7 @@ import Icon from '../../components/Icon.vue'
 const { ev, apply, allowed } = inject('event')
 const router = useRouter()
 const sharingCosts = ref(false)
-const FIELDS = ['venue', 'city', 'address', 'firstDate', 'lastDate', 'performances', 'techArrival', 'artisticArrival', 'departure', 'status', 'venueContact', 'notes']
+const FIELDS = ['showId', 'venue', 'city', 'address', 'firstDate', 'lastDate', 'performances', 'techArrival', 'artisticArrival', 'departure', 'status', 'venueContact', 'notes']
 const form = reactive({})
 watch(ev, (e) => FIELDS.forEach((f) => { form[f] = e[f] ?? '' }), { immediate: true })
 const PATHS = { info: '', team: '/team', stay: '/stay', travel: '/travel', quote: '/quote', invitations: '/invitations', roadmap: '/roadmap' }
@@ -30,6 +30,7 @@ async function remove() {
       <form class="card" @submit.prevent="save"><fieldset :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0">
         <h2 style="margin-bottom:16px">Le lieu et les dates</h2>
         <div class="form-grid">
+          <label class="field wide">Spectacle<select v-model="form.showId" required><option v-for="s in ev.companyShows" :key="s.id" :value="s.id">{{ s.title }}</option></select></label>
           <label class="field">Lieu / théâtre<input v-model="form.venue" required></label>
           <label class="field">Ville<input v-model="form.city"></label>
           <label class="field wide">Adresse<input v-model="form.address" placeholder="3 place Georges Brassens, 60000 Beauvais"></label>

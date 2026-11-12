@@ -133,6 +133,12 @@ class Presenter
         $data = $this->eventSummary($e) + [
             'permissions' => $perms,
             'companyId' => $e->show->company->id, 'companyName' => $e->show->company->name, 'companyLogo' => CompanyLogos::url($e->show->company),
+            'companyShows' => (function () use ($e) {
+                $shows = array_map(fn ($s) => ['id' => $s->id, 'title' => $s->title], $e->show->company->shows->toArray());
+                usort($shows, fn ($a, $b) => strcasecmp($a['title'], $b['title']));
+
+                return $shows;
+            })(),
             'address' => $e->address, 'venueContact' => $e->venueContact, 'notes' => $e->notes,
             'techArrival' => Input::iso($e->techArrival), 'artisticArrival' => Input::iso($e->artisticArrival),
             'departure' => Input::iso($e->departure), 'performances' => $e->performances,
