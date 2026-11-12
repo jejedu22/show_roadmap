@@ -1,0 +1,13 @@
+{# Coordonnées de l'équipe : participations, diet (bool, colonne régime alimentaire) #}
+<table class="grid contacts">
+  <thead><tr><th style="width:22%">Nom</th><th style="width:17%">Fonction</th><th class="tel" style="width:16%">Téléphone</th><th>E-mail</th>{% if diet %}<th style="width:17%">Régime alimentaire</th>{% endif %}</tr></thead>
+  <tbody>{% for p in participations %}
+    <tr><td><b>{{ p.person.fullName }}</b></td><td>{{ p.role }}</td><td class="tel">{{ p.person.phone }}</td>
+      <td class="mail">{% if p.person.email %}<a href="mailto:{{ p.person.email }}">{{ p.person.email }}</a>{% endif %}</td>{% if diet %}<td>{{ p.person.diet }}</td>{% endif %}</tr>
+  {% endfor %}</tbody>
+</table>
+<style>
+  /* Numéro de téléphone sur une seule ligne ; une adresse e-mail trop longue peut se couper */
+  table.contacts .tel { white-space: nowrap; }
+  table.contacts .mail { word-wrap: break-word; word-break: break-all; }
+</style>
