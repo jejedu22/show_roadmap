@@ -19,7 +19,7 @@ class ShareController extends AbstractController
     public function roadmap(string $token, EntityManagerInterface $em, PdfRenderer $renderer): Response
     {
         $event = $em->getRepository(Event::class)->findOneBy(['shareToken' => $token]);
-        if (!$event) {
+        if (!$event || !Event::linkValid($event->shareExpiresOn)) {
             throw new NotFoundHttpException('Lien expiré ou invalide');
         }
         $name = PdfRenderer::filename($event, 'roadmap');
@@ -37,7 +37,7 @@ class ShareController extends AbstractController
     public function costs(string $token, EntityManagerInterface $em, XlsxExporter $exporter): Response
     {
         $event = $em->getRepository(Event::class)->findOneBy(['costShareToken' => $token]);
-        if (!$event) {
+        if (!$event || !Event::linkValid($event->costShareExpiresOn)) {
             throw new NotFoundHttpException('Lien expiré ou invalide');
         }
         $name = XlsxExporter::costsFilename($event);

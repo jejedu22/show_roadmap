@@ -12,9 +12,12 @@ use App\Security\Permissions;
 use App\Service\CompanyLogos;
 use App\Service\Planning;
 use App\Service\Input;
+use App\Service\PersonExport;
 use App\Service\Themes;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -158,6 +161,22 @@ class CompanyController extends ApiController
         $this->fillPerson($person, $this->body($request));
 
         return $this->savedCompany($person->company);
+    }
+
+    /** Droit d'accès / portabilité : toutes les données de la personne, en JSON (le téléchargement est noté au journal). */
+    #[Route('/api/people/{id<\d+>}/export', methods: ['GET'])]
+    public function exportPerson(int $id, PersonExport $export): Response
+    {
+        $person = $this->personOr404($id, 'people.view');
+        $data = $export->export($person, $this->authz->can($this->me(), 'finance.view', $person->company));
+        $this->audit->log('person.export', $person->fullName().' — '.$person->company->name, flush: true);
+        $name = 'Donnees_'.$person->fullName().'.json';
+
+        return new Response(json_encode($data, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR), 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $name, preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'donnees.json'),
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     #[Route('/api/people/{id<\d+>}', methods: ['DELETE'])]

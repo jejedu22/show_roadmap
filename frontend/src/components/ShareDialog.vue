@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { post, del, showError, toast } from '../api.js'
-import { fperiod } from '../format.js'
+import { fdate, fperiod } from '../format.js'
 import Modal from './Modal.vue'
 import Icon from './Icon.vue'
+import ShareExpiry from './ShareExpiry.vue'
 
 /** Partage de la feuille de route : lien public révocable, copie, envoi par la messagerie. */
 const props = defineProps({ open: Boolean, ev: Object, apply: Function })
@@ -35,10 +36,12 @@ async function revoke() {
   <Modal :open="open" title="Envoyer à l'équipe" @close="emit('close')">
     <template v-if="!ev.share.token">
       <p style="margin:0">Créez un lien vers la <b>feuille de route PDF</b> : chaque intervenant l'ouvre sans compte et récupère ses billets via les boutons « Billet ».</p>
-      <p class="muted small" style="margin:0">Le lien est secret et peut être révoqué à tout moment. Il donne accès à tout le document (adresses, codes d'accès…) : ne le diffusez qu'à l'équipe.</p>
+      <p class="muted small" style="margin:0">Le lien est secret et peut être révoqué à tout moment. Il donne accès à tout le document (adresses, codes d'accès, coordonnées de l'équipe…) : ne le diffusez qu'à l'équipe.
+        Il expire automatiquement le {{ fdate(ev.share.defaultExpiresOn) }} (30 jours après la fin de la date) ; vous pourrez changer cette échéance.</p>
       <button class="btn btn-primary" :disabled="busy" @click="create"><Icon name="link" />Créer le lien de partage</button>
     </template>
     <template v-else>
+      <ShareExpiry :ev="ev" :link="ev.share" path="share" :apply="apply" />
       <label class="field">Lien de la feuille de route<input :value="url" readonly @focus="$event.target.select()"></label>
       <div class="actions">
         <button class="btn btn-primary" @click="copy"><Icon name="copy" />Copier le lien</button>
@@ -46,7 +49,7 @@ async function revoke() {
         <a class="btn" :href="url" target="_blank" rel="noopener">Ouvrir</a>
       </div>
       <p v-if="withoutEmail.length" class="alert" style="margin:0">Sans e-mail dans l'annuaire : {{ withoutEmail.join(', ') }}. Envoyez-leur le lien autrement.</p>
-      <p class="muted small" style="margin:0">Le lien reste valable : si vous modifiez la date, l'équipe voit toujours la version à jour.</p>
+      <p class="muted small" style="margin:0">Jusqu'à son échéance, le lien donne toujours la version à jour : si vous modifiez la date, l'équipe voit les changements.</p>
       <button class="btn btn-danger" style="align-self:flex-start" @click="revoke">Révoquer le lien</button>
     </template>
   </Modal>

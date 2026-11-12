@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { post, del, showError, toast } from '../api.js'
-import { fperiod } from '../format.js'
+import { fdate, fperiod } from '../format.js'
 import Modal from './Modal.vue'
 import Icon from './Icon.vue'
+import ShareExpiry from './ShareExpiry.vue'
 
 /** Partage de l'export Excel des coûts : lien public révocable (distinct de celui de la feuille de route), copie, envoi par la messagerie. */
 const props = defineProps({ open: Boolean, ev: Object, apply: Function })
@@ -34,20 +35,22 @@ async function revoke() {
   <Modal :open="open" title="Envoyer les coûts" @close="emit('close')">
     <template v-if="!ev.costShare?.token">
       <p style="margin:0">Créez un lien de téléchargement de l'<b>export Excel des coûts</b> : devis, tarifs, coûts par personne, défraiements (repas, petits-déjeuners, nuitées jour par jour), voyages (billets, dépenses et remboursements).</p>
-      <p class="muted small" style="margin:0">Le lien s'ouvre sans compte, il est secret et révocable à tout moment, et distinct de celui de la feuille de route. Il ne contient ni coordonnées ni rooming.</p>
+      <p class="muted small" style="margin:0">Le lien s'ouvre sans compte, il est secret et révocable à tout moment, et distinct de celui de la feuille de route. Il ne contient ni coordonnées ni rooming.
+        Il expire automatiquement le {{ fdate(ev.share.defaultExpiresOn) }} (30 jours après la fin de la date) ; vous pourrez changer cette échéance.</p>
       <div class="actions">
         <button class="btn btn-primary" :disabled="busy" @click="create"><Icon name="link" />Créer le lien</button>
         <a class="btn" :href="`/api/events/${ev.id}/costs.xlsx`"><Icon name="download" :size="16" />Télécharger pour vérifier</a>
       </div>
     </template>
     <template v-else>
+      <ShareExpiry :ev="ev" :link="ev.costShare" path="cost-share" :apply="apply" />
       <label class="field">Lien de l'export des coûts<input :value="url" readonly @focus="$event.target.select()"></label>
       <div class="actions">
         <button class="btn btn-primary" @click="copy"><Icon name="copy" />Copier le lien</button>
         <a class="btn btn-sun" :href="mailto" @click="markSent"><Icon name="send" />Écrire un e-mail</a>
         <a class="btn" :href="url"><Icon name="download" :size="16" />Télécharger</a>
       </div>
-      <p class="muted small" style="margin:0">Le lien reste valable : le fichier est généré à chaque téléchargement, avec les montants à jour.
+      <p class="muted small" style="margin:0">Jusqu'à son échéance, le fichier est généré à chaque téléchargement, avec les montants à jour.
         <template v-if="ev.costShare.sharedAt"> Dernier envoi noté le {{ new Date(ev.costShare.sharedAt).toLocaleDateString('fr-FR') }}.</template></p>
       <button class="btn btn-danger" style="align-self:flex-start" @click="revoke">Révoquer le lien</button>
     </template>
