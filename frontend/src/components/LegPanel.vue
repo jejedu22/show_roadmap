@@ -171,7 +171,11 @@ async function save() {
       <label class="field">Référence<input v-model="form.reference" placeholder="ABC123"></label>
       <label class="field">Réservé le<input v-model="form.bookedOn" type="date"></label>
     </div>
-    <label class="field">Lien du billet ou de la réservation<input v-model="form.bookingUrl" type="url" placeholder="https://…"></label>
+    <label class="field">Lien du billet ou de la réservation<input v-model="form.bookingUrl" type="url" placeholder="https://… (collez le lien du billet, ou choisissez un site)"></label>
+    <div v-if="lists.link.length" class="sites" role="group" aria-label="Sites de réservation">
+      <button v-for="s in lists.link" :key="s" type="button" class="site" :class="{ on: form.bookingUrl === lists.linkUrls[s] }"
+        :title="lists.linkUrls[s]" @click="form.bookingUrl = lists.linkUrls[s]">{{ s }}</button>
+    </div>
     <label class="field">Note<input v-model="form.note"></label>
     <div class="actions">
       <button class="btn btn-sun" style="flex:1">Enregistrer</button>
@@ -181,6 +185,9 @@ async function save() {
 </template>
 
 <style scoped>
+.sites { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -6px; }
+.site { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--ink-3); background: transparent; color: var(--muted-on-dark); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.site:hover, .site.on { border-color: var(--sun); color: #fff; }
 .route { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
 .route .swap { margin-bottom: 4px; }
 </style>

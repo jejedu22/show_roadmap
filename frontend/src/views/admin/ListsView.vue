@@ -9,6 +9,7 @@ const LISTS = [
   ['function', 'Fonctions', 'Proposées dans l\'annuaire et pour l\'équipe de chaque date.', 'Régisseuse plateau'],
   ['schedule', 'Intitulés de planning', 'Proposés dans le planning sur place ; une précision libre complète chaque ligne (« #1 scolaire », un lieu…).', 'Rencontre avec le public'],
   ['mode', 'Modes de transport', 'Proposés pour chaque trajet de la partie Voyages ; un train choisi dans les horaires SNCF prend le mode correspondant de la liste. « Classe » coché : le trajet précise 1re ou 2nde classe (absente de la feuille de route).', 'Covoiturage'],
+  ['link', 'Sites de réservation', 'Proposés sous le lien de chaque trajet (partie Voyages) : un clic met l\'adresse du site ; on peut toujours coller le lien précis du billet.', 'Kombo'],
   ['expense', 'Types de dépense', 'Proposés pour les dépenses et remboursements de l\'aller et du retour (partie Voyages) ; comptés dans le coût, absents de la feuille de route.', 'Navette aéroport'],
 ]
 const KINDS = LISTS.map(([kind]) => kind)
@@ -18,7 +19,7 @@ const fresh = reactive(Object.fromEntries(KINDS.map((k) => [k, ''])))
 const dirty = reactive(Object.fromEntries(KINDS.map((k) => [k, false])))
 const busy = ref(false)
 
-const fill = (l) => KINDS.forEach((k) => { items[k] = (l[k] || []).map((label) => ({ label, withClass: k === 'mode' && (l.modeClass || []).includes(label) })) })
+const fill = (l) => KINDS.forEach((k) => { items[k] = (l[k] || []).map((label) => ({ label, withClass: k === 'mode' && (l.modeClass || []).includes(label), url: (l.linkUrls || {})[label] || '' })) })
 loadLists(true).then(fill)
 
 const changed = (kind) => { dirty[kind] = true }
@@ -26,7 +27,7 @@ function add(kind) {
   const v = fresh[kind].trim()
   if (!v) return
   if (items[kind].some((x) => x.label.localeCompare(v, 'fr', { sensitivity: 'base' }) === 0)) return showError(`« ${v} » est déjà dans la liste`)
-  items[kind].push({ label: v, withClass: false })
+  items[kind].push({ label: v, withClass: false, url: kind === 'link' ? 'https://' : '' })
   fresh[kind] = ''
   changed(kind)
 }
@@ -42,7 +43,7 @@ function sort(kind) { items[kind].sort((a, b) => a.label.localeCompare(b.label, 
 async function save(kind) {
   busy.value = true
   try {
-    const data = await put(`/admin/lists/${kind}`, { items: items[kind].map((x) => ({ label: x.label.trim(), withClass: x.withClass })).filter((x) => x.label) })
+    const data = await put(`/admin/lists/${kind}`, { items: items[kind].map((x) => ({ label: x.label.trim(), withClass: x.withClass, ...(kind === 'link' ? { url: x.url.trim() } : {}) })).filter((x) => x.label) })
     setLists(data)
     fill(data)
     dirty[kind] = false
@@ -54,7 +55,7 @@ async function save(kind) {
 <template>
   <div class="page-head"><div><h1>Listes</h1><p>Les choix proposés dans les listes déroulantes. Retirer une entrée ne modifie pas les fiches déjà saisies : la valeur y reste, marquée « hors liste ».</p></div></div>
   <div class="lists-grid">
-    <section v-for="[kind, title, help, example] in LISTS" :key="kind" class="card" :class="{ wide: kind === 'mode' }">
+    <section v-for="[kind, title, help, example] in LISTS" :key="kind" class="card" :class="{ wide: kind === 'mode' || kind === 'link' }">
       <div class="card-head" style="margin-bottom:4px">
         <h2>{{ title }} <span class="muted small">({{ items[kind].length }})</span></h2>
         <button type="button" class="btn btn-sm btn-ghost" @click="sort(kind)">Trier A → Z</button>
@@ -63,6 +64,7 @@ async function save(kind) {
       <ol class="list-edit">
         <li v-for="(item, i) in items[kind]" :key="`${kind}-${i}`">
           <input v-model="item.label" :aria-label="`Entrée ${i + 1}`" maxlength="120" @input="changed(kind)">
+          <input v-if="kind === 'link'" v-model="item.url" type="url" class="url-input" :aria-label="`Adresse de ${item.label}`" placeholder="https://…" maxlength="500" @input="changed(kind)">
           <label v-if="kind === 'mode'" class="class-check" :title="`Le trajet en ${item.label} précise 1re ou 2nde classe`">
             <input v-model="item.withClass" type="checkbox" @change="changed(kind)">Classe</label>
           <button type="button" class="btn btn-sm btn-icon" :aria-label="`Monter ${item.label}`" :disabled="i === 0" @click="move(kind, i, -1)"><Icon name="chevron" :size="16" style="transform:rotate(180deg)" /></button>
@@ -85,6 +87,7 @@ async function save(kind) {
 <style scoped>
 /* Modes de transport : la case « Classe » prend de la place, la carte occupe deux colonnes sur grand écran */
 @media (min-width: 1100px) { .wide { grid-column: span 2; } }
+.url-input { flex: 1.4 !important; }
 .class-check { display: inline-flex; align-items: center; gap: 5px; flex: none; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .class-check input { flex: none; min-height: 0; width: 16px; height: 16px; }
 </style>
