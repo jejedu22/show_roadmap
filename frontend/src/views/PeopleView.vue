@@ -53,7 +53,8 @@ const remove = (p) => confirm(`Supprimer ${p.fullName} ? La personne sera retir�
           <div class="form-grid"><label v-for="[f, label, type] in FIELDS" :key="f" class="field">{{ label }}<ListSelect v-if="f === 'function'" v-model="form.function" kind="function" /><input v-else v-model="form[f]" :type="type" :required="f === 'lastName'"></label></div>
       <p class="muted small" style="margin:8px 0 0">Le régime alimentaire peut révéler un état de santé ou une conviction religieuse : ne le renseignez qu'avec l'accord de la personne, et limitez-le à ce qui est utile (allergies, « sans porc », végétarien…).</p>
           <div class="actions" style="margin-top:12px"><button class="btn btn-primary">Enregistrer</button><button type="button" class="btn btn-ghost" @click="close">Annuler</button>
-            <button type="button" class="btn btn-danger" style="margin-left:auto" @click="remove(p)"><Icon name="trash" :size="16" />Supprimer</button></div>
+            <a class="btn" style="margin-left:auto" :href="`/api/people/${p.id}/export`"><Icon name="download" :size="16" />Exporter ses données</a>
+            <button type="button" class="btn btn-danger" @click="remove(p)"><Icon name="trash" :size="16" />Supprimer</button></div>
         </form>
         <div v-else class="person-head">
           <Avatar :id="p.id" :initials="(p.firstName.charAt(0) + p.lastName.charAt(0)).toUpperCase()" :name="p.fullName" />
@@ -62,6 +63,7 @@ const remove = (p) => confirm(`Supprimer ${p.fullName} ? La personne sera retir�
             <a v-if="p.phone" :href="`tel:${p.phone.replace(/\s/g, '')}`">{{ p.phone }}</a><template v-if="p.phone && p.email"> · </template>
             <a v-if="p.email" :href="`mailto:${p.email}`">{{ p.email }}</a><template v-if="p.diet"> · {{ p.diet }}</template>
           </span>
+          <a class="btn btn-sm btn-icon" :href="`/api/people/${p.id}/export`" :aria-label="`Exporter les données de ${p.fullName}`" :title="`Exporter les données de ${p.fullName} (demande d'accès RGPD)`"><Icon name="download" :size="16" /></a>
           <button v-if="can('people.edit', company.permissions)" class="btn btn-sm btn-icon" :aria-label="`Modifier ${p.fullName}`" @click="open(p)"><Icon name="edit" :size="16" /></button>
         </div>
       </div>

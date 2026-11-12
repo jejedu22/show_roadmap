@@ -74,8 +74,8 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
     <aside class="side-col">
       <section class="card dark">
         <span class="eyebrow" style="color:var(--sun)">Feuille de route</span>
-        <h2 style="color:#fff;margin:6px 0 8px">{{ ev.share.sharedAt ? `Partagée le ${fdate(ev.share.sharedAt.slice(0, 10), true)}` : 'Prête à partager ?' }}</h2>
-        <p class="small" style="color:var(--muted-on-dark);margin:0 0 14px">Voyages aller, hébergement, planning, infos pratiques, puis voyages retour — avec les boutons « Billet ».</p>
+        <h2 style="color:#fff;margin:6px 0 8px">{{ ev.share.token && !ev.share.active ? 'Lien de partage expiré' : ev.share.sharedAt ? `Partagée le ${fdate(ev.share.sharedAt.slice(0, 10), true)}` : 'Prête à partager ?' }}</h2>
+        <p class="small" style="color:var(--muted-on-dark);margin:0 0 14px">Voyages aller, hébergement, planning, infos pratiques, puis voyages retour et coordonnées de l'équipe — avec les boutons « Billet ».<template v-if="ev.share.active"> Lien valable jusqu'au {{ fdate(ev.share.expiresOn, true) }}.</template></p>
         <div class="actions">
           <RouterLink class="btn btn-sun" :to="`/events/${ev.id}/print/roadmap`" target="_blank"><Icon name="file" :size="16" />Voir le PDF</RouterLink>
           <a class="btn" :href="`/api/events/${ev.id}/pdf/roadmap?download=1`"><Icon name="download" :size="16" />Télécharger</a>

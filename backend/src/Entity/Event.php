@@ -69,12 +69,20 @@ class Event
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     public ?\DateTimeImmutable $sharedAt = null;
 
+    /** Dernier jour où le lien de la feuille de route fonctionne (il contient les coordonnées de l'équipe) */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $shareExpiresOn = null;
+
     /** Lien public (non devinable) vers l'export Excel des coûts, distinct de celui de la feuille de route ; null = pas de partage */
     #[ORM\Column(length: 64, unique: true, nullable: true)]
     public ?string $costShareToken = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     public ?\DateTimeImmutable $costSharedAt = null;
+
+    /** Dernier jour où le lien des coûts fonctionne */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $costShareExpiresOn = null;
 
     // Tarifs et montants du devis (HT)
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
@@ -167,6 +175,32 @@ class Event
     public function end(): \DateTimeImmutable
     {
         return max(array_filter([$this->departure, $this->lastDate]));
+    }
+
+    /** Jours de validité d'un lien de partage après la fin de la date (ou après aujourd'hui pour une date passée). */
+    public const SHARE_DAYS = 30;
+
+    /** Expiration par défaut d'un lien de partage : 30 jours après la fin de la date, et au moins 30 jours à partir d'aujourd'hui. */
+    public function defaultShareExpiry(): \DateTimeImmutable
+    {
+        return max($this->end(), self::today())->modify('+'.self::SHARE_DAYS.' days');
+    }
+
+    /** Expiration la plus lointaine qu'on peut choisir : un an après la fin de la date (ou après aujourd'hui). */
+    public function maxShareExpiry(): \DateTimeImmutable
+    {
+        return max($this->end(), self::today())->modify('+1 year');
+    }
+
+    /** Un lien fonctionne jusqu'à la fin de son jour d'expiration (heure de Paris) ; sans date, il a expiré. */
+    public static function linkValid(?\DateTimeImmutable $expiresOn): bool
+    {
+        return null !== $expiresOn && $expiresOn->format('Y-m-d') >= self::today()->format('Y-m-d');
+    }
+
+    public static function today(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris'));
     }
 
     /** @return list<\DateTimeImmutable> jours de la date, élargis aux jours de présence des participants (voyages) */

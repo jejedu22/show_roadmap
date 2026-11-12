@@ -433,6 +433,9 @@ class EventController extends ApiController
             $ev->costShareToken = bin2hex(random_bytes(32));
             $this->audit->log('event.cost_share', sprintf('%s — %s', $ev->show->title, $ev->venue));
         }
+        if (!Event::linkValid($ev->costShareExpiresOn)) { // nouveau lien, ou lien expiré renvoyé : nouvelle échéance
+            $ev->costShareExpiresOn = $ev->defaultShareExpiry();
+        }
         $ev->costSharedAt = new \DateTimeImmutable();
 
         return $this->savedEvent($ev);
@@ -447,9 +450,36 @@ class EventController extends ApiController
         if (null !== $ev->costShareToken) {
             $this->audit->log('event.cost_unshare', sprintf('%s — %s', $ev->show->title, $ev->venue));
         }
-        [$ev->costShareToken, $ev->costSharedAt] = [null, null];
+        [$ev->costShareToken, $ev->costSharedAt, $ev->costShareExpiresOn] = [null, null, null];
 
         return $this->savedEvent($ev);
+    }
+
+    /** Change la date d'expiration du lien des coûts (prolonger ou raccourcir). */
+    #[Route('/cost-share', methods: ['PUT'])]
+    public function costShareExpiry(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'share.manage');
+        $this->authz->event($this->me(), $ev, 'finance.view');
+        if (null === $ev->costShareToken) {
+            throw new BadRequestHttpException('Aucun lien des coûts à modifier');
+        }
+        $ev->costShareExpiresOn = $this->expiry($ev, $this->body($request));
+
+        return $this->savedEvent($ev);
+    }
+
+    private function expiry(Event $ev, array $d): \DateTimeImmutable
+    {
+        $date = Input::date($d, 'expiresOn') ?? throw new BadRequestHttpException('Date d\'expiration manquante');
+        if ($date < Event::today()) {
+            throw new BadRequestHttpException('La date d\'expiration est déjà passée : révoquez plutôt le lien');
+        }
+        if ($date > $ev->maxShareExpiry()) {
+            throw new BadRequestHttpException(sprintf('Un lien peut rester valable au plus jusqu\'au %s (un an après la fin de la date)', $ev->maxShareExpiry()->format('d/m/Y')));
+        }
+
+        return $date;
     }
 
     private static function xlsx(string $content, string $name): Response
@@ -475,6 +505,9 @@ class EventController extends ApiController
     {
         $ev = $this->event($id, 'share.manage');
         $ev->shareToken ??= bin2hex(random_bytes(32));
+        if (!Event::linkValid($ev->shareExpiresOn)) { // nouveau lien, ou lien expiré renvoyé : nouvelle échéance
+            $ev->shareExpiresOn = $ev->defaultShareExpiry();
+        }
         $ev->sharedAt = new \DateTimeImmutable();
 
         return $this->savedEvent($ev);
@@ -485,7 +518,20 @@ class EventController extends ApiController
     public function unshare(int $id): JsonResponse
     {
         $ev = $this->event($id, 'share.manage');
-        [$ev->shareToken, $ev->sharedAt] = [null, null];
+        [$ev->shareToken, $ev->sharedAt, $ev->shareExpiresOn] = [null, null, null];
+
+        return $this->savedEvent($ev);
+    }
+
+    /** Change la date d'expiration du lien de la feuille de route (prolonger ou raccourcir). */
+    #[Route('/share', methods: ['PUT'])]
+    public function shareExpiry(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'share.manage');
+        if (null === $ev->shareToken) {
+            throw new BadRequestHttpException('Aucun lien de partage à modifier');
+        }
+        $ev->shareExpiresOn = $this->expiry($ev, $this->body($request));
 
         return $this->savedEvent($ev);
     }

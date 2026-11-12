@@ -15,7 +15,7 @@ application, cela se traduit par :
 | **Information des personnes** (art. 13 et 14) | Assurée par la page « Confidentialité » de l'application. Prévenez aussi les personnes de l'annuaire que leurs données y figurent (un message type suffit, section 6). |
 | **Contrat de sous-traitance** (art. 28) | Obligatoire avec votre hébergeur et votre prestataire d'e-mails. **Et** entre vous et les compagnies que vous hébergez, si l'instance est partagée (voir section 3). |
 | **Sécurité** (art. 32) | Voir section 5 : ce que fait l'application et ce qui reste à votre charge. |
-| **Droits des personnes** (art. 15 à 22) | Réponse sous un mois à l'adresse indiquée dans la page « Confidentialité ». |
+| **Droits des personnes** (art. 15 à 22) | Réponse sous un mois à l'adresse indiquée dans la page « Confidentialité ». Pour une personne de l'annuaire, le bouton « Exporter ses données » (Annuaire) fournit tout ce qui la concerne en un fichier JSON ; « Supprimer » l'efface de toutes les dates. |
 | **Violation de données** (art. 33) | Notification à la CNIL **sous 72 heures** si elle présente un risque pour les personnes (notifications.cnil.fr), et inscription au registre des violations. |
 | **Analyse d'impact (AIPD)** | Pas obligatoire a priori : pas de surveillance, pas de données sensibles à grande échelle. À réévaluer si vous ajoutez des fonctions (géolocalisation, données de santé détaillées…). |
 | **Délégué à la protection des données (DPO)** | Pas obligatoire pour cet usage. |
@@ -84,7 +84,7 @@ activités de traitement »). Coordonnées du responsable : _à compléter_.
 | **Personnes** | Utilisateurs de l'outil | Artistes, techniciens, administrateurs de tournée | Les mêmes ; invités de la compagnie et professionnels (invitations) | Utilisateurs |
 | **Données** | E-mail, nom, mot de passe haché, droits, connexions | Nom, prénom, fonction, téléphone, e-mail, ville ; **régime alimentaire (sensible)** | Trajets, horaires, références et liens de billets, hébergement, repas, montants ; invitations : nom, prénom, structure (pro), places | E-mail, action, adresse IP, date |
 | **Base légale** | Exécution du service | Contrat / intérêt légitime ; consentement pour le régime alimentaire | Contrat / intérêt légitime | Intérêt légitime |
-| **Destinataires** | Administrateurs | Utilisateurs habilités ; personnes disposant d'un lien de partage (feuille de route : équipe, trajets ; export des coûts : noms, fonctions, villes de départ, frais) | Utilisateurs habilités selon leurs droits | Administrateurs |
+| **Destinataires** | Administrateurs | Utilisateurs habilités ; personnes disposant d'un lien de partage, qui expire par défaut 30 jours après la fin de la date (feuille de route : équipe avec téléphones et e-mails, trajets ; export des coûts : noms, fonctions, villes de départ, frais) | Utilisateurs habilités selon leurs droits | Administrateurs |
 | **Sous-traitants** | Hébergeur ; prestataire d'e-mails ; Google si connexion Google | Hébergeur ; Orfeo si la compagnie le relie (lecture) | Hébergeur ; Open-Meteo pour la météo de la feuille de route (reçoit seulement le nom de la ville, aucune donnée personnelle) | Hébergeur |
 | **Transferts hors UE** | Google (cadre de Google) si activé ; selon prestataire d'e-mails | Selon hébergeur | Selon hébergeur | Selon hébergeur |
 | **Durée** | Jusqu'à suppression du compte | Durée utile à la compagnie, suppression sur demande | Durée utile à la compagnie | 12 mois (purge automatique) |
@@ -98,7 +98,7 @@ Tenez aussi un **registre des violations** (date, nature, données et personnes 
 **Déjà en place :** mots de passe hachés et soumis à une exigence de robustesse, limitation des tentatives de connexion et
 des demandes de réinitialisation, liens de réinitialisation à usage unique (1 h) stockés hachés, sessions « rester
 connecté » révocables et protégées contre le vol de cookie, cloisonnement strict entre compagnies, droits par groupes,
-clés d'API tierces chiffrées, journal d'audit, protection CSRF, purge automatique des données techniques. L'application
+clés d'API tierces chiffrées, journal d'audit, protection CSRF, en-têtes de sécurité HTTP (politique de contenu stricte, HSTS, interdiction d'afficher le site dans un cadre externe), liens de partage à durée limitée, export des données d'une personne (droit d'accès), purge automatique des données techniques (dont les liens de partage expirés depuis 30 jours). L'application
 installable (PWA) ne met en cache sur l'appareil que les fichiers de l'interface : aucune donnée personnelle n'y est stockée.
 
 **À votre charge :** HTTPS (assuré par Traefik), mises à jour régulières de l'image et du système, **sauvegardes**
