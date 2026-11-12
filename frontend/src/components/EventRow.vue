@@ -21,7 +21,6 @@ const barColor = computed(() => pct.value >= 80 ? 'var(--violet)' : pct.value >=
         <span v-if="e.status === 'option'" class="chip warn">Option</span>
         <span v-else-if="e.status === 'cancelled'" class="chip bad">Annulé</span>
         <span v-else class="chip ok">Confirmé</span>
-        <span v-for="name in e.conflicts" :key="name" class="chip bad">Conflit · {{ name }}</span>
       </span>
       <span class="muted small">{{ e.showTitle }}<template v-if="e.city"> · {{ e.city }}</template> · {{ e.teamSize }} personne{{ e.teamSize > 1 ? 's' : '' }}</span>
     </span>
