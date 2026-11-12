@@ -88,11 +88,19 @@ class EventController extends ApiController
             [$copy->name, $copy->address, $copy->phone, $copy->website, $copy->details] = [$l->name, $l->address, $l->phone, $l->website, $l->details];
             $new->lodgings->add($copy);
         }
+        $copies = [];
         foreach ($ev->participations as $p) {
             $copy = new Participation($new, $p->person);
             [$copy->role, $copy->roomType, $copy->departureCity] = [$p->role, $p->roomType, $p->departureCity];
             $new->participations->add($copy);
             $planning->fillDefaultDays($copy);
+            $copies[spl_object_id($p)] = $copy;
+        }
+        // Chambres partagées reprises à l'identique
+        foreach ($ev->participations as $p) {
+            if ($p->roommate && isset($copies[spl_object_id($p->roommate)])) {
+                $copies[spl_object_id($p)]->roommate = $copies[spl_object_id($p->roommate)];
+            }
         }
         $this->em->persist($new);
 
@@ -146,21 +154,65 @@ class EventController extends ApiController
             }
             $d = $rows[$p->id];
             $p->role = $this->lists->check('function', Input::str($d, 'role', 120), $p->role);
-            $p->roomType = Input::str($d, 'roomType', 40) ?: 'single';
+            $type = Input::str($d, 'roomType', 40);
+            $p->roomType = isset(Participation::ROOM_TYPES[$type]) ? $type : 'single';
             $p->departureCity = Input::str($d, 'departureCity', 120);
             $p->note = Input::str($d, 'note');
             $lid = Input::int($d, 'lodgingId');
             $p->lodging = $ev->lodgings->findFirst(fn ($k, $l) => $l->id === $lid);
         }
+        $this->pairRooms($ev, $rows);
 
         return $this->savedEvent($ev);
+    }
+
+    /**
+     * Chambres partagées (double, twin) : « roommateId » de chaque ligne, appliqué dans les deux sens. Une personne partage
+     * une chambre au plus ; son partenaire prend le même type de chambre. Une chambre qui n'est plus double ou twin n'est
+     * plus partagée.
+     */
+    private function pairRooms(Event $ev, array $rows): void
+    {
+        $byId = [];
+        foreach ($ev->participations as $p) {
+            $byId[$p->id] = $p;
+        }
+        foreach ($rows as $id => $d) {
+            if (isset($byId[$id]) && array_key_exists('roommateId', $d)) {
+                $byId[$id]->roommate = null;
+            }
+        }
+        foreach ($rows as $id => $d) {
+            $p = $byId[$id] ?? null;
+            $mate = $byId[(int) ($d['roommateId'] ?? 0)] ?? null;
+            if (!$p || !$mate || $mate === $p || !in_array($p->roomType, Participation::SHARED_ROOMS, true)) {
+                continue;
+            }
+            if ($p->roommate || ($mate->roommate && $mate->roommate !== $p)) {
+                continue; // déjà en chambre avec quelqu'un d'autre dans cet enregistrement
+            }
+            [$p->roommate, $mate->roommate, $mate->roomType] = [$mate, $p, $p->roomType];
+        }
+        // Lien gardé seulement s'il est réciproque et toujours dans une chambre partagée
+        foreach ($ev->participations as $p) {
+            if ($p->roommate && ($p->roommate->roommate !== $p || !in_array($p->roomType, Participation::SHARED_ROOMS, true))) {
+                $p->roommate->roommate === $p && $p->roommate->roommate = null;
+                $p->roommate = null;
+            }
+        }
     }
 
     #[Route('/participations/{pid<\d+>}', methods: ['DELETE'])]
     public function removePerson(int $id, int $pid): JsonResponse
     {
         $ev = $this->event($id, 'events.edit');
-        $ev->participations->removeElement($this->participation($ev, $pid));
+        $part = $this->participation($ev, $pid);
+        foreach ($ev->participations as $p) {
+            if ($p->roommate === $part) {
+                $p->roommate = null; // la chambre reste double, « à compléter »
+            }
+        }
+        $ev->participations->removeElement($part);
 
         return $this->savedEvent($ev);
     }

@@ -12,8 +12,40 @@ const query = ref('')
 const creating = ref(false)
 const person = reactive({ lastName: '', firstName: '', function: '', homeCity: '', phone: '', email: '' })
 watch(ev, (e) => {
-  for (const p of e.participations) rows[p.id] = { id: p.id, role: p.role, roomType: p.roomType, departureCity: p.departureCity, lodgingId: p.lodgingId ?? '', note: p.note }
+  for (const p of e.participations) rows[p.id] = { id: p.id, role: p.role, roomType: p.roomType, roommateId: p.roommateId ?? '', departureCity: p.departureCity, lodgingId: p.lodgingId ?? '', note: p.note }
 }, { immediate: true })
+
+// Chambres : une chambre double ou twin se partage avec une autre personne de la date (dans les deux sens)
+const ROOMS = { single: 'Single', double: 'Double (grand lit)', twin: 'Twin (deux lits)', appartement: 'Appartement' }
+const shared = (r) => r.roomType === 'double' || r.roomType === 'twin'
+const nameOf = (id) => { const p = ev.value.participations.find((x) => x.id === id); return p ? p.person.fullName : '' }
+// Personnes avec qui partager : libres, ou déjà avec cette personne
+const mates = (p) => ev.value.participations.filter((o) => o.id !== p.id && (!rows[o.id]?.roommateId || rows[o.id].roommateId === p.id))
+function unpair(id) {
+  const mate = rows[rows[id]?.roommateId]
+  if (mate && mate.roommateId === id) mate.roommateId = ''
+  if (rows[id]) rows[id].roommateId = ''
+}
+function setMate(id, mateId) {
+  unpair(id)
+  if (!mateId) return
+  unpair(mateId)
+  Object.assign(rows[id], { roommateId: mateId })
+  Object.assign(rows[mateId], { roommateId: id, roomType: rows[id].roomType })
+}
+function setRoomType(id, type) {
+  rows[id].roomType = type
+  const mate = rows[rows[id].roommateId]
+  if (!shared(rows[id])) unpair(id)
+  else if (mate) mate.roomType = type
+}
+const roomWarning = (p) => {
+  const r = rows[p.id]
+  if (!r || !shared(r)) return ''
+  if (!r.roommateId) return 'Chambre à partager : choisissez le second occupant'
+  if (String(rows[r.roommateId]?.lodgingId ?? '') !== String(r.lodgingId ?? '')) return `Hébergement différent de ${nameOf(r.roommateId)}`
+  return ''
+}
 
 const available = computed(() => {
   const q = query.value.trim().toLowerCase()
@@ -53,10 +85,14 @@ async function createAndAdd() {
         <div class="form-grid" style="margin-top:12px">
           <label class="field">Fonction sur cette date<ListSelect v-model="rows[p.id].role" kind="function" /></label>
           <label class="field">Ville de départ<input v-model="rows[p.id].departureCity"></label>
-          <label class="field">Chambre<select v-model="rows[p.id].roomType"><option v-for="r in ['single', 'double', 'twin', 'appartement']" :key="r">{{ r }}</option></select></label>
+          <label class="field">Chambre<select :value="rows[p.id].roomType" @change="setRoomType(p.id, $event.target.value)">
+            <option v-for="(label, r) in ROOMS" :key="r" :value="r">{{ label }}</option></select></label>
+          <label v-if="shared(rows[p.id])" class="field">Partagée avec<select :value="rows[p.id].roommateId" @change="setMate(p.id, Number($event.target.value) || '')">
+            <option value="">— à choisir —</option><option v-for="o in mates(p)" :key="o.id" :value="o.id">{{ o.person.fullName }}</option></select></label>
           <label class="field">Hébergement<select v-model="rows[p.id].lodgingId"><option value="">— à choisir —</option><option v-for="l in ev.lodgings" :key="l.id" :value="l.id">{{ l.name }}</option></select></label>
           <label class="field wide">Note<input v-model="rows[p.id].note" placeholder="Arrive en voiture, allergie…"></label>
         </div>
+        <p v-if="roomWarning(p)" class="chip warn" style="margin:10px 0 0;white-space:normal">{{ roomWarning(p) }}</p>
       </article>
       <div v-if="!ev.participations.length" class="card empty"><h3>Personne n'est encore affecté</h3><p>Choisissez les membres de l'équipe dans la colonne de droite.</p></div>
       <div v-if="ev.participations.length" class="actions"><button v-if="allowed('events.edit')" class="btn btn-primary">Enregistrer l'équipe</button>

@@ -11,7 +11,6 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(columns: ['event_id', 'person_id'])]
 class Participation
 {
-    public const ROOM_TYPES = ['single', 'double', 'twin', 'appartement'];
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     public ?int $id = null;
@@ -27,8 +26,18 @@ class Participation
     #[ORM\Column(length: 120)]
     public string $role = '';
 
+    /** single / double / twin / appartement */
     #[ORM\Column(length: 40)]
     public string $roomType = 'single';
+
+    /** Chambre double ou twin partagée avec une autre personne de la date (lien dans les deux sens) */
+    #[ORM\ManyToOne(targetEntity: Participation::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    public ?Participation $roommate = null;
+
+    /** Types de chambre qui se partagent à deux */
+    public const SHARED_ROOMS = ['double', 'twin'];
+    public const ROOM_TYPES = ['single' => 'Single', 'double' => 'Double', 'twin' => 'Twin', 'appartement' => 'Appartement'];
 
     #[ORM\Column(length: 120)]
     public string $departureCity = '';

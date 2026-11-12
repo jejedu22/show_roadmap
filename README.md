@@ -25,6 +25,9 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - **Envoyer à l'équipe** : lien secret et révocable vers la feuille de route PDF, à copier ou à envoyer par la messagerie.
 
 - **Compagnie** → **spectacles** (plusieurs possibles, y compris sur les mêmes dates) et **annuaire** de personnes.
+- **Chambres partagées** : une chambre double ou twin se partage avec une autre personne de la date (onglet Équipe, « Partagée
+  avec », dans les deux sens). La rooming-list (PDF, Excel) compte une ligne par chambre, et le devis compte les nuitées par
+  chambre ; une chambre à partager sans second occupant est signalée.
 - **Équipe habituelle** d'un spectacle (page Spectacles) : à la création d'une date, ces personnes sont cochées d'office ;
   on décoche celles qui n'y seront pas, et l'on peut en ajouter d'autres de l'annuaire.
 - **Date de tournée** (un spectacle × un lieu × une période) : équipe, voyages, nuitées/repas/petits-déjeuners, hébergements, devis, feuille de route.
