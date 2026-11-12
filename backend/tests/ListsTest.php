@@ -105,6 +105,23 @@ class ListsTest extends ApiTestCase
         self::assertSame(['TGV INOUI'], $this->call('PUT', '/api/admin/lists/mode', ['items' => ['Avion', 'TGV INOUI', 'Bus']])['modeClass']);
     }
 
+    public function testBookingSitesList(): void
+    {
+        $this->login();
+        $lists = $this->call('GET', '/api/lists');
+        self::assertContains('SNCF Connect', $lists['link']);
+        self::assertSame('https://www.sncf-connect.com/', $lists['linkUrls']['SNCF Connect']);
+
+        $this->call('PUT', '/api/admin/lists/link', ['items' => [['label' => 'Piège', 'url' => 'javascript:alert(1)']]]);
+        self::assertSame(400, $this->code(), 'adresse http(s) seulement');
+        $this->call('PUT', '/api/admin/lists/link', ['items' => ['Nouveau site sans adresse']]);
+        self::assertSame(400, $this->code(), 'adresse obligatoire');
+
+        $res = $this->call('PUT', '/api/admin/lists/link', ['items' => [['label' => 'Kombo', 'url' => 'https://www.kombo.co/'], 'SNCF Connect']]);
+        self::assertSame(['Kombo', 'SNCF Connect'], $res['link']);
+        self::assertSame(['Kombo' => 'https://www.kombo.co/', 'SNCF Connect' => 'https://www.sncf-connect.com/'], $res['linkUrls'], 'adresse gardée si non précisée');
+    }
+
     public function testOnlyListManagersEdit(): void
     {
         $this->createUser('ed@test.io', 'ed-password-12345');

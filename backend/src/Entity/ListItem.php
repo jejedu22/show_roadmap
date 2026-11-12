@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 class ListItem
 {
     public const KINDS = ['function' => 'Fonctions', 'schedule' => 'Intitulés de planning', 'mode' => 'Modes de transport',
-        'expense' => 'Types de dépense'];
+        'expense' => 'Types de dépense', 'link' => 'Sites de réservation'];
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     public ?int $id = null;
@@ -28,6 +28,10 @@ class ListItem
     /** Modes de transport : le trajet précise une classe (1re / 2nde) */
     #[ORM\Column(options: ['default' => false])]
     public bool $withClass = false;
+
+    /** Sites de réservation : adresse du site (proposée pour le lien d'un trajet) */
+    #[ORM\Column(length: 500, options: ['default' => ''])]
+    public string $url = '';
 
     public function __construct(string $kind, string $label, int $position = 0)
     {

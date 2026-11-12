@@ -16,6 +16,9 @@ class Lists
     /** @var list<string>|null modes de transport avec une classe */
     private ?array $classModes = null;
 
+    /** @var array<string, string>|null sites de réservation : nom → adresse */
+    private ?array $linkUrls = null;
+
     public function __construct(private EntityManagerInterface $em)
     {
     }
@@ -25,11 +28,14 @@ class Lists
     {
         if (null === $this->cache) {
             $this->cache = array_fill_keys(array_keys(ListItem::KINDS), []);
-            $this->classModes = [];
+            [$this->classModes, $this->linkUrls] = [[], []];
             foreach ($this->em->getRepository(ListItem::class)->findBy([], ['position' => 'ASC', 'label' => 'ASC']) as $item) {
                 $this->cache[$item->kind][] = $item->label;
                 if ('mode' === $item->kind && $item->withClass) {
                     $this->classModes[] = $item->label;
+                }
+                if ('link' === $item->kind) {
+                    $this->linkUrls[$item->label] = $item->url;
                 }
             }
         }
@@ -43,6 +49,14 @@ class Lists
         $this->all();
 
         return $this->classModes;
+    }
+
+    /** @return array<string, string> sites de réservation : nom → adresse */
+    public function linkUrls(): array
+    {
+        $this->all();
+
+        return $this->linkUrls;
     }
 
     public function hasClass(string $mode): bool
@@ -62,13 +76,20 @@ class Lists
      */
     public function replace(string $kind, array $labels): array
     {
-        $clean = $flags = [];
+        $clean = $flags = $urls = [];
         foreach ($labels as $entry) {
             $label = trim(preg_replace('/\s+/u', ' ', (string) (is_array($entry) ? ($entry['label'] ?? '') : $entry)));
             if ('' !== $label && mb_strlen($label) <= 120 && !isset($clean[Sheet::norm($label)])) {
                 $clean[Sheet::norm($label)] = $label; // pas de doublon à la casse ou aux accents près
                 if (is_array($entry) && array_key_exists('withClass', $entry)) {
                     $flags[Sheet::norm($label)] = 'mode' === $kind && (bool) $entry['withClass'];
+                }
+                if ('link' === $kind && is_array($entry) && array_key_exists('url', $entry)) {
+                    $url = trim((string) $entry['url']);
+                    if (!preg_match('~^https?://[^\s<>"]+$~i', $url) || false === filter_var($url, FILTER_VALIDATE_URL) || mb_strlen($url) > 500) {
+                        throw new BadRequestHttpException(sprintf('Adresse invalide pour « %s » (elle doit commencer par https://).', $label));
+                    }
+                    $urls[Sheet::norm($label)] = $url;
                 }
             }
         }
@@ -88,10 +109,14 @@ class Lists
             }
             [$item->label, $item->position] = [$label, ++$position];
             $item->withClass = $flags[$key] ?? $item->withClass;
+            $item->url = $urls[$key] ?? $item->url;
+            if ('link' === $kind && '' === $item->url) {
+                throw new BadRequestHttpException(sprintf('Adresse manquante pour « %s ».', $label));
+            }
         }
         array_map(fn ($item) => $this->em->remove($item), $existing);
         $this->em->flush();
-        [$this->cache, $this->classModes] = [null, null];
+        [$this->cache, $this->classModes, $this->linkUrls] = [null, null, null];
 
         return $this->entries($kind);
     }

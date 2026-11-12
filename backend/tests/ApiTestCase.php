@@ -48,6 +48,14 @@ abstract class ApiTestCase extends WebTestCase
                 $em->persist(new \App\Entity\ListItem($kind, $label, $i + 1));
             }
         }
+        // Sites de réservation (liste avec adresse)
+        require_once dirname(__DIR__).'/migrations/Version20261112090000.php';
+        $i = 0;
+        foreach (\DoctrineMigrations\Version20261112090000::LINKS as $label => $url) {
+            $item = new \App\Entity\ListItem('link', $label, ++$i);
+            $item->url = $url;
+            $em->persist($item);
+        }
         $em->flush();
         $this->createUser('admin@test.io', 'admin-password-123', true);
     }

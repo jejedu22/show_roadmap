@@ -213,6 +213,8 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
 
 - **Modes de transport** : la case « Classe » d'un mode (cochée au départ pour Train, TER, TGV INOUI, Intercités, ICE)
   ajoute au trajet un champ 1re / 2nde classe, visible dans l'onglet Voyages et l'export Excel, pas dans la feuille de route.
+- **Sites de réservation** (nom et adresse) : proposés sous le lien de chaque trajet ; un clic met l'adresse du site, et
+  l'on peut toujours coller le lien précis du billet.
 - Retirer une entrée ne modifie pas les fiches existantes : la valeur y reste, marquée « hors liste ».
 - Au premier démarrage, les listes sont pré-remplies avec des valeurs courantes et les fonctions déjà saisies.
 - **Import des devis** : les valeurs des fichiers sont rapprochées des listes, sans tenir compte de la casse, des accents ni
