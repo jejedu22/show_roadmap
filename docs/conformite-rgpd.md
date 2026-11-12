@@ -85,7 +85,7 @@ activités de traitement »). Coordonnées du responsable : _à compléter_.
 | **Données** | E-mail, nom, mot de passe haché, droits, connexions | Nom, prénom, fonction, téléphone, e-mail, ville ; **régime alimentaire (sensible)** | Trajets, horaires, références et liens de billets, hébergement, repas, montants ; invitations : nom, prénom, structure (pro), places | E-mail, action, adresse IP, date |
 | **Base légale** | Exécution du service | Contrat / intérêt légitime ; consentement pour le régime alimentaire | Contrat / intérêt légitime | Intérêt légitime |
 | **Destinataires** | Administrateurs | Utilisateurs habilités ; personnes disposant d'un lien de partage (feuille de route : équipe, trajets ; export des coûts : noms, fonctions, villes de départ, frais) | Utilisateurs habilités selon leurs droits | Administrateurs |
-| **Sous-traitants** | Hébergeur ; prestataire d'e-mails ; Google si connexion Google | Hébergeur ; Orfeo si la compagnie le relie (lecture) | Hébergeur | Hébergeur |
+| **Sous-traitants** | Hébergeur ; prestataire d'e-mails ; Google si connexion Google | Hébergeur ; Orfeo si la compagnie le relie (lecture) | Hébergeur ; Open-Meteo pour la météo de la feuille de route (reçoit seulement le nom de la ville, aucune donnée personnelle) | Hébergeur |
 | **Transferts hors UE** | Google (cadre de Google) si activé ; selon prestataire d'e-mails | Selon hébergeur | Selon hébergeur | Selon hébergeur |
 | **Durée** | Jusqu'à suppression du compte | Durée utile à la compagnie, suppression sur demande | Durée utile à la compagnie | 12 mois (purge automatique) |
 | **Sécurité** | HTTPS, mots de passe hachés, limitation des tentatives, appareils révocables | Cloisonnement par compagnie, droits par groupes | Idem | Accès réservé aux administrateurs |
