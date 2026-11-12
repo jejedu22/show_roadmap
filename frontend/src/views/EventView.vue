@@ -59,12 +59,6 @@ const status = computed(() => ({ confirmed: ['Confirmé', 'ok'], option: ['Optio
       </li>
     </ol>
 
-    <div v-if="ev.overlaps.length" class="alert" role="note">
-      Cette date chevauche
-      <template v-for="(o, i) in ev.overlaps" :key="o.id"><RouterLink :to="`/events/${o.id}`">{{ o.showTitle }} — {{ o.venue }} ({{ fperiod(o.firstDate, o.lastDate) }})</RouterLink>{{ i < ev.overlaps.length - 1 ? ', ' : '' }}</template>.
-      <template v-if="ev.participations.some((p) => p.conflicts.length)"> Engagé(e)s sur les deux : <b>{{ ev.participations.filter((p) => p.conflicts.length).map((p) => p.person.firstName || p.person.lastName).join(', ') }}</b>.</template>
-    </div>
-
     <RouterView />
     <ShareDialog :open="sharing" :ev="ev" :apply="apply" @close="sharing = false" />
   </template>

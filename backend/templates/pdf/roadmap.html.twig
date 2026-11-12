@@ -55,4 +55,11 @@
 
   <div class="sec"><span class="dot coral"></span>Voyages retour</div>
   {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
+
+  {# Coordonnées de l'équipe sur une page à part (masquées si l'utilisateur n'a pas le droit de voir l'annuaire) #}
+  {% if ev.participations|filter(p => p.person.phone or p.person.email)|length %}
+    <div style="page-break-before: always"></div>
+    <div class="sec"><span class="dot violet"></span>Coordonnées de l'équipe</div>
+    {% include 'pdf/_contacts.html.twig' with { participations: ev.participations, diet: false } %}
+  {% endif %}
 {% endblock %}
