@@ -6,7 +6,7 @@ import Icon from '../../components/Icon.vue'
 
 const { ev, apply, allowed } = inject('event')
 const RATES = [['fee', 'Cachet HT (€)'], ['mealRate', 'Repas / personne / jour'], ['breakfastRate', 'Petit-déjeuner'], ['nightRate', 'Nuitée (0 = prise en charge)'],
-  ['truckRate', 'Camion (€ HT / km)'], ['vatRate', 'TVA (%)']]
+  ['truckRate', 'Camion (€ HT / km)'], ['transportBudget', 'Budget transport (€ HT)'], ['vatRate', 'TVA (%)']]
 const rates = reactive({})
 const trucks = reactive({})
 const extras = reactive({})

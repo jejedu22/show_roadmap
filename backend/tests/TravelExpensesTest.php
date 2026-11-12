@@ -29,6 +29,23 @@ class TravelExpensesTest extends ApiTestCase
         self::assertEquals([60.0, 10.5, 70.5], [$ev['quote']['travelTickets'], $ev['quote']['travelExpenses'], $ev['quote']['travelTotal']]);
         self::assertEquals([85.5, -15.0, 10.5], [$ev['personCosts'][0]['outbound'], $ev['personCosts'][0]['return'], $ev['personCosts'][0]['expenses']]);
         self::assertEquals(70.5, $ev['quote']['lines'][1]['amount'], 'transport équipe du devis');
+
+        // Budget transport : ligne en plus du transport réel de l'équipe, comptée dans le total
+        $before = $ev['quote']['totalHt'];
+        self::assertNotContains('Budget transport', array_column($ev['quote']['lines'], 'label'), 'pas de ligne sans budget');
+        $ev = $this->call('PUT', "/api/events/{$ev['id']}/rates", ['transportBudget' => '250,00'] + array_map('strval', $ev['rates']));
+        self::assertEquals(250, $ev['rates']['transportBudget']);
+        self::assertEquals(['Budget transport', 250], array_values(array_column($ev['quote']['lines'], null, 'label')['Budget transport']));
+        self::assertEquals($before + 250, $ev['quote']['totalHt']);
+        self::assertEquals(70.5, array_column($ev['quote']['lines'], null, 'label')['Transport équipe (billets, dépenses de trajet, transports locaux)']['amount']);
+        foreach (['export.xlsx', 'costs.xlsx'] as $file) {
+            $this->client->request('GET', "/api/events/{$ev['id']}/$file");
+            $path = tempnam(sys_get_temp_dir(), 'x');
+            file_put_contents($path, $this->client->getInternalResponse()->getContent());
+            $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getSheetByName('Devis')->toArray(null, true, false);
+            unlink($path);
+            self::assertEquals(250, array_column($rows, 1, 0)['Budget transport'] ?? null, "ligne du devis dans $file");
+        }
         self::assertSame(2, $ev['readiness']['legsNeeded']);
         self::assertSame(1, $ev['readiness']['legsCovered'], 'une dépense ne compte pas comme un trajet');
 

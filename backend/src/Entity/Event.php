@@ -98,6 +98,10 @@ class Event
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     public string $fee = '0.00';
 
+    /** Budget transport (HT) : ligne du devis en plus du transport réel de l'équipe */
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => '0.00'])]
+    public string $transportBudget = '0.00';
+
 
 
     /** @var Collection<int, Participation> */

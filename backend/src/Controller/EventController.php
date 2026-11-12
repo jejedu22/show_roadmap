@@ -80,7 +80,7 @@ class EventController extends ApiController
         $ev = $this->event($id, 'events.edit');
         $new = new Event($ev->show, $ev->venue.' (copie)', $ev->firstDate, $ev->lastDate);
         foreach (['city', 'address', 'venueContact', 'status', 'techArrival', 'artisticArrival', 'departure', 'performances', 'notes',
-            'mealRate', 'breakfastRate', 'nightRate', 'truckRate', 'vatRate', 'fee'] as $f) {
+            'mealRate', 'breakfastRate', 'nightRate', 'truckRate', 'vatRate', 'fee', 'transportBudget'] as $f) {
             $new->$f = $ev->$f;
         }
         foreach ($ev->lodgings as $l) {
@@ -104,7 +104,7 @@ class EventController extends ApiController
     {
         $ev = $this->event($id, 'finance.edit');
         $d = $this->body($request);
-        foreach (['mealRate', 'breakfastRate', 'nightRate', 'truckRate', 'vatRate', 'fee'] as $f) {
+        foreach (['mealRate', 'breakfastRate', 'nightRate', 'truckRate', 'vatRate', 'fee', 'transportBudget'] as $f) {
             $ev->$f = Input::decimal($d, $f);
         }
 
