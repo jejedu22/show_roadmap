@@ -141,8 +141,9 @@ async function remove() {
 
 <style scoped>
 .logo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
-.logo-preview { display: grid; place-items: center; width: 220px; height: 100px; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--line);
+/* Flex (pas grid) : la hauteur du cadre est alors celle de référence pour max-height de l'image, qui ne déborde plus */
+.logo-preview { display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex: none; max-width: 100%; width: 220px; height: 100px; padding: 10px; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--line);
   background: repeating-conic-gradient(#f2f2f2 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
 .logo-preview.empty { background: var(--bg); border-style: dashed; }
-.logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.logo-preview img { display: block; max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
 </style>
