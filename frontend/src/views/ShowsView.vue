@@ -31,7 +31,7 @@ async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh)
     <article v-for="s in company.shows" :key="s.id" class="card">
       <form v-if="editing === s.id" @submit.prevent="save(s)">
         <div class="form-grid">
-          <label class="field">Titre<input v-model="edit.title" required></label>
+          <label class="field">Titre du spectacle<input v-model="edit.title" required></label>
           <label class="field">Description<input v-model="edit.description"></label>
         </div>
         <PeoplePicker v-model="edit.defaultPersonIds" :people="company.people" label="Équipe habituelle (cochée d'office à la création d'une date)" style="margin-top:12px" />
@@ -44,7 +44,7 @@ async function add() { if (await run(post(`/companies/${props.id}/shows`, fresh)
               {{ teamOf(s).length ? teamOf(s).map((p) => p.firstName || p.lastName).join(', ') : 'aucune' }}</p></div>
           <div class="actions">
             <button v-if="can('events.edit', company.permissions)" class="btn btn-sm btn-primary" @click="newDateFor = s.id"><Icon name="plus" :size="16" />Nouvelle date</button>
-            <button v-if="can('shows.edit', company.permissions)" class="btn btn-sm btn-icon" :aria-label="`Modifier ${s.title}`" @click="startEdit(s)"><Icon name="edit" :size="16" /></button>
+            <button v-if="can('shows.edit', company.permissions)" class="btn btn-sm" :aria-label="`Renommer ou modifier ${s.title}`" @click="startEdit(s)"><Icon name="edit" :size="16" />Renommer / modifier</button>
             <button v-if="!s.eventCount && can('shows.edit', company.permissions)" class="btn btn-sm btn-icon btn-danger" :aria-label="`Supprimer ${s.title}`" @click="remove(s)"><Icon name="trash" :size="16" /></button>
           </div>
         </div>
