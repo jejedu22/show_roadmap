@@ -3,6 +3,25 @@
   {% if ev.address or ev.venueContact %}<div class="contact">{% if ev.address %}⌂ {{ ev.address }}<br>{% endif %}{{ ev.venueContact|nl2br }}</div>{% endif %}
 {% endblock %}
 {% block body %}
+  {% if weather %}
+    <div class="sec"><span class="dot sun"></span>Météo à {{ weather.city }}</div>
+    {% if weather.days %}
+      <table class="weather"><tr>
+        {% for w in weather.days|slice(0, 8) %}
+          <td><div class="wd">{{ w.day|fday }}</div><div class="wi">{{ w.icon }}</div><div class="wl">{{ w.label }}</div>
+            <div class="wt"><b>{{ w.max }}°</b> / {{ w.min }}°</div>{% if w.rain is not null %}<div class="muted">pluie {{ w.rain }} %</div>{% endif %}</td>
+        {% endfor %}
+      </tr></table>
+    {% endif %}
+    <p class="muted" style="margin:3pt 0 0">{% if weather.availableFrom %}Prévisions{{ weather.days ? ' des jours suivants' }} disponibles à partir du {{ weather.availableFrom|fday|lower }} : ouvrez à nouveau la feuille de route pour les voir. {% endif %}Prévisions Open-Meteo.com, données du {{ generatedAt }}.</p>
+    <style>
+      table.weather { width: 100%; border-collapse: separate; border-spacing: 4pt 0; margin: 0 -4pt; }
+      table.weather td { width: 12.5%; padding: 5pt 4pt; border-radius: 8pt; background: {{ theme.sunSoft }}; text-align: center; vertical-align: top; font-size: 7.8pt; }
+      table.weather .wd { font-weight: bold; }
+      table.weather .wi { font-size: 15pt; line-height: 1.1; margin: 2pt 0; color: {{ theme.ink }}; }
+      table.weather .wt { font-size: 9pt; }
+    </style>
+  {% endif %}
   <div class="sec"><span class="dot mint"></span>Voyages aller</div>
   {% include 'pdf/_trips.html.twig' with { people: outbound, back: false } %}
 

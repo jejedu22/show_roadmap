@@ -27,7 +27,8 @@ class PdfRenderer
         'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view', 'invitations' => 'company.view',
     ];
 
-    public function __construct(private Environment $twig, private Presenter $presenter, private Themes $themes, private CompanyLogos $logos)
+    public function __construct(private Environment $twig, private Presenter $presenter, private Themes $themes, private CompanyLogos $logos,
+        private Weather $weather)
     {
     }
 
@@ -46,6 +47,7 @@ class PdfRenderer
             'schedule' => self::groupBy($ev['schedule'], 'day'),
             'invitationGroups' => 'invitations' === $doc ? self::invitationGroups($ev) : [],
             'rooms' => 'rooming' === $doc ? Rooming::rooms($event) : [],
+            'weather' => 'roadmap' === $doc ? $this->weather->forEvent($event) : null, // prévisions de la ville de la date
             'generatedAt' => (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('d/m/Y à H:i'),
         ]);
 

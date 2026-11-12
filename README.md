@@ -35,6 +35,11 @@ Application web de gestion de tournée pour compagnies de spectacle. Elle rempla
 - Une personne engagée sur deux dates qui se chevauchent est signalée dans le planning et sur la fiche équipe.
 - Documents en **vrais PDF** générés par le serveur (feuille de route, devis, rooming-list, défraiements, suivi des frais,
   coordonnées) et export Excel d'une date.
+- **Météo** sur la feuille de route PDF : prévisions de la ville de la date, jour par jour (temps, minimum / maximum, risque
+  de pluie), par Open-Meteo (gratuit, sans clé ; seul le nom de la ville est envoyé). Disponibles 16 jours à l'avance : plus
+  tôt, la feuille de route indique à partir de quand, et les prévisions s'ajoutent d'elles-mêmes à la prochaine ouverture
+  (lien partagé compris). `WEATHER_ENABLED=0` pour désactiver ; le serveur doit pouvoir joindre `api.open-meteo.com` et
+  `geocoding-api.open-meteo.com`.
 - **Lien de réservation** sur chaque trajet : il devient un bouton « Billet ↗ » cliquable dans la feuille de route PDF,
   pour que chaque intervenant récupère son billet lui-même.
 - Connexion par mot de passe ou Google (comptes créés par un administrateur uniquement).
