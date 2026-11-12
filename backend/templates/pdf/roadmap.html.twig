@@ -23,7 +23,7 @@
     </style>
   {% endif %}
   <div class="sec"><span class="dot mint"></span>Voyages aller</div>
-  {% include 'pdf/_trips.html.twig' with { people: outbound, back: false } %}
+  {% include 'pdf/_trips.html.twig' with { days: outbound, back: false } %}
 
   <div class="sec"><span class="dot violet"></span>Hébergement</div>
   {% for l in ev.lodgings %}
@@ -54,5 +54,5 @@
   {% endfor %}
 
   <div class="sec"><span class="dot coral"></span>Voyages retour</div>
-  {% include 'pdf/_trips.html.twig' with { people: inbound, back: true } %}
+  {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
 {% endblock %}

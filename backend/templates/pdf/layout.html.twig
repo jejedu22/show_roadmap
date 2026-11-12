@@ -39,19 +39,19 @@
   /* Trajets */
   table.trips { width: 100%; border-collapse: separate; border-spacing: 0 3pt; }
   table.trips td { background: {{ theme.violetSoft }}; padding: 5pt 6pt; vertical-align: middle; }
-  /* Trajets regroupés par personne */
-  .traveller { margin: 7pt 0 2pt; page-break-inside: avoid; }
-  .who-head { padding: 0 0 1pt 7pt; border-left: 4pt solid {{ theme.violet }}; font-weight: bold; font-size: 10pt; }
-  .who-head.back { border-left-color: {{ theme.coral }}; }
-  table.trips td.when { border-left: 4pt solid {{ theme.violet }}; font-weight: bold; width: 17%; white-space: nowrap; }
-  table.trips.back td.when { border-left-color: {{ theme.coral }}; }
+  /* Trajets groupés par date, puis par personne */
+  .trip-day { page-break-inside: avoid; margin-bottom: 4pt; }
+  table.trips td.who { width: 22%; vertical-align: top; font-weight: bold; border-left: 4pt solid {{ theme.violet }}; }
+  table.trips.back td.who { border-left-color: {{ theme.coral }}; }
+  table.trips td.time { width: 14%; }
   table.trips.back .arrow { color: {{ theme.violet }}; }
   table.trips.back td { background: {{ theme.coralSoft }}; }
   table.trips td.last { border-radius: 0 6pt 6pt 0; text-align: right; width: 14%; }
   .arrow { color: {{ theme.coral }}; font-weight: bold; }
   .time { font-weight: bold; white-space: nowrap; }
   .badge { display: inline-block; padding: 1pt 6pt; border-radius: 7pt; background: {{ theme.ink }}; color: #fff; font-size: 7.3pt; font-weight: bold; }
-  .ref { font-family: "DejaVu Sans Mono", monospace; font-size: 8pt; color: {{ theme.violet }}; }
+  .ref { display: inline-block; margin-top: 2pt; padding: 1pt 6pt; border: 1pt solid {{ theme.violet }}; border-radius: 4pt; background: #fff; color: {{ theme.ink }}; font-size: 8.5pt; }
+  .ref b { font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; letter-spacing: 0.5pt; }
   a.btn { display: inline-block; padding: 2pt 8pt; border-radius: 8pt; background: {{ theme.coral }}; color: #fff; font-weight: bold; font-size: 7.8pt; text-decoration: none; }
   .muted { color: {{ theme.muted }}; }
 
