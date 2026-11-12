@@ -122,6 +122,25 @@ class ListsTest extends ApiTestCase
         self::assertSame(['Kombo' => 'https://www.kombo.co/', 'SNCF Connect' => 'https://www.sncf-connect.com/'], $res['linkUrls'], 'adresse gardée si non précisée');
     }
 
+    public function testDefaultEntries(): void
+    {
+        $this->login();
+        $res = $this->call('PUT', '/api/admin/lists/link', ['items' => [['label' => 'SNCF Connect', 'isDefault' => true], 'Trainline']]);
+        self::assertSame('SNCF Connect', $res['defaults']['link']);
+        self::assertSame('SNCF Connect', $this->call('GET', '/api/lists')['defaults']['link']);
+
+        // Une nouvelle entrée par défaut remplace l'ancienne ; deux à la fois sont refusées
+        $res = $this->call('PUT', '/api/admin/lists/link', ['items' => ['SNCF Connect', ['label' => 'Trainline', 'isDefault' => true]]]);
+        self::assertSame('Trainline', $res['defaults']['link']);
+        $this->call('PUT', '/api/admin/lists/link', ['items' => [['label' => 'SNCF Connect', 'isDefault' => true], ['label' => 'Trainline', 'isDefault' => true]]]);
+        self::assertSame(400, $this->code());
+        // Aucune entrée par défaut ; et pas d'entrée par défaut pour les fonctions
+        $res = $this->call('PUT', '/api/admin/lists/link', ['items' => [['label' => 'SNCF Connect', 'isDefault' => false], ['label' => 'Trainline', 'isDefault' => false]]]);
+        self::assertArrayNotHasKey('link', $res['defaults']);
+        $res = $this->call('PUT', '/api/admin/lists/function', ['items' => [['label' => 'Danseuse', 'isDefault' => true]]]);
+        self::assertArrayNotHasKey('function', $res['defaults']);
+    }
+
     public function testOnlyListManagersEdit(): void
     {
         $this->createUser('ed@test.io', 'ed-password-12345');

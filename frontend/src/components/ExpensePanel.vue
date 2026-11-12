@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue'
 import { post, put, toast } from '../api.js'
 import Icon from './Icon.vue'
 import ListSelect from './ListSelect.vue'
+import { lists, loadLists } from '../lists.js'
 
 /**
  * Dépense (taxi, parking, frais d'échange…) ou remboursement sur l'aller ou le retour d'une personne.
@@ -22,6 +23,8 @@ const form = reactive({
   day: x?.day ?? legDay(props.direction) ?? (props.direction === 'return' ? (props.ev.departure || props.ev.lastDate) : props.ev.start),
   comment: x?.comment ?? '',
 })
+// Type par défaut (Administration → Listes) pour une nouvelle ligne
+loadLists().then(() => { if (!x && !form.kind) form.kind = lists.defaults.expense || '' })
 const who = computed(() => props.part.person.firstName || props.part.person.lastName)
 const title = computed(() => `${x ? 'Modifier la ligne' : 'Dépense ou remboursement'} · ${form.direction === 'return' ? 'retour' : 'aller'} de ${who.value}`)
 

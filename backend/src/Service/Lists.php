@@ -19,6 +19,12 @@ class Lists
     /** @var array<string, string>|null sites de réservation : nom → adresse */
     private ?array $linkUrls = null;
 
+    /** Listes qui peuvent avoir une entrée par défaut (pré-remplie dans une nouvelle saisie) */
+    public const WITH_DEFAULT = ['mode', 'link', 'expense'];
+
+    /** @var array<string, string>|null entrée par défaut de chaque liste */
+    private ?array $defaults = null;
+
     public function __construct(private EntityManagerInterface $em)
     {
     }
@@ -28,7 +34,7 @@ class Lists
     {
         if (null === $this->cache) {
             $this->cache = array_fill_keys(array_keys(ListItem::KINDS), []);
-            [$this->classModes, $this->linkUrls] = [[], []];
+            [$this->classModes, $this->linkUrls, $this->defaults] = [[], [], []];
             foreach ($this->em->getRepository(ListItem::class)->findBy([], ['position' => 'ASC', 'label' => 'ASC']) as $item) {
                 $this->cache[$item->kind][] = $item->label;
                 if ('mode' === $item->kind && $item->withClass) {
@@ -36,6 +42,9 @@ class Lists
                 }
                 if ('link' === $item->kind) {
                     $this->linkUrls[$item->label] = $item->url;
+                }
+                if ($item->isDefault && in_array($item->kind, self::WITH_DEFAULT, true)) {
+                    $this->defaults[$item->kind] = $item->label;
                 }
             }
         }
@@ -49,6 +58,14 @@ class Lists
         $this->all();
 
         return $this->classModes;
+    }
+
+    /** @return array<string, string> entrée par défaut de chaque liste (liste → libellé) */
+    public function defaults(): array
+    {
+        $this->all();
+
+        return $this->defaults;
     }
 
     /** @return array<string, string> sites de réservation : nom → adresse */
@@ -76,11 +93,14 @@ class Lists
      */
     public function replace(string $kind, array $labels): array
     {
-        $clean = $flags = $urls = [];
+        $clean = $flags = $urls = $defaults = [];
         foreach ($labels as $entry) {
             $label = trim(preg_replace('/\s+/u', ' ', (string) (is_array($entry) ? ($entry['label'] ?? '') : $entry)));
             if ('' !== $label && mb_strlen($label) <= 120 && !isset($clean[Sheet::norm($label)])) {
                 $clean[Sheet::norm($label)] = $label; // pas de doublon à la casse ou aux accents près
+                if (is_array($entry) && array_key_exists('isDefault', $entry)) {
+                    $defaults[Sheet::norm($label)] = in_array($kind, self::WITH_DEFAULT, true) && (bool) $entry['isDefault'];
+                }
                 if (is_array($entry) && array_key_exists('withClass', $entry)) {
                     $flags[Sheet::norm($label)] = 'mode' === $kind && (bool) $entry['withClass'];
                 }
@@ -92,6 +112,9 @@ class Lists
                     $urls[Sheet::norm($label)] = $url;
                 }
             }
+        }
+        if (count(array_filter($defaults)) > 1) {
+            throw new BadRequestHttpException('Une seule entrée par défaut par liste.');
         }
         if (count($clean) > 500) {
             throw new BadRequestHttpException('500 entrées au plus par liste.');
@@ -110,13 +133,15 @@ class Lists
             [$item->label, $item->position] = [$label, ++$position];
             $item->withClass = $flags[$key] ?? $item->withClass;
             $item->url = $urls[$key] ?? $item->url;
+            // Une nouvelle entrée par défaut remplace l'ancienne
+            $item->isDefault = $defaults[$key] ?? (array_filter($defaults) ? false : $item->isDefault);
             if ('link' === $kind && '' === $item->url) {
                 throw new BadRequestHttpException(sprintf('Adresse manquante pour « %s ».', $label));
             }
         }
         array_map(fn ($item) => $this->em->remove($item), $existing);
         $this->em->flush();
-        [$this->cache, $this->classModes, $this->linkUrls] = [null, null, null];
+        [$this->cache, $this->classModes, $this->linkUrls, $this->defaults] = [null, null, null, null];
 
         return $this->entries($kind);
     }
