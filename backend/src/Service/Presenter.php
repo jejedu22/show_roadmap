@@ -137,7 +137,7 @@ class Presenter
             'techArrival' => Input::iso($e->techArrival), 'artisticArrival' => Input::iso($e->artisticArrival),
             'departure' => Input::iso($e->departure), 'performances' => $e->performances,
             'rates' => ['mealRate' => $dec($e->mealRate), 'breakfastRate' => $dec($e->breakfastRate), 'nightRate' => $dec($e->nightRate),
-                'truckRate' => $dec($e->truckRate), 'vatRate' => $dec($e->vatRate), 'fee' => $dec($e->fee)],
+                'truckRate' => $dec($e->truckRate), 'vatRate' => $dec($e->vatRate), 'fee' => $dec($e->fee), 'transportBudget' => $dec($e->transportBudget)],
             'dates' => array_map(fn ($d) => $d->format('Y-m-d'), $e->spanDates()),
             'participations' => $e->participations->map(fn ($p) => [
                 'id' => $p->id, 'person' => $this->personFor($p->person, $perms), 'role' => $p->role, 'roomType' => $p->roomType,

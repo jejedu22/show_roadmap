@@ -91,7 +91,7 @@ class XlsxExporter
 
         $this->table($book, $ev, 'Tarifs', [['Tarif', 'text', 30], ['Valeur', 'rate', 14]], [
             ['Cachet HT', (float) $ev->fee], ['Repas / personne / jour', (float) $ev->mealRate], ['Petit-déjeuner', (float) $ev->breakfastRate],
-            ['Nuitée', (float) $ev->nightRate], ['Camion (HT / km)', (float) $ev->truckRate], ['TVA', [(float) $ev->vatRate, 'percent']],
+            ['Nuitée', (float) $ev->nightRate], ['Camion (HT / km)', (float) $ev->truckRate], ['Budget transport (HT)', (float) $ev->transportBudget], ['TVA', [(float) $ev->vatRate, 'percent']],
         ], ['tab' => $this->rgb('violet'), 'filter' => false]);
 
         $rows = [];

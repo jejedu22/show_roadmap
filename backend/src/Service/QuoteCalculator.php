@@ -37,7 +37,8 @@ class QuoteCalculator
         $bfAmount = $bf * (float) $ev->breakfastRate;
         $nightsAmount = $nights * (float) $ev->nightRate;
         $team = $tickets + $expenses + $teamExtras;
-        $annex = $truck + $team + $mealsAmount + $bfAmount + $nightsAmount + $otherExtras;
+        $budget = (float) $ev->transportBudget;
+        $annex = $truck + $team + $budget + $mealsAmount + $bfAmount + $nightsAmount + $otherExtras;
         $totalHt = (float) $ev->fee + $annex;
         $vat = $totalHt * (float) $ev->vatRate / 100;
         $r = fn (float $x) => round($x, 2);
@@ -49,6 +50,7 @@ class QuoteCalculator
             'travelTickets' => $r($tickets),
             'travelExpenses' => $r($expenses),
             'travelTotal' => $r($tickets + $expenses),
+            'transportBudget' => $r($budget),
             'mealsCount' => $meals,
             'breakfastsCount' => $bf,
             'nightsCount' => $nights,
@@ -58,6 +60,7 @@ class QuoteCalculator
             'lines' => [
                 ['label' => sprintf('Transport décor (%s km × %s €)', self::n($km), self::n((float) $ev->truckRate)), 'amount' => $r($truck)],
                 ['label' => 'Transport équipe (billets, dépenses de trajet, transports locaux)', 'amount' => $r($team)],
+                ...($budget ? [['label' => 'Budget transport', 'amount' => $r($budget)]] : []),
                 ['label' => sprintf('Défraiements repas (%d × %s €)', $meals, self::n((float) $ev->mealRate)), 'amount' => $r($mealsAmount)],
                 ['label' => sprintf('Petits-déjeuners (%d × %s €)', $bf, self::n((float) $ev->breakfastRate)), 'amount' => $r($bfAmount)],
                 ['label' => sprintf('Nuitées (%d × %s €)', $nights, self::n((float) $ev->nightRate)), 'amount' => $r($nightsAmount)],
