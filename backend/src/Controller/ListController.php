@@ -18,10 +18,10 @@ class ListController extends ApiController
         return $this->json(self::payload($lists));
     }
 
-    /** Listes, plus les modes de transport qui demandent une classe (« modeClass ») et l'adresse des sites (« linkUrls »). */
+    /** Listes, plus les modes avec classe (« modeClass »), l'adresse des sites (« linkUrls ») et l'entrée par défaut de chaque liste (« defaults »). */
     private static function payload(Lists $lists): array
     {
-        return $lists->all() + ['modeClass' => $lists->classModes(), 'linkUrls' => (object) $lists->linkUrls()];
+        return $lists->all() + ['modeClass' => $lists->classModes(), 'linkUrls' => (object) $lists->linkUrls(), 'defaults' => (object) $lists->defaults()];
     }
 
     #[Route('/api/admin/lists/{kind}', methods: ['PUT'])]

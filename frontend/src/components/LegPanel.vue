@@ -23,10 +23,16 @@ function listMode(raw) {
     ?? [...modes].sort((a, b) => b.length - a.length).find((m) => new RegExp(`(^|[^a-z0-9])${fold(m).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`).test(v))
     ?? modes.find((m) => fold(m) === 'train') ?? ''
 }
-const defaultMode = () => listMode('Train')
+// Entrées par défaut (Administration → Listes) : mode de transport et site de réservation d'un nouveau trajet
+const defaultMode = () => lists.defaults.mode || ''
+const defaultLink = () => lists.linkUrls[lists.defaults.link] || ''
 // Classe (1re / 2nde) : seulement pour les modes cochés « Classe » dans Administration → Listes ; absente de la feuille de route
 const withClass = computed(() => lists.modeClass.includes(form.mode))
-loadLists().then(() => { if (!props.leg && !form.mode) form.mode = defaultMode() })
+loadLists().then(() => {
+  if (props.leg) return
+  if (!form.mode) form.mode = defaultMode()
+  if (!form.bookingUrl) form.bookingUrl = defaultLink()
+})
 const form = reactive({})
 const stations = reactive({ from: '', to: '' })
 const ids = new Map()
@@ -42,7 +48,7 @@ function defaults() {
   const out = props.direction === 'outbound'
   const day = out ? ((isTech(props.part) ? props.ev.techArrival : props.ev.artisticArrival) || props.ev.start) : (props.ev.departure || props.ev.lastDate)
   return { participationId: props.part.id, direction: props.direction, day, origin: out ? props.part.departureCity : props.ev.city,
-    destination: out ? props.ev.city : props.part.departureCity, depTime: '', arrTime: '', mode: defaultMode(), travelClass: '', reference: '', price: '', bookedOn: '', note: '', bookingUrl: '' }
+    destination: out ? props.ev.city : props.part.departureCity, depTime: '', arrTime: '', mode: defaultMode(), travelClass: '', reference: '', price: '', bookedOn: '', note: '', bookingUrl: defaultLink() }
 }
 let touched = false // gares modifiées à la main : la détection automatique ne les écrase pas
 async function init() {

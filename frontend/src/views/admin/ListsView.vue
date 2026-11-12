@@ -13,13 +13,15 @@ const LISTS = [
   ['expense', 'Types de dépense', 'Proposés pour les dépenses et remboursements de l\'aller et du retour (partie Voyages) ; comptés dans le coût, absents de la feuille de route.', 'Navette aéroport'],
 ]
 const KINDS = LISTS.map(([kind]) => kind)
+// Listes avec une entrée par défaut, pré-remplie dans une nouvelle saisie
+const WITH_DEFAULT = ['mode', 'link', 'expense']
 // Entrées : { label, withClass } (« withClass » : modes de transport dont le trajet précise une classe)
 const items = reactive(Object.fromEntries(KINDS.map((k) => [k, []])))
 const fresh = reactive(Object.fromEntries(KINDS.map((k) => [k, ''])))
 const dirty = reactive(Object.fromEntries(KINDS.map((k) => [k, false])))
 const busy = ref(false)
 
-const fill = (l) => KINDS.forEach((k) => { items[k] = (l[k] || []).map((label) => ({ label, withClass: k === 'mode' && (l.modeClass || []).includes(label), url: (l.linkUrls || {})[label] || '' })) })
+const fill = (l) => KINDS.forEach((k) => { items[k] = (l[k] || []).map((label) => ({ label, withClass: k === 'mode' && (l.modeClass || []).includes(label), url: (l.linkUrls || {})[label] || '', isDefault: (l.defaults || {})[k] === label })) })
 loadLists(true).then(fill)
 
 const changed = (kind) => { dirty[kind] = true }
@@ -27,7 +29,7 @@ function add(kind) {
   const v = fresh[kind].trim()
   if (!v) return
   if (items[kind].some((x) => x.label.localeCompare(v, 'fr', { sensitivity: 'base' }) === 0)) return showError(`« ${v} » est déjà dans la liste`)
-  items[kind].push({ label: v, withClass: false, url: kind === 'link' ? 'https://' : '' })
+  items[kind].push({ label: v, withClass: false, url: kind === 'link' ? 'https://' : '', isDefault: false })
   fresh[kind] = ''
   changed(kind)
 }
@@ -38,12 +40,19 @@ function move(kind, i, delta) {
   ;[list[i], list[j]] = [list[j], list[i]]
   changed(kind)
 }
+// Une seule entrée par défaut ; un second clic la retire (aucune entrée par défaut)
+function setDefault(kind, item) {
+  const on = !item.isDefault
+  items[kind].forEach((x) => { x.isDefault = false })
+  item.isDefault = on
+  changed(kind)
+}
 function remove(kind, i) { items[kind].splice(i, 1); changed(kind) }
 function sort(kind) { items[kind].sort((a, b) => a.label.localeCompare(b.label, 'fr')); changed(kind) }
 async function save(kind) {
   busy.value = true
   try {
-    const data = await put(`/admin/lists/${kind}`, { items: items[kind].map((x) => ({ label: x.label.trim(), withClass: x.withClass, ...(kind === 'link' ? { url: x.url.trim() } : {}) })).filter((x) => x.label) })
+    const data = await put(`/admin/lists/${kind}`, { items: items[kind].map((x) => ({ label: x.label.trim(), withClass: x.withClass, ...(WITH_DEFAULT.includes(kind) ? { isDefault: x.isDefault } : {}), ...(kind === 'link' ? { url: x.url.trim() } : {}) })).filter((x) => x.label) })
     setLists(data)
     fill(data)
     dirty[kind] = false
@@ -55,7 +64,7 @@ async function save(kind) {
 <template>
   <div class="page-head"><div><h1>Listes</h1><p>Les choix proposés dans les listes déroulantes. Retirer une entrée ne modifie pas les fiches déjà saisies : la valeur y reste, marquée « hors liste ».</p></div></div>
   <div class="lists-grid">
-    <section v-for="[kind, title, help, example] in LISTS" :key="kind" class="card" :class="{ wide: kind === 'mode' || kind === 'link' }">
+    <section v-for="[kind, title, help, example] in LISTS" :key="kind" class="card" :class="{ wide: WITH_DEFAULT.includes(kind) }">
       <div class="card-head" style="margin-bottom:4px">
         <h2>{{ title }} <span class="muted small">({{ items[kind].length }})</span></h2>
         <button type="button" class="btn btn-sm btn-ghost" @click="sort(kind)">Trier A → Z</button>
@@ -65,6 +74,9 @@ async function save(kind) {
         <li v-for="(item, i) in items[kind]" :key="`${kind}-${i}`">
           <input v-model="item.label" :aria-label="`Entrée ${i + 1}`" maxlength="120" @input="changed(kind)">
           <input v-if="kind === 'link'" v-model="item.url" type="url" class="url-input" :aria-label="`Adresse de ${item.label}`" placeholder="https://…" maxlength="500" @input="changed(kind)">
+          <button v-if="WITH_DEFAULT.includes(kind)" type="button" class="default-btn" :aria-pressed="item.isDefault"
+            :title="item.isDefault ? 'Proposé d\'office dans une nouvelle saisie (cliquer pour retirer)' : 'Proposer d\'office dans une nouvelle saisie'"
+            @click="setDefault(kind, item)">{{ item.isDefault ? '★ Par défaut' : '☆ Par défaut' }}</button>
           <label v-if="kind === 'mode'" class="class-check" :title="`Le trajet en ${item.label} précise 1re ou 2nde classe`">
             <input v-model="item.withClass" type="checkbox" @change="changed(kind)">Classe</label>
           <button type="button" class="btn btn-sm btn-icon" :aria-label="`Monter ${item.label}`" :disabled="i === 0" @click="move(kind, i, -1)"><Icon name="chevron" :size="16" style="transform:rotate(180deg)" /></button>
@@ -88,6 +100,8 @@ async function save(kind) {
 /* Modes de transport : la case « Classe » prend de la place, la carte occupe deux colonnes sur grand écran */
 @media (min-width: 1100px) { .wide { grid-column: span 2; } }
 .url-input { flex: 1.4 !important; }
+.default-btn { flex: none; padding: 4px 8px; border: 1px solid var(--line-2); border-radius: 10px; background: #fff; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.default-btn[aria-pressed=true] { border-color: var(--sun); background: var(--sun-soft); color: var(--sun-dark); }
 .class-check { display: inline-flex; align-items: center; gap: 5px; flex: none; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .class-check input { flex: none; min-height: 0; width: 16px; height: 16px; }
 </style>

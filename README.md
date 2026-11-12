@@ -215,6 +215,8 @@ sur place proposés dans les listes déroulantes (annuaire, équipe d'une date, 
   ajoute au trajet un champ 1re / 2nde classe, visible dans l'onglet Voyages et l'export Excel, pas dans la feuille de route.
 - **Sites de réservation** (nom et adresse) : proposés sous le lien de chaque trajet ; un clic met l'adresse du site, et
   l'on peut toujours coller le lien précis du billet.
+- **Par défaut** : dans les modes de transport, les sites de réservation et les types de dépense, une entrée peut être
+  marquée « par défaut » ; elle est pré-remplie dans chaque nouvelle saisie (au départ : le mode « Train »).
 - Retirer une entrée ne modifie pas les fiches existantes : la valeur y reste, marquée « hors liste ».
 - Au premier démarrage, les listes sont pré-remplies avec des valeurs courantes et les fonctions déjà saisies.
 - **Import des devis** : les valeurs des fichiers sont rapprochées des listes, sans tenir compte de la casse, des accents ni

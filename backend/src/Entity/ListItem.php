@@ -29,6 +29,10 @@ class ListItem
     #[ORM\Column(options: ['default' => false])]
     public bool $withClass = false;
 
+    /** Entrée pré-remplie dans une nouvelle saisie (mode de transport, site de réservation, type de dépense) ; une au plus par liste */
+    #[ORM\Column(name: 'is_default', options: ['default' => false])]
+    public bool $isDefault = false;
+
     /** Sites de réservation : adresse du site (proposée pour le lien d'un trajet) */
     #[ORM\Column(length: 500, options: ['default' => ''])]
     public string $url = '';
