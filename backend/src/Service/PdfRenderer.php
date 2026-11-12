@@ -75,22 +75,31 @@ class PdfRenderer
         return str_replace([' ', '/', '\''], ['_', '-', ''], self::DOCS[$doc].'_'.$event->show->title.'_'.$event->venue).'.pdf';
     }
 
-    /** Trajets d'un sens, regroupés par personne : [[p => participation, legs => trajets dans l'ordre chronologique], …]. */
+    /** Trajets d'un sens, groupés par date puis par personne : [jour => [[p => participation, legs => trajets du jour dans l'ordre horaire], …]], jours dans l'ordre. */
     private static function travel(array $ev, string $direction): array
     {
-        $key = fn (array $l) => [$l['day'], self::minutes($l['depTime'])];
-        $people = [];
-        foreach ($ev['participations'] as $p) {
-            $legs = array_values(array_filter($p['legs'], fn ($l) => $l['direction'] === $direction));
-            if ($legs) {
-                usort($legs, fn ($a, $b) => $key($a) <=> $key($b));
-                $people[] = ['p' => $p, 'legs' => $legs];
+        $key = fn (array $l) => self::minutes($l['depTime']);
+        $days = [];
+        foreach ($ev['participations'] as $i => $p) {
+            foreach ($p['legs'] as $l) {
+                if ($l['direction'] === $direction) {
+                    $days[$l['day']][$i]['p'] = $p;
+                    $days[$l['day']][$i]['legs'][] = $l;
+                }
             }
         }
-        // Personnes dans l'ordre de leur premier départ, puis par nom
-        usort($people, fn ($a, $b) => [$key($a['legs'][0]), $a['p']['person']['fullName']] <=> [$key($b['legs'][0]), $b['p']['person']['fullName']]);
+        ksort($days);
+        foreach ($days as &$people) {
+            foreach ($people as &$g) {
+                usort($g['legs'], fn ($a, $b) => $key($a) <=> $key($b));
+            }
+            unset($g);
+            // Dans une journée : personnes dans l'ordre de leur premier départ, puis par nom
+            usort($people, fn ($a, $b) => [$key($a['legs'][0]), $a['p']['person']['fullName']] <=> [$key($b['legs'][0]), $b['p']['person']['fullName']]);
+        }
+        unset($people);
 
-        return $people;
+        return $days;
     }
 
     /**
