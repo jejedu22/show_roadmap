@@ -57,7 +57,7 @@ class XlsxExporter
         $book = $this->book($ev, 'Export');
         $this->quoteSheet($book, $ev, false);
 
-        // Rooming : une ligne par chambre (une chambre double / twin partagée réunit ses deux occupants)
+        // Rooming : une ligne par chambre (une chambre partagée — double, twin, appartement — réunit ses occupants)
         $dates = $ev->spanDates();
         $rows = [];
         foreach (Rooming::rooms($ev) as $room) {

@@ -6,7 +6,7 @@ use App\Entity\Event;
 use App\Entity\Participation;
 
 /**
- * Chambres d'une date : une par personne, sauf les chambres double / twin partagées (deux occupants, une chambre).
+ * Chambres d'une date : une par personne, sauf les chambres partagées (double, twin : deux occupants ; appartement : plusieurs).
  * Sert à la rooming-list (PDF, Excel) et au devis, où la nuitée est comptée par chambre.
  */
 class Rooming
@@ -23,8 +23,7 @@ class Rooming
             if (isset($done[spl_object_id($p)])) {
                 continue;
             }
-            $mate = self::mate($p);
-            $occupants = $mate ? [$p, $mate] : [$p];
+            $occupants = self::occupants($p);
             foreach ($occupants as $o) {
                 $done[spl_object_id($o)] = true;
             }
@@ -32,10 +31,11 @@ class Rooming
             foreach ($dates as $d) {
                 $nights[$d] = (bool) array_filter($occupants, fn ($o) => (bool) ($o->day(new \DateTimeImmutable($d))?->night));
             }
+            $shared = count($occupants) > 1;
             $warning = match (true) {
-                !$mate && in_array($p->roomType, Participation::SHARED_ROOMS, true) => 'Chambre à partager : second occupant à choisir',
-                $mate && $p->lodging !== $mate->lodging => 'Hébergements différents',
-                $mate && self::nightsOf($p, $dates) !== self::nightsOf($mate, $dates) => 'Nuits différentes',
+                !$shared && in_array($p->roomType, ['double', 'twin'], true) => 'Chambre à partager : second occupant à choisir',
+                $shared && count(array_unique(array_map(fn ($o) => $o->lodging?->id ?? 0, $occupants))) > 1 => 'Hébergements différents',
+                $shared && count(array_unique(array_map(fn ($o) => implode(',', self::nightsOf($o, $dates)), $occupants))) > 1 => 'Nuits différentes',
                 default => '',
             };
             $rooms[] = ['occupants' => $occupants, 'type' => Participation::ROOM_TYPES[$p->roomType] ?? $p->roomType, 'lodging' => $p->lodging?->name ?? '',
@@ -49,25 +49,21 @@ class Rooming
     public static function roomNights(Event $ev): int
     {
         $n = 0;
-        foreach ($ev->participations as $p) {
-            $mate = self::mate($p);
-            foreach ($p->days as $d) {
-                // Nuit déjà comptée pour l'autre occupant de la chambre
-                if ($d->night && !($mate && spl_object_id($mate) < spl_object_id($p) && $mate->day($d->day)?->night)) {
-                    $n += $d->night;
-                }
-            }
+        foreach (self::rooms($ev) as $room) {
+            $n += $room['total'];
         }
 
         return $n;
     }
 
-    /** Autre occupant d'une chambre partagée, s'il est bien sur la même date et réciproque. */
-    public static function mate(Participation $p): ?Participation
+    /** Occupants de la chambre d'une personne (elle comprise), dans l'ordre de l'équipe. */
+    public static function occupants(Participation $p): array
     {
-        $m = $p->roommate;
+        if (null === $p->roomGroup || !array_key_exists($p->roomType, Participation::SHARED_ROOMS)) {
+            return [$p];
+        }
 
-        return $m && $m !== $p && $m->roommate === $p && $m->event === $p->event && in_array($p->roomType, Participation::SHARED_ROOMS, true) ? $m : null;
+        return array_values(array_filter($p->event->participations->toArray(), fn ($o) => $o->roomGroup === $p->roomGroup)) ?: [$p];
     }
 
     private static function nightsOf(Participation $p, array $dates): array

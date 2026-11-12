@@ -30,13 +30,15 @@ class Participation
     #[ORM\Column(length: 40)]
     public string $roomType = 'single';
 
-    /** Chambre double ou twin partagée avec une autre personne de la date (lien dans les deux sens) */
-    #[ORM\ManyToOne(targetEntity: Participation::class)]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    public ?Participation $roommate = null;
+    /**
+     * Chambre partagée : les participants de la date qui ont le même numéro occupent la même chambre (double, twin : deux
+     * personnes au plus ; appartement : autant que nécessaire). null = seul dans sa chambre.
+     */
+    #[ORM\Column(nullable: true)]
+    public ?int $roomGroup = null;
 
-    /** Types de chambre qui se partagent à deux */
-    public const SHARED_ROOMS = ['double', 'twin'];
+    /** Types de chambre qui se partagent, avec le nombre d'occupants au plus (null = sans limite) */
+    public const SHARED_ROOMS = ['double' => 2, 'twin' => 2, 'appartement' => null];
     public const ROOM_TYPES = ['single' => 'Single', 'double' => 'Double', 'twin' => 'Twin', 'appartement' => 'Appartement'];
 
     #[ORM\Column(length: 120)]

@@ -1,5 +1,5 @@
 {% extends 'pdf/layout.html.twig' %}
-{# Une ligne par chambre : une chambre double / twin partagée réunit ses deux occupants #}
+{# Une ligne par chambre : une chambre partagée (double, twin, appartement) réunit ses occupants #}
 {% block body %}
   <table class="grid rooming">
     <thead><tr><th>Occupant(s)</th><th>Fonction</th><th>Chambre</th><th>Hébergement</th>{% for d in ev.dates %}<th class="c">{{ d|ddmm }}</th>{% endfor %}<th class="c">Nuits</th></tr></thead>
