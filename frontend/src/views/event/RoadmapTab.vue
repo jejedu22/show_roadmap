@@ -84,7 +84,7 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
       <section class="card">
         <h3 style="margin-bottom:8px">Autres documents</h3>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <RouterLink v-for="[doc, label] in [['contacts', 'Coordonnées de l\'équipe', 'people.view'], ['rooming', 'Rooming-list', 'company.view'], ['perdiem', 'Défraiements', 'finance.view'], ['travelcost', 'Suivi des frais de voyage', 'finance.view'], ['quote', 'Devis', 'finance.view']].filter((d) => allowed(d[2]))"
+          <RouterLink v-for="[doc, label] in [['transfers', 'Arrivées et départs', 'company.view'], ['contacts', 'Coordonnées de l\'équipe', 'people.view'], ['rooming', 'Rooming-list', 'company.view'], ['perdiem', 'Défraiements', 'finance.view'], ['travelcost', 'Suivi des frais de voyage', 'finance.view'], ['quote', 'Devis', 'finance.view']].filter((d) => allowed(d[2]))"
             :key="doc" :to="`/events/${ev.id}/print/${doc}`" target="_blank">{{ label }} (PDF)</RouterLink>
         </div>
       </section>

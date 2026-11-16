@@ -41,7 +41,7 @@ class XlsxExporter
     /** Couleurs du thème actif (RRGGBB), lues à chaque export */
     private array $c = [];
 
-    public function __construct(private QuoteCalculator $quotes, private Themes $themes)
+    public function __construct(private QuoteCalculator $quotes, private Themes $themes, private Presenter $presenter)
     {
     }
 
@@ -77,6 +77,7 @@ class XlsxExporter
         $nights = $rooming['total'] ? self::ref('Rooming', $nightsCol, $rooming['total']).'*'.self::number((float) $ev->nightRate, '.') : null;
         $this->linkQuote($book, $ev, $quote, $perDiem, $travel, $nights);
 
+        $this->transfersSheet($book, $ev, $withContacts);
         $this->invitationSheet($book, $ev);
 
         $withContacts && $this->table($book, $ev, 'Coordonnées', [['Nom', 'text', 22], ['Fonction', 'text', 20], ['Téléphone', 'text', 16],
@@ -125,6 +126,37 @@ class XlsxExporter
         $book->setIndexByName('Par personne', 2);
 
         return $this->write($book);
+    }
+
+    /** Arrivées et départs de l'équipe (transferts) : un classeur d'un onglet ; $withPhone : droit « Voir les coordonnées ». */
+    public function exportTransfers(Event $ev, bool $withPhone): string
+    {
+        $book = $this->book($ev, 'Arrivées et départs');
+        $this->transfersSheet($book, $ev, $withPhone);
+
+        return $this->write($book);
+    }
+
+    public static function transfersFilename(Event $ev): string
+    {
+        return str_replace([' ', '/', '\''], ['_', '-', ''], 'Arrivees_departs_'.$ev->show->title.'_'.$ev->venue).'.xlsx';
+    }
+
+    /** Onglet Arrivées et départs : une ligne par personne, dans l'ordre des arrivées (voir Transfers). */
+    private function transfersSheet(Spreadsheet $book, Event $ev, bool $withPhone): void
+    {
+        $rows = [];
+        foreach (Transfers::rows($this->presenter->event($ev)) as $t) {
+            [$a, $d] = [$t['arrival'], $t['departure']];
+            $date = fn (?array $x) => $x ? \DateTimeImmutable::createFromFormat('!Y-m-d', $x['day']) : '';
+            $rows[] = [$t['name'], $t['role'], ...($withPhone ? [$t['phone']] : []),
+                $date($a), $a['time'] ?? '', $a ? $a['place'] : 'Aller à réserver', $a['transport'] ?? '',
+                $date($d), $d['time'] ?? '', $d ? $d['place'] : 'Retour à réserver', $d['transport'] ?? ''];
+        }
+        $this->table($book, $ev, 'Arrivées et départs', [['Nom', 'text', 22], ['Fonction', 'text', 18], ...($withPhone ? [['Téléphone', 'text', 15]] : []),
+            ['Arrivée le', 'date', 16], ['Heure d\'arrivée', 'text', 10], ['Lieu d\'arrivée', 'text', 20], ['Transport (aller)', 'text', 18],
+            ['Départ le', 'date', 16], ['Heure de départ', 'text', 10], ['Lieu de départ', 'text', 20], ['Transport (retour)', 'text', 18]], $rows,
+            ['tab' => $this->rgb('coral'), 'note' => 'Pour organiser les transferts : arrivée du dernier trajet aller, départ du premier trajet retour.']);
     }
 
     public static function costsFilename(Event $ev): string

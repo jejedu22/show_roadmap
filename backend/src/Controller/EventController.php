@@ -538,6 +538,15 @@ class EventController extends ApiController
         ]);
     }
 
+    /** Arrivées et départs de l'équipe (Excel), pour organiser les transferts. */
+    #[Route('/transfers.xlsx', methods: ['GET'])]
+    public function exportTransfers(int $id, XlsxExporter $exporter): Response
+    {
+        $ev = $this->event($id);
+
+        return self::xlsx($exporter->exportTransfers($ev, $this->authz->can($this->me(), 'people.view', $ev->show->company)), XlsxExporter::transfersFilename($ev));
+    }
+
     #[Route('/export.xlsx', methods: ['GET'])]
     public function export(int $id, XlsxExporter $exporter): Response
     {

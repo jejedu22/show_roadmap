@@ -44,9 +44,13 @@ async function remove(p, l) {
       <div class="page-head">
         <h2 id="voy">Voyages</h2>
         <span class="muted">{{ ev.readiness.legsCovered }} / {{ ev.readiness.legsNeeded }} trajets<template v-if="ev.quote"> · billets <b style="color:var(--ink)">{{ money(ev.quote.travelTickets) }}</b><template v-if="ev.quote.travelExpenses"> · dépenses <b style="color:var(--ink)">{{ money(ev.quote.travelExpenses) }}</b></template></template></span>
-        <span v-if="allowed('travel.edit') && ev.participations.length" class="actions" style="margin-left:auto">
-          <button type="button" class="btn btn-sm" @click="copying = true"><Icon name="copy" :size="16" />Reprendre d'une autre date</button>
-          <button type="button" class="btn btn-sm" @click="importing = true">Importer depuis Excel (Horaires TGV)</button>
+        <span v-if="ev.participations.length" class="actions" style="margin-left:auto">
+          <RouterLink class="btn btn-sm" :to="`/events/${ev.id}/print/transfers`" target="_blank" title="Pour organiser les transferts : arrivée et départ de chaque personne"><Icon name="file" :size="16" />Arrivées et départs</RouterLink>
+          <a class="btn btn-sm" :href="`/api/events/${ev.id}/transfers.xlsx`" title="Arrivées et départs (Excel)"><Icon name="download" :size="16" />Excel</a>
+          <template v-if="allowed('travel.edit')">
+            <button type="button" class="btn btn-sm" @click="copying = true"><Icon name="copy" :size="16" />Reprendre d'une autre date</button>
+            <button type="button" class="btn btn-sm" @click="importing = true">Importer depuis Excel (Horaires TGV)</button>
+          </template>
         </span>
       </div>
       <p v-if="allowed('travel.edit') && ev.participations.length" class="muted small" style="margin:0">Cliquez sur « Ajouter l'aller » ou « Ajouter le retour » : le formulaire s'ouvre juste en dessous, villes et date pré-remplies, trains SNCF proposés.
