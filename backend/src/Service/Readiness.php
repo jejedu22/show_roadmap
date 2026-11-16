@@ -53,8 +53,10 @@ class Readiness
                 'detail' => $stayDone ? $nights.' nuitée'.($nights > 1 ? 's' : '') : ($ev->lodgings->isEmpty() ? 'Hébergement à ajouter' : 'Hébergement à attribuer')],
             ['key' => 'quote', 'label' => 'Devis', 'done' => (float) $ev->fee > 0, 'detail' => (float) $ev->fee > 0 ? $fmt($quote['totalTtc']).' TTC' : 'Cachet à saisir'],
             // Facultatif : affiché dans les étapes, sans compter dans l'avancement
-            ['key' => 'invitations', 'label' => 'Invitations', 'optional' => true, 'done' => $inv['used'] > 0,
-                'detail' => $inv['quota'] || $inv['used'] ? $inv['used'].' / '.$inv['quota'].' place'.($inv['quota'] > 1 ? 's' : '') : 'Facultatif'],
+            ['key' => 'invitations', 'label' => 'Invitations', 'optional' => true, 'done' => $inv['used'] + $inv['detaxe'] > 0,
+                'detail' => $inv['quota'] || $inv['used'] ? $inv['used'].' / '.$inv['quota'].' place'.($inv['quota'] > 1 ? 's' : '')
+                    .($inv['detaxeQuota'] || $inv['detaxe'] ? ' · '.$inv['detaxe'].' / '.$inv['detaxeQuota'].' détaxe'.($inv['detaxeQuota'] > 1 ? 's' : '') : '')
+                    : ($inv['detaxeQuota'] || $inv['detaxe'] ? $inv['detaxe'].' / '.$inv['detaxeQuota'].' détaxe'.($inv['detaxeQuota'] > 1 ? 's' : '') : 'Facultatif')],
             ['key' => 'roadmap', 'label' => 'Feuille de route', 'done' => null !== $ev->sharedAt,
                 'detail' => $ev->sharedAt ? 'Partagée le '.$ev->sharedAt->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m') : 'Pas encore partagée'],
         ];

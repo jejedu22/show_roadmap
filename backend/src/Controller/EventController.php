@@ -16,6 +16,8 @@ use App\Entity\Show;
 use App\Entity\TravelExpense;
 use App\Entity\TruckLeg;
 use App\Service\Import\Sheet;
+use App\Service\Import\SignedQuoteParser;
+use App\Service\Import\TechPlanningParser;
 use App\Service\Import\TrainSheetParser;
 use App\Service\Input;
 use App\Service\Invitations;
@@ -414,6 +416,113 @@ class EventController extends ApiController
         return $this->savedEvent($ev);
     }
 
+    /** Lecture du planning d'une fiche technique PDF (dernière page) : lignes proposées, à vérifier avant d'enregistrer. */
+    #[Route('/schedule/pdf', methods: ['POST'])]
+    public function readTechPlanning(int $id, Request $request, TechPlanningParser $parser): JsonResponse
+    {
+        $ev = $this->event($id, 'events.edit');
+        $file = $request->files->get('file');
+        $file = is_array($file) ? ($file[0] ?? null) : $file;
+        if (!$file || !$file->isValid() || $file->getSize() > 10 * 1024 * 1024) {
+            throw new BadRequestHttpException('Fichier illisible ou trop volumineux (10 Mo maximum).');
+        }
+        if ('%PDF-' !== file_get_contents($file->getPathname(), false, null, 0, 5)) {
+            throw new BadRequestHttpException('Seules les fiches techniques au format PDF sont acceptées.');
+        }
+        try {
+            return $this->json($parser->parse($parser->text($file->getPathname()), $ev) + ['file' => (string) $file->getClientOriginalName()]);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    /** Enregistre les lignes de planning validées (ajout, ou remplacement du planning existant). */
+    #[Route('/schedule/import', methods: ['POST'])]
+    public function importTechPlanning(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'events.edit');
+        $d = $this->body($request);
+        $rows = is_array($d['rows'] ?? null) ? array_values(array_filter($d['rows'], 'is_array')) : [];
+        if (!$rows) {
+            throw new BadRequestHttpException('Aucune ligne à importer.');
+        }
+        if (count($rows) > 200) {
+            throw new BadRequestHttpException('200 lignes au plus par import.');
+        }
+        $items = [];
+        foreach ($rows as $i => $r) {
+            $item = new ScheduleItem($ev);
+            $item->day = Input::date($r, 'day') ?? throw new BadRequestHttpException(sprintf('Ligne %d : jour manquant.', $i + 1));
+            $item->time = Input::str($r, 'time', 20);
+            $item->label = $this->lists->check('schedule', Input::str($r, 'label') ?: throw new BadRequestHttpException(sprintf('Ligne %d : intitulé à choisir.', $i + 1)));
+            $item->detail = Input::str($r, 'detail');
+            $items[] = $item;
+        }
+        $removed = 0;
+        if (!empty($d['replace'])) {
+            foreach ($ev->schedule->toArray() as $old) {
+                foreach ($ev->invitations as $inv) { // invitations de la représentation remplacée : à répartir
+                    $inv->performance === $old && $inv->performance = null;
+                }
+                $ev->schedule->removeElement($old);
+                ++$removed;
+            }
+        }
+        foreach ($items as $item) {
+            $ev->schedule->add($item);
+        }
+        $this->audit->log('event.schedule_import', sprintf('%s — %s', $ev->show->title, $ev->venue), ['lignes' => count($items), 'remplacées' => $removed]);
+
+        return $this->savedEvent($ev);
+    }
+
+    /** Lecture d'un devis PDF signé : renvoie ce qui a été lu, à vérifier avant d'enregistrer (rien n'est enregistré ici). */
+    #[Route('/signed-quote/pdf', methods: ['POST'])]
+    public function readSignedQuote(int $id, Request $request, SignedQuoteParser $parser): JsonResponse
+    {
+        $this->event($id, 'finance.edit');
+        $file = $request->files->get('file');
+        $file = is_array($file) ? ($file[0] ?? null) : $file;
+        if (!$file || !$file->isValid() || $file->getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestHttpException('Fichier illisible ou trop volumineux (5 Mo maximum).');
+        }
+        if ('%PDF-' !== file_get_contents($file->getPathname(), false, null, 0, 5)) {
+            throw new BadRequestHttpException('Seuls les devis au format PDF sont acceptés.');
+        }
+        try {
+            return $this->json($parser->parse($parser->text($file->getPathname())) + ['file' => (string) $file->getClientOriginalName()]);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    /** Devis signé : numéro, dates, déplacements de l'équipe, repas, nuitées (saisis ou repris d'un PDF). */
+    #[Route('/signed-quote', methods: ['PUT'])]
+    public function saveSignedQuote(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'finance.edit');
+        $d = $this->body($request);
+        $count = fn (string $k) => '' === trim((string) ($d[$k] ?? '')) ? null : max(0, min(100000, Input::int($d, $k)));
+        $ev->signedQuoteNumber = Input::str($d, 'number', 40) ?: null;
+        $ev->signedQuoteDate = Input::date($d, 'date');
+        $ev->signedOn = Input::date($d, 'signedOn');
+        $ev->signedTeamTravel = '' === trim((string) ($d['teamTravel'] ?? '')) ? null : Input::decimal($d, 'teamTravel');
+        $ev->signedMeals = $count('meals');
+        $ev->signedNights = $count('nights');
+        $this->audit->log('event.signed_quote', sprintf('%s — %s', $ev->show->title, $ev->venue), array_filter(['devis' => $ev->signedQuoteNumber]));
+
+        return $this->savedEvent($ev);
+    }
+
+    #[Route('/signed-quote', methods: ['DELETE'])]
+    public function deleteSignedQuote(int $id): JsonResponse
+    {
+        $ev = $this->event($id, 'finance.edit');
+        [$ev->signedQuoteNumber, $ev->signedQuoteDate, $ev->signedOn, $ev->signedTeamTravel, $ev->signedMeals, $ev->signedNights] = [null, null, null, null, null, null];
+
+        return $this->savedEvent($ev);
+    }
+
     /** Export Excel des seuls coûts (le fichier envoyé par le lien de partage des coûts). */
     #[Route('/costs.xlsx', methods: ['GET'])]
     public function exportCosts(int $id, XlsxExporter $exporter): Response
@@ -488,6 +597,15 @@ class EventController extends ApiController
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_ATTACHMENT, $name, preg_replace('/[^\x20-\x7E]/', '', $name) ?: 'export.xlsx'),
         ]);
+    }
+
+    /** Arrivées et départs de l'équipe (Excel), pour organiser les transferts. */
+    #[Route('/transfers.xlsx', methods: ['GET'])]
+    public function exportTransfers(int $id, XlsxExporter $exporter): Response
+    {
+        $ev = $this->event($id);
+
+        return self::xlsx($exporter->exportTransfers($ev, $this->authz->can($this->me(), 'people.view', $ev->show->company)), XlsxExporter::transfersFilename($ev));
     }
 
     #[Route('/export.xlsx', methods: ['GET'])]
@@ -607,6 +725,7 @@ class EventController extends ApiController
     private function fillInvitation(Invitation $i, array $d): void
     {
         $i->kind = 'pro' === ($d['kind'] ?? null) ? 'pro' : 'company';
+        $i->ticket = 'detaxe' === ($d['ticket'] ?? null) ? 'detaxe' : 'invitation';
         $i->lastName = Input::str($d, 'lastName', 120) ?: throw new BadRequestHttpException('Nom obligatoire');
         $i->firstName = Input::str($d, 'firstName', 120);
         $i->structure = 'pro' === $i->kind ? Input::str($d, 'structure') : '';
@@ -617,19 +736,26 @@ class EventController extends ApiController
     }
 
     /**
-     * Places d'invitation mises à disposition par le lieu : par représentation ({performances: {id: places}}),
-     * ou pour toute la date ({total: places}) quand le planning n'a pas de représentation.
+     * Places mises à disposition par le lieu, en invitations et en détaxes : par représentation
+     * ({performances: {id: {invitations, detaxes}}}, ou {id: places} pour les seules invitations),
+     * ou pour toute la date ({total, detaxeTotal}) quand le planning n'a pas de représentation.
      */
     #[Route('/invitation-quotas', methods: ['PUT'])]
     public function invitationQuotas(int $id, Request $request): JsonResponse
     {
         $ev = $this->event($id, 'events.edit');
         $d = $this->body($request);
-        $ev->invitationQuota = max(0, min(10000, Input::int($d, 'total')));
+        $n = fn (mixed $v) => max(0, min(10000, (int) $v));
+        $ev->invitationQuota = $n(Input::int($d, 'total'));
+        $ev->detaxeQuota = $n(Input::int($d, 'detaxeTotal'));
         $quotas = is_array($d['performances'] ?? null) ? $d['performances'] : [];
         foreach (Invitations::performances($ev) as $s) {
-            if (isset($quotas[$s->id]) && is_scalar($quotas[$s->id])) {
-                $s->invitationQuota = max(0, min(10000, (int) $quotas[$s->id]));
+            $q = $quotas[$s->id] ?? null;
+            if (is_scalar($q)) {
+                $s->invitationQuota = $n($q);
+            } elseif (is_array($q)) {
+                isset($q['invitations']) && is_scalar($q['invitations']) && $s->invitationQuota = $n($q['invitations']);
+                isset($q['detaxes']) && is_scalar($q['detaxes']) && $s->detaxeQuota = $n($q['detaxes']);
             }
         }
 

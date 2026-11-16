@@ -19,12 +19,13 @@ class PdfRenderer
         'contacts' => 'Coordonnées de l\'équipe',
         'quote' => 'Devis',
         'invitations' => 'Invitations',
+        'transfers' => 'Arrivées et départs',
     ];
 
     /** Droit nécessaire pour chaque document. */
     public const PERMS = [
         'roadmap' => 'company.view', 'rooming' => 'company.view', 'contacts' => 'people.view',
-        'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view', 'invitations' => 'company.view',
+        'perdiem' => 'finance.view', 'travelcost' => 'finance.view', 'quote' => 'finance.view', 'invitations' => 'company.view', 'transfers' => 'company.view',
     ];
 
     public function __construct(private Environment $twig, private Presenter $presenter, private Themes $themes, private CompanyLogos $logos,
@@ -47,6 +48,7 @@ class PdfRenderer
             'schedule' => self::groupBy($ev['schedule'], 'day'),
             'invitationGroups' => 'invitations' === $doc ? self::invitationGroups($ev) : [],
             'rooms' => 'rooming' === $doc ? Rooming::rooms($event) : [],
+            'transfers' => 'transfers' === $doc ? Transfers::rows($ev) : [],
             'weather' => 'roadmap' === $doc ? $this->weather->forEvent($event) : null, // prévisions de la ville de la date
             'generatedAt' => (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Paris')))->format('d/m/Y à H:i'),
         ]);
@@ -58,7 +60,7 @@ class PdfRenderer
             ->setIsJavascriptEnabled(false);
         $pdf = new Dompdf($options);
         $pdf->loadHtml($html, 'UTF-8');
-        $pdf->setPaper('A4', 'rooming' === $doc && count($ev['dates']) > 7 ? 'landscape' : 'portrait');
+        $pdf->setPaper('A4', 'transfers' === $doc || ('rooming' === $doc && count($ev['dates']) > 7) ? 'landscape' : 'portrait');
         $pdf->addInfo('Title', self::DOCS[$doc].' — '.$ev['showTitle'].' — '.$ev['venue']);
         $pdf->render();
 

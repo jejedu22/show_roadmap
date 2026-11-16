@@ -35,7 +35,7 @@ class TravelExpensesTest extends ApiTestCase
         self::assertNotContains('Budget transport', array_column($ev['quote']['lines'], 'label'), 'pas de ligne sans budget');
         $ev = $this->call('PUT', "/api/events/{$ev['id']}/rates", ['transportBudget' => '250,00'] + array_map('strval', $ev['rates']));
         self::assertEquals(250, $ev['rates']['transportBudget']);
-        self::assertEquals(['Budget transport', 250], array_values(array_column($ev['quote']['lines'], null, 'label')['Budget transport']));
+        self::assertEquals(['key' => 'budget', 'label' => 'Budget transport', 'amount' => 250], array_column($ev['quote']['lines'], null, 'label')['Budget transport']);
         self::assertEquals($before + 250, $ev['quote']['totalHt']);
         self::assertEquals(70.5, array_column($ev['quote']['lines'], null, 'label')['Transport équipe (billets, dépenses de trajet, transports locaux)']['amount']);
         foreach (['export.xlsx', 'costs.xlsx'] as $file) {

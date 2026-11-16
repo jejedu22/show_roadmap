@@ -66,6 +66,9 @@
   table.slots { width: 100%; border-collapse: collapse; }
   table.slots td { padding: 3pt 6pt; border-bottom: .6pt dashed {{ theme.line2 }}; }
   table.slots td.h { width: 22%; font-weight: bold; color: {{ theme.violet }}; }
+  /* Représentations : en rouge, quel que soit le thème, pour les repérer d'un coup d'œil */
+  table.slots tr.perf td { color: #C8102E; font-weight: bold; background: #FDECEE; }
+  table.slots tr.perf td.h { color: #C8102E; border-left: 3pt solid #C8102E; }
 
   /* Tableaux */
   table.grid { width: 100%; border-collapse: collapse; margin-top: 4pt; }

@@ -1,0 +1,39 @@
+{% extends 'pdf/layout.html.twig' %}
+{# Arrivées et départs : une ligne par personne, dans l'ordre des arrivées (pour organiser les transferts) #}
+{% block body %}
+  {% set phones = transfers|filter(t => t.phone)|length > 0 %}
+  <p class="muted" style="margin:0 0 6pt">Arrivée : dernier trajet aller (après les correspondances). Départ : premier trajet retour.</p>
+  <table class="grid transfers">
+    <thead>
+      <tr class="groups"><th colspan="{{ phones ? 3 : 2 }}"></th><th colspan="4" class="arr">Arrivée</th><th colspan="4" class="dep">Départ</th></tr>
+      <tr><th>Nom</th><th>Fonction</th>{% if phones %}<th class="tel">Téléphone</th>{% endif %}
+        <th class="arr">Jour</th><th class="arr c">Heure</th><th class="arr">Lieu</th><th class="arr">Transport</th>
+        <th class="dep">Jour</th><th class="dep c">Heure</th><th class="dep">Lieu</th><th class="dep">Transport</th></tr>
+    </thead>
+    <tbody>
+    {% for t in transfers %}
+      <tr>
+        <td><b>{{ t.name }}</b></td><td>{{ t.role }}</td>{% if phones %}<td class="tel">{{ t.phone }}</td>{% endif %}
+        {% for x in [t.arrival, t.departure] %}
+          {% if x %}
+            <td class="when">{{ x.day|fday }}</td><td class="c"><b>{{ x.time ?: '—' }}</b></td><td>{{ x.place }}</td><td class="muted">{{ x.transport }}</td>
+          {% else %}
+            <td colspan="4" class="todo">{{ loop.first ? 'Aller' : 'Retour' }} à réserver</td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+    {% else %}
+      <tr><td colspan="11" class="muted">Aucune personne dans l'équipe.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <style>
+    table.transfers .tel, table.transfers td.when { white-space: nowrap; }
+    table.transfers tr.groups th { text-align: center; font-size: 8.5pt; }
+    table.transfers tr.groups th:first-child { background: none; }
+    table.transfers th.arr { background: {{ theme.violet }}; }
+    table.transfers th.dep { background: {{ theme.coralDark }}; }
+    table.transfers td.todo { color: {{ theme.coralDark }}; font-style: italic; }
+    table.transfers td.c { text-align: center; }
+  </style>
+{% endblock %}

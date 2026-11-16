@@ -173,12 +173,15 @@ class Presenter
             'sections' => $e->sections->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'body' => $s->body,
                 'position' => $s->position])->getValues(),
             'schedule' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
-                'label' => $s->label, 'detail' => $s->detail], self::byTime($e->schedule->toArray(), 'time')),
+                'label' => $s->label, 'detail' => $s->detail,
+                // Représentation (même règle que les invitations) : mise en évidence dans le planning de la feuille de route
+                'isPerformance' => str_contains(Import\Sheet::norm($s->label), 'representation')], self::byTime($e->schedule->toArray(), 'time')),
             // Invitations : jamais dans la feuille de route
             'invitationQuota' => $e->invitationQuota,
+            'detaxeQuota' => $e->detaxeQuota,
             'invitationPerformances' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time, 'detail' => $s->detail,
-                'quota' => $s->invitationQuota], Invitations::performances($e)),
-            'invitations' => $e->invitations->map(fn ($i) => ['id' => $i->id, 'kind' => $i->kind, 'lastName' => $i->lastName, 'firstName' => $i->firstName,
+                'quota' => $s->invitationQuota, 'detaxeQuota' => $s->detaxeQuota], Invitations::performances($e)),
+            'invitations' => $e->invitations->map(fn ($i) => ['id' => $i->id, 'kind' => $i->kind, 'ticket' => $i->ticket, 'lastName' => $i->lastName, 'firstName' => $i->firstName,
                 'structure' => $i->structure, 'places' => $i->places, 'performanceId' => $i->performance?->id])->getValues(),
             'invitationSummary' => Invitations::summary($e),
             'overlaps' => array_map(fn (Event $o) => $this->eventSummary($o), $this->planning->overlaps($e)),
@@ -192,6 +195,11 @@ class Presenter
                 'defaultExpiresOn' => Input::iso($e->defaultShareExpiry()), 'maxExpiresOn' => Input::iso($e->maxShareExpiry()),
                 'emails' => in_array('people.view', $perms, true) ? array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues())) : []],
             'quote' => $this->quotes->compute($e),
+            // Devis signé : comparé au réalisé (déplacements de l'équipe, repas, nuitées) ; null si rien de saisi
+            'signedQuote' => $finance && (null !== $e->signedQuoteNumber || null !== $e->signedTeamTravel || null !== $e->signedMeals || null !== $e->signedNights) ? [
+                'number' => $e->signedQuoteNumber, 'date' => Input::iso($e->signedQuoteDate), 'signedOn' => Input::iso($e->signedOn),
+                'teamTravel' => null === $e->signedTeamTravel ? null : (float) $e->signedTeamTravel, 'meals' => $e->signedMeals, 'nights' => $e->signedNights,
+            ] : null,
             'personCosts' => $this->quotes->personCosts($e),
         ];
         if (!$finance) {

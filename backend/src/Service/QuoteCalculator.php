@@ -35,6 +35,7 @@ class QuoteCalculator
         $truck = $km * (float) $ev->truckRate;
         $mealsAmount = $meals * (float) $ev->mealRate;
         $bfAmount = $bf * (float) $ev->breakfastRate;
+        $personNights = $nights; // par personne (comparées au devis signé)
         $nights = Rooming::roomNights($ev); // par chambre : une chambre double partagée compte une nuitée
         $nightsAmount = $nights * (float) $ev->nightRate;
         $team = $tickets + $expenses + $teamExtras;
@@ -52,20 +53,23 @@ class QuoteCalculator
             'travelExpenses' => $r($expenses),
             'travelTotal' => $r($tickets + $expenses),
             'transportBudget' => $r($budget),
+            'teamExtras' => $r($teamExtras),
             'mealsCount' => $meals,
             'breakfastsCount' => $bf,
             'nightsCount' => $nights,
+            'personNightsCount' => $personNights,
+            'teamTransport' => $r($tickets + $expenses + $teamExtras),
             'meals' => $r($mealsAmount),
             'breakfasts' => $r($bfAmount),
             'nights' => $r($nightsAmount),
             'lines' => [
-                ['label' => sprintf('Transport décor (%s km × %s €)', self::n($km), self::n((float) $ev->truckRate)), 'amount' => $r($truck)],
-                ['label' => 'Transport équipe (billets, dépenses de trajet, transports locaux)', 'amount' => $r($team)],
-                ...($budget ? [['label' => 'Budget transport', 'amount' => $r($budget)]] : []),
-                ['label' => sprintf('Défraiements repas (%d × %s €)', $meals, self::n((float) $ev->mealRate)), 'amount' => $r($mealsAmount)],
-                ['label' => sprintf('Petits-déjeuners (%d × %s €)', $bf, self::n((float) $ev->breakfastRate)), 'amount' => $r($bfAmount)],
-                ['label' => sprintf('Nuitées (%d × %s €, par chambre)', $nights, self::n((float) $ev->nightRate)), 'amount' => $r($nightsAmount)],
-                ['label' => 'Autres frais', 'amount' => $r($otherExtras)],
+                ['key' => 'truck', 'label' => sprintf('Transport décor (%s km × %s €)', self::n($km), self::n((float) $ev->truckRate)), 'amount' => $r($truck)],
+                ['key' => 'team', 'label' => 'Transport équipe (billets, dépenses de trajet, transports locaux)', 'amount' => $r($team)],
+                ...($budget ? [['key' => 'budget', 'label' => 'Budget transport', 'amount' => $r($budget)]] : []),
+                ['key' => 'meals', 'label' => sprintf('Défraiements repas (%d × %s €)', $meals, self::n((float) $ev->mealRate)), 'amount' => $r($mealsAmount)],
+                ['key' => 'breakfasts', 'label' => sprintf('Petits-déjeuners (%d × %s €)', $bf, self::n((float) $ev->breakfastRate)), 'amount' => $r($bfAmount)],
+                ['key' => 'nights', 'label' => sprintf('Nuitées (%d × %s €, par chambre)', $nights, self::n((float) $ev->nightRate)), 'amount' => $r($nightsAmount)],
+                ['key' => 'other', 'label' => 'Autres frais', 'amount' => $r($otherExtras)],
             ],
             'annexTotal' => $r($annex),
             'totalHt' => $r($totalHt),

@@ -11,7 +11,7 @@ use Twig\Loader\FilesystemLoader;
 /** Feuille de route PDF : coordonnées de l'équipe sur une dernière page, masquée sans téléphone ni e-mail (droit annuaire absent). */
 class RoadmapContactsTest extends TestCase
 {
-    private function html(array $person): string
+    private function html(array $person, array $schedule = []): string
     {
         $twig = new Environment(new FilesystemLoader(__DIR__.'/../templates'));
         $twig->addExtension(new FormatExtension());
@@ -20,7 +20,7 @@ class RoadmapContactsTest extends TestCase
             'participations' => [['person' => $person + ['firstName' => 'Anna', 'lastName' => 'DURAND', 'fullName' => 'DURAND Anna', 'diet' => 'Végétarienne'], 'role' => 'Danseuse', 'legs' => [], 'lodgingId' => null]]];
 
         return $twig->render('pdf/roadmap.html.twig', ['ev' => $ev, 'title' => 'Feuille de route', 'outbound' => [], 'inbound' => [], 'lodgingNames' => [],
-            'schedule' => [], 'weather' => null, 'logo' => null, 'theme' => Themes::forTemplates(Themes::THEMES['violet']['colors']), 'generatedAt' => 'test']);
+            'schedule' => $schedule, 'weather' => null, 'logo' => null, 'theme' => Themes::forTemplates(Themes::THEMES['violet']['colors']), 'generatedAt' => 'test']);
     }
 
     public function testContactsPage(): void
@@ -32,5 +32,16 @@ class RoadmapContactsTest extends TestCase
         self::assertStringNotContainsString('Végétarienne', $html, 'pas de régime alimentaire sur la feuille de route');
 
         self::assertStringNotContainsString('Coordonnées de l\'équipe', $this->html(['phone' => '', 'email' => '']), 'masquée sans coordonnées');
+    }
+
+    /** Planning : les représentations sont mises en évidence (en rouge). */
+    public function testPerformancesHighlighted(): void
+    {
+        $html = $this->html(['phone' => '', 'email' => ''], ['2027-01-19' => [
+            ['time' => '14h', 'label' => 'Montage', 'detail' => '', 'isPerformance' => false],
+            ['time' => '20h30', 'label' => 'Représentation', 'detail' => 'tout public', 'isPerformance' => true],
+        ]]);
+        self::assertSame(1, substr_count($html, '<tr class="perf">'));
+        self::assertMatchesRegularExpression('#<tr class="perf"><td class="h">20h30</td><td>Représentation — tout public</td>#', $html);
     }
 }
