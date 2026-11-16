@@ -17,6 +17,7 @@ use App\Entity\TravelExpense;
 use App\Entity\TruckLeg;
 use App\Service\Import\Sheet;
 use App\Service\Import\SignedQuoteParser;
+use App\Service\Import\TechPlanningParser;
 use App\Service\Import\TrainSheetParser;
 use App\Service\Input;
 use App\Service\Invitations;
@@ -411,6 +412,66 @@ class EventController extends ApiController
             $item instanceof Invitation => $ev->invitations->removeElement($item),
         };
         $item instanceof Leg && $this->daysFromTravel($planning, $item->participation);
+
+        return $this->savedEvent($ev);
+    }
+
+    /** Lecture du planning d'une fiche technique PDF (dernière page) : lignes proposées, à vérifier avant d'enregistrer. */
+    #[Route('/schedule/pdf', methods: ['POST'])]
+    public function readTechPlanning(int $id, Request $request, TechPlanningParser $parser): JsonResponse
+    {
+        $ev = $this->event($id, 'events.edit');
+        $file = $request->files->get('file');
+        $file = is_array($file) ? ($file[0] ?? null) : $file;
+        if (!$file || !$file->isValid() || $file->getSize() > 10 * 1024 * 1024) {
+            throw new BadRequestHttpException('Fichier illisible ou trop volumineux (10 Mo maximum).');
+        }
+        if ('%PDF-' !== file_get_contents($file->getPathname(), false, null, 0, 5)) {
+            throw new BadRequestHttpException('Seules les fiches techniques au format PDF sont acceptées.');
+        }
+        try {
+            return $this->json($parser->parse($parser->text($file->getPathname()), $ev) + ['file' => (string) $file->getClientOriginalName()]);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    /** Enregistre les lignes de planning validées (ajout, ou remplacement du planning existant). */
+    #[Route('/schedule/import', methods: ['POST'])]
+    public function importTechPlanning(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'events.edit');
+        $d = $this->body($request);
+        $rows = is_array($d['rows'] ?? null) ? array_values(array_filter($d['rows'], 'is_array')) : [];
+        if (!$rows) {
+            throw new BadRequestHttpException('Aucune ligne à importer.');
+        }
+        if (count($rows) > 200) {
+            throw new BadRequestHttpException('200 lignes au plus par import.');
+        }
+        $items = [];
+        foreach ($rows as $i => $r) {
+            $item = new ScheduleItem($ev);
+            $item->day = Input::date($r, 'day') ?? throw new BadRequestHttpException(sprintf('Ligne %d : jour manquant.', $i + 1));
+            $item->time = Input::str($r, 'time', 20);
+            $item->label = $this->lists->check('schedule', Input::str($r, 'label') ?: throw new BadRequestHttpException(sprintf('Ligne %d : intitulé à choisir.', $i + 1)));
+            $item->detail = Input::str($r, 'detail');
+            $items[] = $item;
+        }
+        $removed = 0;
+        if (!empty($d['replace'])) {
+            foreach ($ev->schedule->toArray() as $old) {
+                foreach ($ev->invitations as $inv) { // invitations de la représentation remplacée : à répartir
+                    $inv->performance === $old && $inv->performance = null;
+                }
+                $ev->schedule->removeElement($old);
+                ++$removed;
+            }
+        }
+        foreach ($items as $item) {
+            $ev->schedule->add($item);
+        }
+        $this->audit->log('event.schedule_import', sprintf('%s — %s', $ev->show->title, $ev->venue), ['lignes' => count($items), 'remplacées' => $removed]);
 
         return $this->savedEvent($ev);
     }

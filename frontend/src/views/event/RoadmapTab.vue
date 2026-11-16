@@ -4,6 +4,7 @@ import { post, put, del, toast } from '../../api.js'
 import { fdate } from '../../format.js'
 import Icon from '../../components/Icon.vue'
 import ListSelect from '../../components/ListSelect.vue'
+import SchedulePdfDialog from '../../components/SchedulePdfDialog.vue'
 
 const { ev, apply, allowed } = inject('event')
 const slots = reactive({})
@@ -11,6 +12,7 @@ const sections = reactive({})
 const newSlot = ref({})
 const newSection = ref({})
 const editing = ref(null)
+const importing = ref(false)
 const TITLES = ['ATELIERS', 'REPAS', 'TRANSFERTS', 'ACCÈS AU THÉÂTRE', 'WIFI', 'CONTACTS SUR PLACE']
 watch(ev, (e) => {
   for (const s of e.schedule) slots[s.id] = { ...s }
@@ -28,7 +30,9 @@ async function saveSection(s) { if (await saved(put(url('section', s.id), sectio
   <div class="two-cols">
     <fieldset class="main-col" :disabled="!allowed('events.edit')" style="border:0;padding:0;margin:0;min-width:0">
       <section class="card">
-        <h2 style="margin-bottom:12px">Planning sur place</h2>
+        <div class="card-head" style="margin-bottom:12px"><h2>Planning sur place</h2>
+          <button v-if="allowed('events.edit')" type="button" class="btn btn-sm" @click="importing = true"><Icon name="upload" :size="16" />Importer une fiche technique (PDF)</button></div>
+        <SchedulePdfDialog :open="importing" :ev="ev" :apply="apply" @close="importing = false" />
         <form v-for="s in ev.schedule" :key="s.id" class="actions" style="margin-bottom:8px" @submit.prevent="saved(put(url('schedule', s.id), slots[s.id]))">
           <label class="field" style="flex:1 1 140px">Jour<input v-model="slots[s.id].day" type="date" required></label>
           <label class="field" style="flex:1 1 100px">Heure<input v-model="slots[s.id].time"></label>
