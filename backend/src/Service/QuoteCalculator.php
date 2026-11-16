@@ -35,6 +35,7 @@ class QuoteCalculator
         $truck = $km * (float) $ev->truckRate;
         $mealsAmount = $meals * (float) $ev->mealRate;
         $bfAmount = $bf * (float) $ev->breakfastRate;
+        $personNights = $nights; // par personne (comparées au devis signé)
         $nights = Rooming::roomNights($ev); // par chambre : une chambre double partagée compte une nuitée
         $nightsAmount = $nights * (float) $ev->nightRate;
         $team = $tickets + $expenses + $teamExtras;
@@ -56,6 +57,8 @@ class QuoteCalculator
             'mealsCount' => $meals,
             'breakfastsCount' => $bf,
             'nightsCount' => $nights,
+            'personNightsCount' => $personNights,
+            'teamTransport' => $r($tickets + $expenses + $teamExtras),
             'meals' => $r($mealsAmount),
             'breakfasts' => $r($bfAmount),
             'nights' => $r($nightsAmount),

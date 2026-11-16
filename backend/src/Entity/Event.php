@@ -84,6 +84,29 @@ class Event
     #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     public ?\DateTimeImmutable $costShareExpiresOn = null;
 
+    // Devis signé par l'organisateur (saisi ou importé d'un PDF), comparé au réalisé dans l'onglet Devis
+    #[ORM\Column(length: 40, nullable: true)]
+    public ?string $signedQuoteNumber = null;
+
+    /** Date « Devis fourni le » */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $signedQuoteDate = null;
+
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    public ?\DateTimeImmutable $signedOn = null;
+
+    /** Déplacements de l'équipe prévus au devis (HT) */
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    public ?string $signedTeamTravel = null;
+
+    /** Repas prévus (midi + soir) */
+    #[ORM\Column(nullable: true)]
+    public ?int $signedMeals = null;
+
+    /** Nuitées prévues (« hôtel + petit-déjeuner ») */
+    #[ORM\Column(nullable: true)]
+    public ?int $signedNights = null;
+
     // Tarifs et montants du devis (HT)
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     public string $mealRate = '20.70';

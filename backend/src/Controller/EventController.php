@@ -16,6 +16,7 @@ use App\Entity\Show;
 use App\Entity\TravelExpense;
 use App\Entity\TruckLeg;
 use App\Service\Import\Sheet;
+use App\Service\Import\SignedQuoteParser;
 use App\Service\Import\TrainSheetParser;
 use App\Service\Input;
 use App\Service\Invitations;
@@ -410,6 +411,53 @@ class EventController extends ApiController
             $item instanceof Invitation => $ev->invitations->removeElement($item),
         };
         $item instanceof Leg && $this->daysFromTravel($planning, $item->participation);
+
+        return $this->savedEvent($ev);
+    }
+
+    /** Lecture d'un devis PDF signé : renvoie ce qui a été lu, à vérifier avant d'enregistrer (rien n'est enregistré ici). */
+    #[Route('/signed-quote/pdf', methods: ['POST'])]
+    public function readSignedQuote(int $id, Request $request, SignedQuoteParser $parser): JsonResponse
+    {
+        $this->event($id, 'finance.edit');
+        $file = $request->files->get('file');
+        $file = is_array($file) ? ($file[0] ?? null) : $file;
+        if (!$file || !$file->isValid() || $file->getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestHttpException('Fichier illisible ou trop volumineux (5 Mo maximum).');
+        }
+        if ('%PDF-' !== file_get_contents($file->getPathname(), false, null, 0, 5)) {
+            throw new BadRequestHttpException('Seuls les devis au format PDF sont acceptés.');
+        }
+        try {
+            return $this->json($parser->parse($parser->text($file->getPathname())) + ['file' => (string) $file->getClientOriginalName()]);
+        } catch (\InvalidArgumentException $e) {
+            throw new BadRequestHttpException($e->getMessage());
+        }
+    }
+
+    /** Devis signé : numéro, dates, déplacements de l'équipe, repas, nuitées (saisis ou repris d'un PDF). */
+    #[Route('/signed-quote', methods: ['PUT'])]
+    public function saveSignedQuote(int $id, Request $request): JsonResponse
+    {
+        $ev = $this->event($id, 'finance.edit');
+        $d = $this->body($request);
+        $count = fn (string $k) => '' === trim((string) ($d[$k] ?? '')) ? null : max(0, min(100000, Input::int($d, $k)));
+        $ev->signedQuoteNumber = Input::str($d, 'number', 40) ?: null;
+        $ev->signedQuoteDate = Input::date($d, 'date');
+        $ev->signedOn = Input::date($d, 'signedOn');
+        $ev->signedTeamTravel = '' === trim((string) ($d['teamTravel'] ?? '')) ? null : Input::decimal($d, 'teamTravel');
+        $ev->signedMeals = $count('meals');
+        $ev->signedNights = $count('nights');
+        $this->audit->log('event.signed_quote', sprintf('%s — %s', $ev->show->title, $ev->venue), array_filter(['devis' => $ev->signedQuoteNumber]));
+
+        return $this->savedEvent($ev);
+    }
+
+    #[Route('/signed-quote', methods: ['DELETE'])]
+    public function deleteSignedQuote(int $id): JsonResponse
+    {
+        $ev = $this->event($id, 'finance.edit');
+        [$ev->signedQuoteNumber, $ev->signedQuoteDate, $ev->signedOn, $ev->signedTeamTravel, $ev->signedMeals, $ev->signedNights] = [null, null, null, null, null, null];
 
         return $this->savedEvent($ev);
     }

@@ -24,6 +24,8 @@ RUN composer dump-autoload --no-dev --classmap-authoritative \
 # 3) Extensions PHP : l'étape la plus longue (compilation), gardée en cache tant que l'image de base ne change pas
 FROM dunglas/frankenphp:1-php8.3 AS php
 RUN install-php-extensions pdo_mysql intl zip gd opcache
+# pdftotext : lecture des devis PDF signés (onglet Devis)
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 
 # 4) Image finale : FrankenPHP (Caddy + PHP) sert l'API Symfony et le front
 FROM php

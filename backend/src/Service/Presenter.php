@@ -192,6 +192,11 @@ class Presenter
                 'defaultExpiresOn' => Input::iso($e->defaultShareExpiry()), 'maxExpiresOn' => Input::iso($e->maxShareExpiry()),
                 'emails' => in_array('people.view', $perms, true) ? array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues())) : []],
             'quote' => $this->quotes->compute($e),
+            // Devis signé : comparé au réalisé (déplacements de l'équipe, repas, nuitées) ; null si rien de saisi
+            'signedQuote' => $finance && (null !== $e->signedQuoteNumber || null !== $e->signedTeamTravel || null !== $e->signedMeals || null !== $e->signedNights) ? [
+                'number' => $e->signedQuoteNumber, 'date' => Input::iso($e->signedQuoteDate), 'signedOn' => Input::iso($e->signedOn),
+                'teamTravel' => null === $e->signedTeamTravel ? null : (float) $e->signedTeamTravel, 'meals' => $e->signedMeals, 'nights' => $e->signedNights,
+            ] : null,
             'personCosts' => $this->quotes->personCosts($e),
         ];
         if (!$finance) {
