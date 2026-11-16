@@ -173,7 +173,9 @@ class Presenter
             'sections' => $e->sections->map(fn ($s) => ['id' => $s->id, 'title' => $s->title, 'body' => $s->body,
                 'position' => $s->position])->getValues(),
             'schedule' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time,
-                'label' => $s->label, 'detail' => $s->detail], self::byTime($e->schedule->toArray(), 'time')),
+                'label' => $s->label, 'detail' => $s->detail,
+                // Représentation (même règle que les invitations) : mise en évidence dans le planning de la feuille de route
+                'isPerformance' => str_contains(Import\Sheet::norm($s->label), 'representation')], self::byTime($e->schedule->toArray(), 'time')),
             // Invitations : jamais dans la feuille de route
             'invitationQuota' => $e->invitationQuota,
             'invitationPerformances' => array_map(fn ($s) => ['id' => $s->id, 'day' => Input::iso($s->day), 'time' => $s->time, 'detail' => $s->detail,
