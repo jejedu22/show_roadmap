@@ -1,22 +1,29 @@
-{# Trajets d'un sens, groupés par date puis par personne (correspondances ensemble) : days, back (bool) #}
+{# Trajets d'un sens, groupés par date puis par personne (correspondances ensemble) : days, back (bool), heading (titre de section, facultatif).
+   Le titre et la date restent sur la même page que le premier trajet (bloc .keep) ; le reste peut passer à la page suivante. #}
+{% set heading = heading ?? '' %}
+{% macro trips(it, back) %}
+  <table class="trips{{ back ? ' back' }}">
+    {% for l in it.legs %}
+      <tr>
+        {% if loop.first %}<td class="who" rowspan="{{ it.legs|length }}">{{ it.p.person.firstName }} {{ it.p.person.lastName }}{% if it.p.role %}<div class="muted">{{ it.p.role }}</div>{% endif %}</td>{% endif %}
+        <td class="time">{{ l.depTime }}{% if l.arrTime %} – {{ l.arrTime }}{% endif %}</td>
+        <td>{{ l.origin }} <span class="arrow">→</span> {{ l.destination }}{% if not loop.first %} <span class="muted">(correspondance)</span>{% endif %}</td>
+        <td>{% if l.mode %}<span class="badge">{{ l.mode }}</span>{% endif %}{% if l.reference %}<br><span class="ref">Réf. <b>{{ l.reference }}</b></span>{% endif %}
+          {% if l.note %}<div class="muted">{{ l.note }}</div>{% endif %}</td>
+        <td class="last">{% if l.bookingUrl %}<a class="btn" href="{{ l.bookingUrl }}">Billet ↗</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endmacro %}
 {% for day, people in days %}
   <div class="trip-day">
-    <div class="day">{{ day|fday }}</div>
-    {% for it in people %}
-      <table class="trips{{ back ? ' back' }}">
-        {% for l in it.legs %}
-          <tr>
-            {% if loop.first %}<td class="who" rowspan="{{ it.legs|length }}">{{ it.p.person.firstName }} {{ it.p.person.lastName }}{% if it.p.role %}<div class="muted">{{ it.p.role }}</div>{% endif %}</td>{% endif %}
-            <td class="time">{{ l.depTime }}{% if l.arrTime %} – {{ l.arrTime }}{% endif %}</td>
-            <td>{{ l.origin }} <span class="arrow">→</span> {{ l.destination }}{% if not loop.first %} <span class="muted">(correspondance)</span>{% endif %}</td>
-            <td>{% if l.mode %}<span class="badge">{{ l.mode }}</span>{% endif %}{% if l.reference %}<br><span class="ref">Réf. <b>{{ l.reference }}</b></span>{% endif %}
-              {% if l.note %}<div class="muted">{{ l.note }}</div>{% endif %}</td>
-            <td class="last">{% if l.bookingUrl %}<a class="btn" href="{{ l.bookingUrl }}">Billet ↗</a>{% endif %}</td>
-          </tr>
-        {% endfor %}
-      </table>
-    {% endfor %}
+    <div class="keep">
+      {% if loop.first %}{{ heading|raw }}{% endif %}
+      <div class="day">{{ day|fday }}</div>
+      {{ _self.trips(people|first, back) }}
+    </div>
+    {% for it in people|slice(1) %}{{ _self.trips(it, back) }}{% endfor %}
   </div>
 {% else %}
-  <p class="muted">Aucun trajet {{ back ? 'retour' : 'aller' }} saisi.</p>
+  <div class="keep">{{ heading|raw }}<p class="muted">Aucun trajet {{ back ? 'retour' : 'aller' }} saisi.</p></div>
 {% endfor %}
