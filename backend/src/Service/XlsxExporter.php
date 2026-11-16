@@ -150,12 +150,12 @@ class XlsxExporter
             [$a, $d] = [$t['arrival'], $t['departure']];
             $date = fn (?array $x) => $x ? \DateTimeImmutable::createFromFormat('!Y-m-d', $x['day']) : '';
             $rows[] = [$t['name'], $t['role'], ...($withPhone ? [$t['phone']] : []),
-                $date($a), $a['time'] ?? '', $a ? $a['place'] : 'Aller à réserver', $a['transport'] ?? '',
-                $date($d), $d['time'] ?? '', $d ? $d['place'] : 'Retour à réserver', $d['transport'] ?? ''];
+                $date($a), $a['time'] ?? '', $a ? $a['place'] : 'Aller à réserver',
+                $date($d), $d['time'] ?? '', $d ? $d['place'] : 'Retour à réserver'];
         }
         $this->table($book, $ev, 'Arrivées et départs', [['Nom', 'text', 22], ['Fonction', 'text', 18], ...($withPhone ? [['Téléphone', 'text', 15]] : []),
-            ['Arrivée le', 'date', 16], ['Heure d\'arrivée', 'text', 10], ['Lieu d\'arrivée', 'text', 20], ['Transport (aller)', 'text', 18],
-            ['Départ le', 'date', 16], ['Heure de départ', 'text', 10], ['Lieu de départ', 'text', 20], ['Transport (retour)', 'text', 18]], $rows,
+            ['Arrivée le', 'date', 16], ['Heure d\'arrivée', 'text', 10], ['Lieu d\'arrivée', 'text', 20],
+            ['Départ le', 'date', 16], ['Heure de départ', 'text', 10], ['Lieu de départ', 'text', 20]], $rows,
             ['tab' => $this->rgb('coral'), 'note' => 'Pour organiser les transferts : arrivée du dernier trajet aller, départ du premier trajet retour.']);
     }
 

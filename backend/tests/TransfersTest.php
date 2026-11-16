@@ -33,10 +33,11 @@ class TransfersTest extends ApiTestCase
         unlink($file);
         $data = array_values(array_filter($rows, fn ($r) => in_array($r[0], ['DURAND Anna', 'MARTIN Luc'], true)));
         self::assertSame(['DURAND Anna', 'MARTIN Luc'], array_column($data, 0), 'dans l\'ordre des arrivées');
-        // Nom, Fonction, Téléphone, Arrivée le, Heure, Lieu, Transport, Départ le, Heure, Lieu, Transport
-        self::assertSame(['17h30', 'Beauvais', 'Train'], [$data[0][4], $data[0][5], $data[0][6]]);
-        self::assertSame('Retour à réserver', $data[0][9]);
-        self::assertSame(['10h25', 'Beauvais', 'Train · ABC123', '18h35', 'Beauvais'], [$data[1][4], $data[1][5], $data[1][6], $data[1][8], $data[1][9]]);
+        // Nom, Fonction, Téléphone, Arrivée le, Heure, Lieu, Départ le, Heure, Lieu (sans colonnes Transport)
+        self::assertSame(['17h30', 'Beauvais'], [$data[0][4], $data[0][5]]);
+        self::assertSame('Retour à réserver', $data[0][8]);
+        self::assertSame(['10h25', 'Beauvais', '18h35', 'Beauvais'], [$data[1][4], $data[1][5], $data[1][7], $data[1][8]]);
+        self::assertNotContains('Transport (aller)', array_merge(...$rows));
         self::assertSame('Téléphone', array_values(array_filter($rows, fn ($r) => 'Nom' === $r[0]))[0][2]);
 
         // Aussi dans l'export complet ; PDF disponible avec le simple droit de consultation, sans les téléphones
@@ -51,6 +52,9 @@ class TransfersTest extends ApiTestCase
         $this->client->request('GET', "/api/events/$id/pdf/transfers");
         self::assertSame(200, $this->code());
         self::assertSame('application/pdf', $this->client->getResponse()->headers->get('content-type'));
+        // PDF en paysage : MediaBox A4 plus large que haute
+        preg_match('#/MediaBox\s*\[\s*0\.?0*\s+0\.?0*\s+([\d.]+)\s+([\d.]+)#', (string) $this->client->getInternalResponse()->getContent(), $box);
+        self::assertGreaterThan((float) $box[2], (float) $box[1], 'paysage');
         $this->client->request('GET', "/api/events/$id/transfers.xlsx");
         $file = tempnam(sys_get_temp_dir(), 'x');
         file_put_contents($file, $this->client->getInternalResponse()->getContent());
