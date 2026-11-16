@@ -476,11 +476,20 @@ class EventController extends ApiController
         return $this->savedEvent($ev);
     }
 
+    /** Devis initial : droit dédié « Saisir le devis initial », avec « Voir les montants ». */
+    private function signedEvent(int $id): Event
+    {
+        $ev = $this->event($id, 'signed.edit');
+        $this->authz->event($this->me(), $ev, 'finance.view');
+
+        return $ev;
+    }
+
     /** Lecture d'un devis PDF signé : renvoie ce qui a été lu, à vérifier avant d'enregistrer (rien n'est enregistré ici). */
     #[Route('/signed-quote/pdf', methods: ['POST'])]
     public function readSignedQuote(int $id, Request $request, SignedQuoteParser $parser): JsonResponse
     {
-        $this->event($id, 'finance.edit');
+        $this->signedEvent($id);
         $file = $request->files->get('file');
         $file = is_array($file) ? ($file[0] ?? null) : $file;
         if (!$file || !$file->isValid() || $file->getSize() > 5 * 1024 * 1024) {
@@ -496,19 +505,41 @@ class EventController extends ApiController
         }
     }
 
-    /** Devis signé : numéro, dates, déplacements de l'équipe, repas, nuitées (saisis ou repris d'un PDF). */
+    /**
+     * Devis initial (saisi ou repris d'un PDF) : en-tête, représentations, défraiements, lignes de déplacement de l'équipe, décor, totaux.
+     * Repas = midis + soirs quand ils sont détaillés ; déplacements de l'équipe = somme des lignes quand il y en a.
+     */
     #[Route('/signed-quote', methods: ['PUT'])]
     public function saveSignedQuote(int $id, Request $request): JsonResponse
     {
-        $ev = $this->event($id, 'finance.edit');
+        $ev = $this->signedEvent($id);
         $d = $this->body($request);
-        $count = fn (string $k) => '' === trim((string) ($d[$k] ?? '')) ? null : max(0, min(100000, Input::int($d, $k)));
+        $blank = fn (array $a, string $k) => '' === trim((string) ($a[$k] ?? ''));
+        $count = fn (string $k) => $blank($d, $k) ? null : max(0, min(100000, Input::int($d, $k)));
+        $money = fn (array $a, string $k) => $blank($a, $k) ? null : round(max(-10000000, min(10000000, Input::float($a, $k))), 2);
+
+        $lines = [];
+        foreach (array_slice(is_array($d['lines'] ?? null) ? $d['lines'] : [], 0, 40) as $l) {
+            if (!is_array($l) || ('' === trim((string) ($l['label'] ?? '')) && '' === trim((string) ($l['detail'] ?? '')) && $blank($l, 'amount'))) {
+                continue;
+            }
+            $lines[] = ['label' => Input::str($l, 'label', 120), 'detail' => Input::str($l, 'detail', 255), 'amount' => $money($l, 'amount') ?? 0.0];
+        }
+        $detail = [
+            'show' => Input::str($d, 'show', 255), 'organizer' => Input::str($d, 'organizer', 255), 'period' => Input::str($d, 'period', 120),
+            'performances' => $count('performances'), 'cession' => $money($d, 'cession'),
+            'lunches' => $count('lunches'), 'dinners' => $count('dinners'), 'allowances' => $money($d, 'allowances'),
+            'lines' => $lines, 'decor' => $money($d, 'decor'), 'totalHt' => $money($d, 'totalHt'), 'totalTtc' => $money($d, 'totalTtc'),
+        ];
+
         $ev->signedQuoteNumber = Input::str($d, 'number', 40) ?: null;
         $ev->signedQuoteDate = Input::date($d, 'date');
         $ev->signedOn = Input::date($d, 'signedOn');
-        $ev->signedTeamTravel = '' === trim((string) ($d['teamTravel'] ?? '')) ? null : Input::decimal($d, 'teamTravel');
-        $ev->signedMeals = $count('meals');
+        $travel = $lines ? round(array_sum(array_column($lines, 'amount')), 2) : $money($d, 'teamTravel');
+        $ev->signedTeamTravel = null === $travel ? null : number_format($travel, 2, '.', '');
+        $ev->signedMeals = null !== $detail['lunches'] || null !== $detail['dinners'] ? (int) $detail['lunches'] + (int) $detail['dinners'] : $count('meals');
         $ev->signedNights = $count('nights');
+        $ev->signedQuoteDetail = array_filter($detail, fn ($v) => null !== $v && '' !== $v && [] !== $v) ?: null;
         $this->audit->log('event.signed_quote', sprintf('%s — %s', $ev->show->title, $ev->venue), array_filter(['devis' => $ev->signedQuoteNumber]));
 
         return $this->savedEvent($ev);
@@ -517,8 +548,8 @@ class EventController extends ApiController
     #[Route('/signed-quote', methods: ['DELETE'])]
     public function deleteSignedQuote(int $id): JsonResponse
     {
-        $ev = $this->event($id, 'finance.edit');
-        [$ev->signedQuoteNumber, $ev->signedQuoteDate, $ev->signedOn, $ev->signedTeamTravel, $ev->signedMeals, $ev->signedNights] = [null, null, null, null, null, null];
+        $ev = $this->signedEvent($id);
+        [$ev->signedQuoteNumber, $ev->signedQuoteDate, $ev->signedOn, $ev->signedTeamTravel, $ev->signedMeals, $ev->signedNights, $ev->signedQuoteDetail] = [null, null, null, null, null, null, null];
 
         return $this->savedEvent($ev);
     }

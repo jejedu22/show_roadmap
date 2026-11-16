@@ -26,6 +26,7 @@ class SignedQuoteTest extends ApiTestCase
         self::assertSame("Ville d'Exemple / service culture", $a['organizer']);
         self::assertSame('Jeudi 3 décembre 26', $a['period']);
         self::assertSame(7072.9, $a['totalHt'], 'TOTAL devis, pas TOTAL avenant');
+        self::assertSame([5000.0, 972.9], [$a['cession'], $a['allowances']], 'cession et total des défraiements, pour information');
         self::assertCount(2, $a['checks']);
         self::assertSame([], $a['warnings']);
 
@@ -34,6 +35,7 @@ class SignedQuoteTest extends ApiTestCase
         self::assertSame(['26-02B', '2025-09-23', 2, 17, 17, 34, 17, 1800.0, 1500.0, 3300.0], [$b['number'], $b['date'], $b['performances'], $b['lunches'], $b['dinners'], $b['meals'], $b['nights'], $b['teamTravel'], $b['decor'], $b['travelTotal']]);
         self::assertSame('décembre 2026 - à déterminer', $b['period']);
         self::assertSame('SNCF', $b['teamLines'][0]['detail']);
+        self::assertSame([6000.0, 703.8], [$b['cession'], $b['allowances']]);
         self::assertSame([], $b['warnings']);
 
         // Total des repas incohérent avec les colonnes : signalé
@@ -66,7 +68,9 @@ class SignedQuoteTest extends ApiTestCase
         self::assertSame($nights, $ev['quote']['personNightsCount'], 'nuitées par personne');
 
         $ev = $this->call('PUT', "/api/events/$id/signed-quote", ['number' => '26-01A', 'date' => '2026-02-20', 'signedOn' => '2026-03-04', 'teamTravel' => '1 100,00', 'meals' => '47', 'nights' => '28']);
-        self::assertEquals(['number' => '26-01A', 'date' => '2026-02-20', 'signedOn' => '2026-03-04', 'teamTravel' => 1100, 'meals' => 47, 'nights' => 28], $ev['signedQuote']);
+        self::assertEquals(['number' => '26-01A', 'date' => '2026-02-20', 'signedOn' => '2026-03-04', 'teamTravel' => 1100, 'meals' => 47, 'nights' => 28],
+            array_intersect_key($ev['signedQuote'], array_flip(['number', 'date', 'signedOn', 'teamTravel', 'meals', 'nights'])));
+        self::assertSame([], $ev['signedQuote']['lines']);
         $ev = $this->call('PUT', "/api/events/$id/signed-quote", ['number' => '26-01A', 'teamTravel' => '', 'meals' => '47', 'nights' => '']);
         self::assertNull($ev['signedQuote']['teamTravel'], 'champ vidé : pas de comparaison');
 
@@ -104,5 +108,88 @@ class SignedQuoteTest extends ApiTestCase
 
         $ev = $this->call('DELETE', "/api/events/$id/signed-quote");
         self::assertNull($ev['signedQuote']);
+    }
+
+    /** Devis initial complet : détail conservé et modifiable, totaux déduits des lignes et des repas midi / soir. */
+    public function testDetailIsKeptAndEditable(): void
+    {
+        $this->login();
+        [, [$show]] = $this->buildCompany();
+        $id = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => '2027-01-19', 'lastDate' => '2027-01-20'])['id'];
+        $quote = ['number' => '26-02B', 'date' => '2025-09-23', 'show' => 'Spectacle B', 'organizer' => 'Théâtre', 'period' => 'décembre 2026',
+            'performances' => '2', 'cession' => '6 000,00', 'lunches' => '17', 'dinners' => '17', 'meals' => '99', 'nights' => '17', 'allowances' => '703,80',
+            'lines' => [['label' => '13 personnes', 'detail' => 'SNCF', 'amount' => '1 500,00'], ['label' => 'Location', 'detail' => 'minibus', 'amount' => '300'], ['label' => '', 'detail' => '', 'amount' => '']],
+            'teamTravel' => '1', 'decor' => '1500', 'totalHt' => '10003,80', 'totalTtc' => '10003.8'];
+        $sq = $this->call('PUT', "/api/events/$id/signed-quote", $quote)['signedQuote'];
+        self::assertEquals(1800, $sq['teamTravel'], 'somme des lignes, pas le montant saisi');
+        self::assertSame(34, $sq['meals'], 'midis + soirs');
+        self::assertCount(2, $sq['lines'], 'ligne vide ignorée');
+        self::assertEquals(['Spectacle B', 'Théâtre', 'décembre 2026', 2, 6000, 703.8, 1500, 10003.8, 10003.8],
+            [$sq['show'], $sq['organizer'], $sq['period'], $sq['performances'], $sq['cession'], $sq['allowances'], $sq['decor'], $sq['totalHt'], $sq['totalTtc']]);
+        $steps = array_column($this->call('GET', "/api/events/$id")['readiness']['steps'], null, 'key');
+        self::assertSame(['Devis initial', true, 'N° 26-02B'], [$steps['signed']['label'], $steps['signed']['done'], $steps['signed']['detail']]);
+
+        // Modification : une ligne retirée, repas détaillés vidés → le total des repas saisi est repris
+        $quote['lines'] = [$quote['lines'][0]];
+        [$quote['lunches'], $quote['dinners'], $quote['meals']] = ['', '', '30'];
+        $sq = $this->call('PUT', "/api/events/$id/signed-quote", $quote)['signedQuote'];
+        self::assertEquals([1500, 30, null, null], [$sq['teamTravel'], $sq['meals'], $sq['lunches'], $sq['dinners']]);
+
+        // Sans lignes : montant global des déplacements
+        $quote['lines'] = [];
+        $quote['teamTravel'] = '1 234,50';
+        self::assertEquals(1234.5, $this->call('PUT', "/api/events/$id/signed-quote", $quote)['signedQuote']['teamTravel']);
+
+        // Excel : onglet « Devis initial » après Devis, comparaison au réalisé en formules
+        foreach (["/api/events/$id/export.xlsx", "/api/events/$id/costs.xlsx"] as $url) {
+            $this->client->request('GET', $url);
+            self::assertSame(200, $this->code());
+            $file = tempnam(sys_get_temp_dir(), 'x');
+            file_put_contents($file, $this->client->getInternalResponse()->getContent());
+            $book = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
+            unlink($file);
+            self::assertSame(1, $book->getIndex($book->getSheetByName('Devis initial')), $url);
+            $ws = $book->getSheetByName('Devis initial');
+            $found = [];
+            foreach ($ws->getRowIterator() as $row) {
+                $r = $row->getRowIndex();
+                $found[(string) $ws->getCell("A$r")->getValue()] = $r;
+            }
+            self::assertSame('Théâtre', $ws->getCell('B'.$found['Organisateur'])->getValue());
+            $travel = $found['Déplacements de l\'équipe (€ HT)'];
+            self::assertStringStartsWith('=', (string) $ws->getCell("B$travel")->getValue());
+            self::assertEqualsWithDelta(1234.5, $ws->getCell("B$travel")->getCalculatedValue(), 0.001);
+            self::assertEqualsWithDelta(-1234.5, $ws->getCell("D$travel")->getCalculatedValue(), 0.001, 'aucun voyage saisi');
+            self::assertEquals(30, $ws->getCell('B'.$found['Repas (midi + soir)'])->getCalculatedValue());
+            self::assertEquals(17, $ws->getCell('B'.$found['Nuitées (hôtel + petit-déjeuner, par personne)'])->getCalculatedValue());
+        }
+    }
+
+    /** Droit « Saisir le devis initial » : distinct de « Modifier le devis », et lecture réservée à « Voir les montants ». */
+    public function testSignedEditPermission(): void
+    {
+        $this->login();
+        [, [$show]] = $this->buildCompany();
+        $ev = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => '2027-01-19', 'lastDate' => '2027-01-20']);
+        $id = $ev['id'];
+        foreach ([['tom@test.io', ['finance.edit']], ['zoe@test.io', ['finance.view', 'signed.edit']], ['max@test.io', ['signed.edit']]] as [$email, $perms]) {
+            $this->createUser($email, 'password-123456');
+            $this->grant([$email], ['company.view', ...$perms], [$ev['companyId']]);
+        }
+
+        $this->login('tom@test.io', 'password-123456');
+        $this->call('PUT', "/api/events/$id/signed-quote", ['meals' => '1']);
+        self::assertSame(403, $this->code(), 'modifier le devis ne suffit pas');
+        self::assertContains('signed', array_column($this->call('GET', "/api/events/$id")['readiness']['steps'], 'key'), 'onglet visible en lecture');
+
+        $this->login('max@test.io', 'password-123456');
+        $this->call('PUT', "/api/events/$id/signed-quote", ['meals' => '1']);
+        self::assertSame(403, $this->code(), 'sans « Voir les montants »');
+        self::assertNotContains('signed', array_column($this->call('GET', "/api/events/$id")['readiness']['steps'], 'key'));
+
+        $this->login('zoe@test.io', 'password-123456');
+        self::assertSame(12, $this->call('PUT', "/api/events/$id/signed-quote", ['meals' => '12'])['signedQuote']['meals']);
+        $this->call('PUT', "/api/events/$id/rates", ['fee' => '100']);
+        self::assertSame(403, $this->code(), 'le devis lui-même reste en lecture');
     }
 }

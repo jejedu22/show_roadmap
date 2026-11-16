@@ -76,6 +76,7 @@ class XlsxExporter
         // Devis relié aux onglets : il se recalcule si l'on y change un prix, un nombre de repas ou de nuits
         $nights = $rooming['total'] ? self::ref('Rooming', $nightsCol, $rooming['total']).'*'.self::number((float) $ev->nightRate, '.') : null;
         $this->linkQuote($book, $ev, $quote, $perDiem, $travel, $nights);
+        $this->signedSheet($book, $ev, $perDiem, $travel);
 
         $this->transfersSheet($book, $ev, $withContacts);
         $this->invitationSheet($book, $ev);
@@ -124,6 +125,7 @@ class XlsxExporter
             ['Dépenses / remb.', 'money', 16], ['Total voyages', 'money', 14], ['Total', 'money', 14]], $rows,
             ['total' => 'Total', 'tab' => $this->rgb('sun'), 'emphasis' => 11]);
         $book->setIndexByName('Par personne', 2);
+        $this->signedSheet($book, $ev, $perDiem, $travel);
 
         return $this->write($book);
     }
@@ -210,9 +212,8 @@ class XlsxExporter
     private function linkQuote(Spreadsheet $book, Event $ev, array $quote, array $perDiem, array $travel, ?string $nights): void
     {
         $ws = $book->getSheetByName('Devis');
-        $q = $this->quotes->compute($ev);
         $set = fn (int $row, string $formula) => $ws->setCellValueExplicit([2, $row], $formula, DataType::TYPE_FORMULA);
-        $team = $travel['grand'].($q['teamExtras'] ? '+'.self::number($q['teamExtras'], '.') : '');
+        $team = $this->teamFormula($ev, $travel);
         isset($quote['rows']['team']) && $set($quote['rows']['team'], '='.$team);
         foreach (['meals' => 'meals', 'breakfasts' => 'breakfast'] as $key => $field) {
             isset($quote['rows'][$key], $perDiem['totals'][$field]) && $set($quote['rows'][$key], '='.$perDiem['totals'][$field]);
@@ -222,6 +223,83 @@ class XlsxExporter
             $set($quote['dont']['tickets'], '='.($travel['tickets'] ?? '0'));
             $set($quote['dont']['expenses'], '='.($travel['expenses'] ?? '0'));
         }
+    }
+
+    /** Déplacements de l'équipe réalisés : total de l'onglet Voyages + transports locaux de l'équipe (frais supplémentaires). */
+    private function teamFormula(Event $ev, array $travel): string
+    {
+        $extras = $this->quotes->compute($ev)['teamExtras'];
+
+        return $travel['grand'].($extras ? '+'.self::number($extras, '.') : '');
+    }
+
+    /**
+     * Onglet « Devis initial » (placé après Devis), si un devis signé est saisi : en-tête et montants du devis, lignes de déplacement
+     * de l'équipe, défraiements prévus, puis comparaison au réalisé (formules reliées aux onglets Voyages et Défraiements).
+     */
+    private function signedSheet(Spreadsheet $book, Event $ev, array $perDiem, array $travel): void
+    {
+        $sq = $this->presenter->signedQuote($ev);
+        if (!$sq) {
+            return;
+        }
+        $ws = $this->newSheet($book, $ev, 'Devis initial', $this->rgb('coral'), 'Devis signé par l\'organisateur ; écart = réalisé − devis (positif : au-dessus du devis).');
+        $money = fn ($v) => null === $v ? '' : [(float) $v, 'money'];
+        $info = array_values(array_filter([
+            ['N° de devis', (string) $sq['number']],
+            ['Devis fourni le', $sq['date'] ? [new \DateTimeImmutable($sq['date']), 'date'] : ''],
+            ['Signé le', $sq['signedOn'] ? [new \DateTimeImmutable($sq['signedOn']), 'date'] : ''],
+            ['Spectacle', $sq['show']], ['Organisateur', $sq['organizer']], ['Période', $sq['period']],
+            ['Nombre de représentations', null === $sq['performances'] ? '' : [(int) $sq['performances'], 'int']],
+            ['Cession (représentations)', $money($sq['cession'])],
+            ['Total défraiements', $money($sq['allowances'])],
+            ['Transport du décor (non comparé)', $money($sq['decor'])],
+            ['Total devis HT', $money($sq['totalHt'])], ['Total devis TTC', $money($sq['totalTtc'])],
+        ], fn ($r) => '' !== $r[1]));
+        $b = $this->block($ws, self::HEADER_ROW, [['Devis', 'text', 40], ['', 'text', null, null, 3]], $info, ['heading' => 'Devis initial', 'stripes' => true]);
+        foreach (range($b['first'], $b['last']) as $r) {
+            self::align($ws->getStyle([2, $r])->getAlignment(), Alignment::HORIZONTAL_LEFT);
+        }
+
+        // Déplacements de l'équipe : lignes du devis (ou montant global)
+        $lines = array_map(fn ($l) => [$l['label'], $l['detail'], (float) $l['amount']], $sq['lines']);
+        if (!$lines && null !== $sq['teamTravel']) {
+            $lines = [['Déplacements de l\'équipe', '', (float) $sq['teamTravel']]];
+        }
+        $t = $this->block($ws, $b['next'], [['Intitulé', 'text'], ['Détail', 'text', null, null, 2], ['Montant', 'money', 16]], $lines,
+            ['heading' => 'Déplacements de l\'équipe prévus', 'total' => 'Total déplacements équipe', 'widths' => false]);
+
+        // Défraiements prévus
+        $allow = [];
+        null !== $sq['lunches'] && $allow['lunches'] = ['Repas du midi', (int) $sq['lunches']];
+        null !== $sq['dinners'] && $allow['dinners'] = ['Repas du soir', (int) $sq['dinners']];
+        null === $sq['lunches'] && null === $sq['dinners'] && null !== $sq['meals'] && $allow['meals'] = ['Repas (midi + soir)', (int) $sq['meals']];
+        null !== $sq['nights'] && $allow['nights'] = ['Nuitées (hôtel + petit-déjeuner)', (int) $sq['nights']];
+        $a = $this->block($ws, $t['next'], [['Défraiement', 'text'], ['Nombre', 'int', 16]], array_values($allow),
+            ['heading' => 'Défraiements prévus', 'widths' => false]);
+        $row = array_flip(array_keys($allow));
+        $at = fn (string $k) => 'B'.($a['first'] + $row[$k]);
+
+        // Comparaison au réalisé
+        $q = $this->quotes->compute($ev);
+        $signedTravel = $t['total'] ? new XlsxFormula('=D'.$t['total']) : '';
+        $signedMeals = isset($row['lunches']) || isset($row['dinners'])
+            ? new XlsxFormula('='.implode('+', array_map($at, array_values(array_intersect(['lunches', 'dinners'], array_keys($allow))))))
+            : (isset($row['meals']) ? new XlsxFormula('='.$at('meals')) : '');
+        $signedNights = isset($row['nights']) ? new XlsxFormula('='.$at('nights')) : '';
+        $gap = fn ($signed) => '' === $signed ? '' : new XlsxFormula('=C{r}-B{r}');
+        $rows = [
+            ['Déplacements de l\'équipe (€ HT)', [$signedTravel, 'money'], [new XlsxFormula('='.$this->teamFormula($ev, $travel)), 'money'], [$gap($signedTravel), 'money']],
+            ['Repas (midi + soir)', [$signedMeals, 'int'], [isset($perDiem['counts']['meals']) ? new XlsxFormula('='.$perDiem['counts']['meals']) : $q['mealsCount'], 'int'], [$gap($signedMeals), 'int']],
+            ['Nuitées (hôtel + petit-déjeuner, par personne)', [$signedNights, 'int'], [isset($perDiem['counts']['night']) ? new XlsxFormula('='.$perDiem['counts']['night']) : $q['personNightsCount'], 'int'], [$gap($signedNights), 'int']],
+        ];
+        $this->block($ws, $a['next'], [['Comparaison', 'text'], ['Devis initial', 'int', 16], ['Réalisé', 'int', 16], ['Écart', 'int', 16]], $rows,
+            ['heading' => 'Devis initial et réalisé', 'emphasis' => 3, 'widths' => false]);
+        foreach (['B', 'C', 'D'] as $col) {
+            $ws->getColumnDimension($col)->setWidth(18);
+        }
+        $this->finish($ws, $ev, 4);
+        $book->setIndexByName('Devis initial', 1);
     }
 
     /**
@@ -281,15 +359,15 @@ class XlsxExporter
      * Onglet Défraiements, comme le tableau de l'onglet Séjour : une grille personnes × jours pour les repas, les petits-déjeuners
      * et les nuitées, avec total, tarif et montant par personne (formules), puis le total général.
      *
-     * @return array{people: list<array<string, array{n: string, amount: string}>>, totals: array<string, string>} cellules par
-     *                participation (dans l'ordre de l'équipe) et des montants totaux, par grille (meals, breakfast, night)
+     * @return array{people: list<array<string, array{n: string, amount: string}>>, totals: array<string, string>, counts: array<string, string>} cellules par
+     *                participation (dans l'ordre de l'équipe), des montants totaux et des nombres totaux, par grille (meals, breakfast, night)
      */
     private function perDiemSheet(Spreadsheet $book, Event $ev): array
     {
         $ws = $this->newSheet($book, $ev, 'Défraiements', $this->rgb('sun'));
         $dates = $ev->spanDates();
         $r = self::HEADER_ROW;
-        $amounts = $people = $totals = [];
+        $amounts = $people = $totals = $counts = [];
         $width = 0;
         $n = count($dates);
         [$nCol, $rateCol, $amountCol] = [$n + 2, $n + 3, $n + 4];
@@ -312,13 +390,14 @@ class XlsxExporter
             if ($b['total']) {
                 $amounts[] = $L($width).$b['total'];
                 $totals[$field] = self::ref('Défraiements', $amountCol, $b['total']);
+                $counts[$field] = self::ref('Défraiements', $nCol, $b['total']);
             }
             $r = $b['next'];
         }
         $this->grandTotal($ws, $r, $width, 'Total défraiements (repas, petits-déjeuners, nuitées)', [$width => '='.($amounts ? implode('+', $amounts) : '0')]);
         $this->finish($ws, $ev, $width);
 
-        return ['people' => $people, 'totals' => $totals];
+        return ['people' => $people, 'totals' => $totals, 'counts' => $counts];
     }
 
     /** Onglet Invitations (export complet seulement) : invités par représentation, places mises à disposition et restantes. */

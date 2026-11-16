@@ -51,6 +51,9 @@ class Readiness
             ['key' => 'travel', 'label' => 'Voyages', 'done' => $people > 0 && $covered === 2 * $people, 'detail' => $covered.' / '.(2 * $people).' trajets'],
             ['key' => 'stay', 'label' => 'Séjour', 'done' => $stayDone,
                 'detail' => $stayDone ? $nights.' nuitée'.($nights > 1 ? 's' : '') : ($ev->lodgings->isEmpty() ? 'Hébergement à ajouter' : 'Hébergement à attribuer')],
+            // Facultatif : devis signé par l'organisateur, comparé au réalisé
+            ['key' => 'signed', 'label' => 'Devis initial', 'optional' => true, 'done' => null !== $ev->signedQuoteNumber || null !== $ev->signedTeamTravel || null !== $ev->signedMeals || null !== $ev->signedNights || (bool) $ev->signedQuoteDetail,
+                'detail' => null !== $ev->signedQuoteNumber ? 'N° '.$ev->signedQuoteNumber : (null !== $ev->signedTeamTravel || null !== $ev->signedMeals || null !== $ev->signedNights ? 'Saisi' : 'Facultatif')],
             ['key' => 'quote', 'label' => 'Devis', 'done' => (float) $ev->fee > 0, 'detail' => (float) $ev->fee > 0 ? $fmt($quote['totalTtc']).' TTC' : 'Cachet à saisir'],
             // Facultatif : affiché dans les étapes, sans compter dans l'avancement
             ['key' => 'invitations', 'label' => 'Invitations', 'optional' => true, 'done' => $inv['used'] + $inv['detaxe'] > 0,
