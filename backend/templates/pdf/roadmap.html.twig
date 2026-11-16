@@ -4,6 +4,7 @@
 {% endblock %}
 {% block body %}
   {% if weather %}
+    <div class="keep">
     <div class="sec"><span class="dot sun"></span>Météo à {{ weather.city }}</div>
     {% if weather.days %}
       <table class="weather"><tr>
@@ -14,6 +15,7 @@
       </tr></table>
     {% endif %}
     <p class="muted" style="margin:3pt 0 0">{% if weather.availableFrom %}Prévisions{{ weather.days ? ' des jours suivants' }} disponibles à partir du {{ weather.availableFrom|fday|lower }} : ouvrez à nouveau la feuille de route pour les voir. {% endif %}Prévisions Open-Meteo.com, données du {{ generatedAt }}.</p>
+    </div>
     <style>
       table.weather { width: 100%; border-collapse: separate; border-spacing: 4pt 0; margin: 0 -4pt; }
       table.weather td { width: 12.5%; padding: 5pt 4pt; border-radius: 8pt; background: {{ theme.sunSoft }}; text-align: center; vertical-align: top; font-size: 7.8pt; }
@@ -22,11 +24,11 @@
       table.weather .wt { font-size: 9pt; }
     </style>
   {% endif %}
-  <div class="sec"><span class="dot mint"></span>Voyages aller</div>
-  {% include 'pdf/_trips.html.twig' with { days: outbound, back: false } %}
+  {% include 'pdf/_trips.html.twig' with { days: outbound, back: false, heading: '<div class="sec"><span class="dot mint"></span>Voyages aller</div>' } %}
 
-  <div class="sec"><span class="dot violet"></span>Hébergement</div>
+  {% set lodgingTitle = '<div class="sec"><span class="dot violet"></span>Hébergement</div>' %}
   {% for l in ev.lodgings %}
+    {% if loop.first %}<div class="keep">{{ lodgingTitle|raw }}{% endif %}
     <div class="card lodging">
       <h3>{{ l.name }}</h3>
       {% if l.address %}<div>{{ l.address }}</div>{% endif %}
@@ -36,30 +38,39 @@
       {% set guests = ev.participations|filter(p => p.lodgingId == l.id)|map(p => p.person.firstName ?: p.person.lastName) %}
       {% if guests|length %}<div class="who">♥ {{ guests|join(', ') }}</div>{% endif %}
     </div>
+    {% if loop.first %}</div>{% endif %}
   {% else %}
-    <p class="muted">Aucun hébergement renseigné.</p>
+    <div class="keep">{{ lodgingTitle|raw }}<p class="muted">Aucun hébergement renseigné.</p></div>
   {% endfor %}
 
   {% if schedule|length %}
-    <div class="sec"><span class="dot sun"></span>Planning</div>
+    {# Une journée du planning reste d'un seul tenant, avec le titre de section pour la première #}
     {% for day, slots in schedule %}
-      <div class="day">{{ day|fday }}</div>
-      <table class="slots">{% for s in slots %}<tr{% if s.isPerformance %} class="perf"{% endif %}><td class="h">{{ s.time }}</td><td>{{ [s.label, s.detail ?? '']|filter(v => v)|join(' — ') }}</td></tr>{% endfor %}</table>
+      <div class="keep">
+        {% if loop.first %}<div class="sec"><span class="dot sun"></span>Planning</div>{% endif %}
+        <div class="day">{{ day|fday }}</div>
+        <table class="slots">{% for s in slots %}<tr{% if s.isPerformance %} class="perf"{% endif %}><td class="h">{{ s.time }}</td><td>{{ [s.label, s.detail ?? '']|filter(v => v)|join(' — ') }}</td></tr>{% endfor %}</table>
+      </div>
     {% endfor %}
   {% endif %}
 
   {% for s in ev.sections %}
+    {# Titre gardé avec la première fiche si elle est courte (une longue fiche peut se couper entre deux pages) #}
+    {% set keep = loop.first and s.body|length < 700 %}
+    {% if keep %}<div class="keep">{% endif %}
     {% if loop.first %}<div class="sec"><span class="dot coral"></span>Infos pratiques</div>{% endif %}
     <div class="card info"><h3>{{ s.title }}</h3><div class="pre">{{ s.body }}</div></div>
+    {% if keep %}</div>{% endif %}
   {% endfor %}
 
-  <div class="sec"><span class="dot coral"></span>Voyages retour</div>
-  {% include 'pdf/_trips.html.twig' with { days: inbound, back: true } %}
+  {% include 'pdf/_trips.html.twig' with { days: inbound, back: true, heading: '<div class="sec"><span class="dot coral"></span>Voyages retour</div>' } %}
 
-  {# Coordonnées de l'équipe sur une page à part (masquées si l'utilisateur n'a pas le droit de voir l'annuaire) #}
+  {# Coordonnées de l'équipe à la suite, sans saut de page (masquées si l'utilisateur n'a pas le droit de voir l'annuaire) #}
   {% if ev.participations|filter(p => p.person.phone or p.person.email)|length %}
-    <div style="page-break-before: always"></div>
+    {% set keep = ev.participations|length <= 15 %}
+    {% if keep %}<div class="keep">{% endif %}
     <div class="sec"><span class="dot violet"></span>Coordonnées de l'équipe</div>
     {% include 'pdf/_contacts.html.twig' with { participations: ev.participations, diet: false } %}
+    {% if keep %}</div>{% endif %}
   {% endif %}
 {% endblock %}

@@ -40,7 +40,11 @@
   table.trips { width: 100%; border-collapse: separate; border-spacing: 0 3pt; }
   table.trips td { background: {{ theme.violetSoft }}; padding: 5pt 6pt; vertical-align: middle; }
   /* Trajets groupés par date, puis par personne */
-  .trip-day { page-break-inside: avoid; margin-bottom: 4pt; }
+  /* Une journée de voyages peut se couper entre deux pages (pas de page presque blanche) ; les trajets d'une personne restent ensemble */
+  .trip-day { margin-bottom: 4pt; }
+  /* Titre de section ou de journée gardé avec ce qui le suit (Dompdf ignore page-break-after: avoid) */
+  .keep { page-break-inside: avoid; }
+  table.trips { page-break-inside: avoid; }
   table.trips td.who { width: 22%; vertical-align: top; font-weight: bold; border-left: 4pt solid {{ theme.violet }}; }
   table.trips.back td.who { border-left-color: {{ theme.coral }}; }
   table.trips td.time { width: 14%; }
@@ -57,6 +61,7 @@
 
   /* Cartes */
   .card { border-radius: 0 10pt 10pt 0; padding: 9pt 12pt; margin-bottom: 7pt; page-break-inside: avoid; }
+  .card.info { page-break-inside: auto; } /* infos pratiques : un long texte se coupe plutôt que de laisser une page presque blanche */
   .card.lodging { background: {{ theme.violetSoft }}; border-left: 5pt solid {{ theme.violet }}; }
   .card.info { background: {{ theme.sunSoft }}; border-left: 5pt solid {{ theme.sun }}; }
   .card h3 { margin: 0 0 3pt; font-size: 10.5pt; }
