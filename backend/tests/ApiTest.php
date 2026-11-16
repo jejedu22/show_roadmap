@@ -92,7 +92,13 @@ class ApiTest extends ApiTestCase
                 foreach ($ws->getCellCollection()->getCoordinates() as $coord) {
                     $cell = $ws->getCell($coord);
                     // Seules les formules de total écrites par l'export (SOMME, addition de cellules) sont permises
-                    $cell->isFormula() && self::assertMatchesRegularExpression('/^=(SUM\([A-Z]+\d+:[A-Z]+\d+\)|[A-Z]+\d+(\+[A-Z]+\d+)*|0)$/', (string) $cell->getValue(), "$url $coord");
+                    if ($cell->isFormula()) {
+                        // Renvois à un onglet du classeur ('Voyages'!K12), cellules, nombres, opérateurs, SOMME et ARRONDI seulement
+                        $f = preg_replace_callback("/'((?:[^']|'')+)'!/", fn ($m) => null !== $book->getSheetByName(str_replace("''", "'", $m[1])) ? '' : '#', (string) $cell->getValue());
+                        self::assertMatchesRegularExpression('/^=[A-Z0-9:+\-*\/(),.]+$/', $f, "$url $coord");
+                        preg_match_all('/([A-Z]+)\(/', $f, $fn);
+                        self::assertEmpty(array_diff($fn[1], ['SUM', 'ROUND']), "$url $coord");
+                    }
                     $cell->isFormula() || $texts[] = (string) $cell->getValue();
                 }
             }
