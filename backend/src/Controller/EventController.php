@@ -717,6 +717,124 @@ class EventController extends ApiController
         return $this->savedEvent($ev);
     }
 
+    /**
+     * Trajets réutilisables d'autres dates de la compagnie (dates enchaînées) : pour les personnes présentes dans les deux
+     * équipes, le retour d'une date précédente devient l'aller ici, l'aller d'une date suivante devient le retour.
+     * Dates les plus proches d'abord, seulement celles qui ont des trajets à proposer.
+     */
+    #[Route('/leg-sources', methods: ['GET'])]
+    public function legSources(int $id): JsonResponse
+    {
+        $ev = $this->event($id, 'travel.edit');
+        $finance = $this->authz->can($this->me(), 'finance.view', $ev->show->company);
+        $sources = [];
+        foreach ($this->siblings($ev) as $src) {
+            $legs = [];
+            foreach ($this->reusableLegs($ev, $src) as [$leg, $target, $direction]) {
+                $legs[] = ['id' => $leg->id, 'participationId' => $target->id, 'person' => $target->person->fullName(), 'direction' => $direction,
+                    'day' => Input::iso($leg->day), 'origin' => $leg->origin, 'destination' => $leg->destination, 'depTime' => $leg->depTime,
+                    'arrTime' => $leg->arrTime, 'mode' => $leg->mode, 'travelClass' => $leg->travelClass, 'reference' => $leg->reference,
+                    'bookingUrl' => '' !== $leg->bookingUrl, 'price' => $finance ? (float) $leg->price : null, 'already' => $this->hasLeg($target, $leg)];
+            }
+            if ($legs) {
+                $sources[] = ['event' => $this->presenter->eventSummary($src), 'position' => $src->firstDate < $ev->firstDate ? 'before' : 'after', 'legs' => $legs];
+            }
+        }
+        usort($sources, fn ($a, $b) => self::gap($ev, $a['event']) <=> self::gap($ev, $b['event']));
+
+        return $this->json(array_slice($sources, 0, 8));
+    }
+
+    /** Copie des trajets choisis (voir legSources) dans cette date, sens inversé ; prix repris seulement si demandé (sinon compté deux fois). */
+    #[Route('/copy-legs', methods: ['POST'])]
+    public function copyLegs(int $id, Request $request, Planning $planning): JsonResponse
+    {
+        $ev = $this->event($id, 'travel.edit');
+        $d = $this->body($request);
+        $ids = array_map('intval', (array) ($d['legIds'] ?? []));
+        $withPrice = !empty($d['withPrice']) && $this->authz->can($this->me(), 'finance.view', $ev->show->company);
+        $wanted = array_flip($ids);
+        $parts = [];
+        $copied = 0;
+        foreach ($this->siblings($ev) as $src) {
+            foreach ($this->reusableLegs($ev, $src) as [$leg, $target, $direction]) {
+                if (!isset($wanted[$leg->id]) || $this->hasLeg($target, $leg)) {
+                    continue;
+                }
+                $copy = new Leg($target, $leg->day);
+                foreach (['origin', 'destination', 'depTime', 'arrTime', 'mode', 'travelClass', 'reference', 'bookedOn', 'note', 'bookingUrl'] as $f) {
+                    $copy->$f = $leg->$f;
+                }
+                $copy->direction = $direction;
+                $copy->price = $withPrice ? $leg->price : '0.00';
+                $target->legs->add($copy);
+                $parts[$target->id] = $target;
+                ++$copied;
+                unset($wanted[$leg->id]);
+            }
+        }
+        if (!$copied) {
+            throw new BadRequestHttpException('Aucun trajet à reprendre : déjà présents, ou personnes absentes de cette date.');
+        }
+        $this->daysFromTravel($planning, ...array_values($parts));
+        $this->audit->log('event.legs_copy', sprintf('%s — %s', $ev->show->title, $ev->venue), ['trajets' => $copied, 'avec prix' => $withPrice ? 'oui' : 'non']);
+
+        return $this->savedEvent($ev);
+    }
+
+    /** @return list<Event> autres dates de la même compagnie */
+    private function siblings(Event $ev): array
+    {
+        $out = [];
+        foreach ($ev->show->company->shows as $show) {
+            foreach ($show->events as $e) {
+                if ($e !== $ev) {
+                    $out[] = $e;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /** @return list<array{Leg, Participation, string}> trajet de $src, participation de $ev de la même personne, sens dans $ev */
+    private function reusableLegs(Event $ev, Event $src): array
+    {
+        $before = $src->firstDate < $ev->firstDate;
+        [$from, $to] = $before ? ['return', 'outbound'] : ['outbound', 'return'];
+        $out = [];
+        foreach ($src->participations as $sp) {
+            $target = $ev->participations->findFirst(fn ($k, $p) => $p->person === $sp->person);
+            if (!$target) {
+                continue;
+            }
+            $legs = array_filter($sp->legs->toArray(), fn (Leg $l) => $l->direction === $from);
+            usort($legs, fn ($a, $b) => [$a->day, Input::minutes($a->depTime)] <=> [$b->day, Input::minutes($b->depTime)]);
+            foreach ($legs as $l) {
+                $out[] = [$l, $target, $to];
+            }
+        }
+
+        return $out;
+    }
+
+    /** Même trajet déjà saisi pour cette personne (jour, villes, heure de départ). */
+    private function hasLeg(Participation $p, Leg $leg): bool
+    {
+        $norm = fn (string $v) => mb_strtolower(trim($v));
+
+        return $p->legs->exists(fn ($k, Leg $l) => $l->day->format('Y-m-d') === $leg->day->format('Y-m-d') && $norm($l->origin) === $norm($leg->origin)
+            && $norm($l->destination) === $norm($leg->destination) && $norm($l->depTime) === $norm($leg->depTime));
+    }
+
+    /** Écart en jours entre deux dates (fin de l'une, début de l'autre), pour proposer d'abord les plus proches. */
+    private static function gap(Event $ev, array $other): int
+    {
+        $a = $other['firstDate'] < Input::iso($ev->firstDate) ? [$other['end'], Input::iso($ev->start())] : [Input::iso($ev->end()), $other['start']];
+
+        return abs((int) (new \DateTimeImmutable($a[0]))->diff(new \DateTimeImmutable($a[1]))->format('%r%a'));
+    }
+
     /** $mode : mode déjà contrôlé par la liste (saisie) ; à l'import, la valeur du classeur est gardée telle quelle (« hors liste » au besoin). */
     private function fillLeg(Leg $leg, array $d, ?string $mode = null): void
     {

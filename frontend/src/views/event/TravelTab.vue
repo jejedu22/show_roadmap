@@ -5,6 +5,7 @@ import { byDeparture, fdate, money, sum } from '../../format.js'
 import Avatar from '../../components/Avatar.vue'
 import Icon from '../../components/Icon.vue'
 import CostShareDialog from '../../components/CostShareDialog.vue'
+import LegsCopyDialog from '../../components/LegsCopyDialog.vue'
 import LegsImportDialog from '../../components/LegsImportDialog.vue'
 import TravelEditor from '../../components/TravelEditor.vue'
 
@@ -12,6 +13,7 @@ const { ev, apply, allowed } = inject('event')
 const panel = ref(null) // { part, direction, leg } ou { part, direction, expense, isExpense: true }
 const open = ref({})
 const importing = ref(false)
+const copying = ref(false)
 const sharingCosts = ref(false)
 
 const legsOf = (p, dir) => p.legs.filter((l) => l.direction === dir).sort(byDeparture)
@@ -42,11 +44,15 @@ async function remove(p, l) {
       <div class="page-head">
         <h2 id="voy">Voyages</h2>
         <span class="muted">{{ ev.readiness.legsCovered }} / {{ ev.readiness.legsNeeded }} trajets<template v-if="ev.quote"> · billets <b style="color:var(--ink)">{{ money(ev.quote.travelTickets) }}</b><template v-if="ev.quote.travelExpenses"> · dépenses <b style="color:var(--ink)">{{ money(ev.quote.travelExpenses) }}</b></template></template></span>
-        <button v-if="allowed('travel.edit') && ev.participations.length" type="button" class="btn btn-sm" style="margin-left:auto" @click="importing = true">Importer depuis Excel (Horaires TGV)</button>
+        <span v-if="allowed('travel.edit') && ev.participations.length" class="actions" style="margin-left:auto">
+          <button type="button" class="btn btn-sm" @click="copying = true"><Icon name="copy" :size="16" />Reprendre d'une autre date</button>
+          <button type="button" class="btn btn-sm" @click="importing = true">Importer depuis Excel (Horaires TGV)</button>
+        </span>
       </div>
       <p v-if="allowed('travel.edit') && ev.participations.length" class="muted small" style="margin:0">Cliquez sur « Ajouter l'aller » ou « Ajouter le retour » : le formulaire s'ouvre juste en dessous, villes et date pré-remplies, trains SNCF proposés.
         Collez le lien du billet : il devient un bouton « Billet » dans la feuille de route envoyée à l'équipe.</p>
       <LegsImportDialog :open="importing" :ev="ev" :apply="apply" @close="importing = false" />
+      <LegsCopyDialog :open="copying" :ev="ev" :apply="apply" :finance="allowed('finance.view')" @close="copying = false" />
       <p v-if="!ev.participations.length" class="card empty">Ajoutez d'abord des personnes à l'étape Équipe.</p>
 
       <article v-for="p in ev.participations" :key="p.id" class="card" :class="{ warn: status(p)[1] !== 'ok' }">
