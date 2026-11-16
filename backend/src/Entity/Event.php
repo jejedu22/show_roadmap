@@ -107,6 +107,16 @@ class Event
     #[ORM\Column(nullable: true)]
     public ?int $signedNights = null;
 
+    /**
+     * Détail du devis initial (importé ou saisi) : spectacle, organisateur, période, représentations, cession, repas midi / soir,
+     * total des défraiements, lignes de déplacement de l'équipe, décor, totaux HT / TTC. Les trois valeurs comparées au réalisé
+     * (déplacements, repas, nuitées) restent dans les colonnes ci-dessus.
+     *
+     * @var array<string, mixed>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $signedQuoteDetail = null;
+
     // Tarifs et montants du devis (HT)
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     public string $mealRate = '20.70';

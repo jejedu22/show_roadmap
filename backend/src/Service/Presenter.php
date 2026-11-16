@@ -35,7 +35,7 @@ class Presenter
     {
         $r = $this->readiness->compute($e);
         if (!in_array('finance.view', $perms, true)) {
-            $r['steps'] = array_values(array_filter($r['steps'], fn ($s) => 'quote' !== $s['key']));
+            $r['steps'] = array_values(array_filter($r['steps'], fn ($s) => !in_array($s['key'], ['quote', 'signed'], true)));
             $r['todo'] = array_values(array_filter($r['todo'], fn ($t) => 'quote' !== $t['step']));
             $counted = array_filter($r['steps'], fn ($s) => !($s['optional'] ?? false));
             $r['done'] = count(array_filter($counted, fn ($s) => $s['done']));
@@ -46,6 +46,24 @@ class Presenter
         }
 
         return $r;
+    }
+
+    /** @return array<string, mixed>|null devis initial : valeurs comparées au réalisé et détail (lignes de déplacement, etc.) */
+    public function signedQuote(Event $e): ?array
+    {
+        if (null === $e->signedQuoteNumber && null === $e->signedTeamTravel && null === $e->signedMeals && null === $e->signedNights && !$e->signedQuoteDetail) {
+            return null;
+        }
+        $d = (array) $e->signedQuoteDetail;
+
+        return [
+            'number' => $e->signedQuoteNumber, 'date' => Input::iso($e->signedQuoteDate), 'signedOn' => Input::iso($e->signedOn),
+            'teamTravel' => null === $e->signedTeamTravel ? null : (float) $e->signedTeamTravel, 'meals' => $e->signedMeals, 'nights' => $e->signedNights,
+            'show' => (string) ($d['show'] ?? ''), 'organizer' => (string) ($d['organizer'] ?? ''), 'period' => (string) ($d['period'] ?? ''),
+            'performances' => $d['performances'] ?? null, 'cession' => $d['cession'] ?? null,
+            'lunches' => $d['lunches'] ?? null, 'dinners' => $d['dinners'] ?? null, 'allowances' => $d['allowances'] ?? null,
+            'lines' => array_values((array) ($d['lines'] ?? [])), 'decor' => $d['decor'] ?? null, 'totalHt' => $d['totalHt'] ?? null, 'totalTtc' => $d['totalTtc'] ?? null,
+        ];
     }
 
     /** Membres de l'équipe d'une date, pour les pastilles (initiales). */
@@ -195,11 +213,8 @@ class Presenter
                 'defaultExpiresOn' => Input::iso($e->defaultShareExpiry()), 'maxExpiresOn' => Input::iso($e->maxShareExpiry()),
                 'emails' => in_array('people.view', $perms, true) ? array_values(array_filter($e->participations->map(fn ($p) => $p->person->email)->getValues())) : []],
             'quote' => $this->quotes->compute($e),
-            // Devis signé : comparé au réalisé (déplacements de l'équipe, repas, nuitées) ; null si rien de saisi
-            'signedQuote' => $finance && (null !== $e->signedQuoteNumber || null !== $e->signedTeamTravel || null !== $e->signedMeals || null !== $e->signedNights) ? [
-                'number' => $e->signedQuoteNumber, 'date' => Input::iso($e->signedQuoteDate), 'signedOn' => Input::iso($e->signedOn),
-                'teamTravel' => null === $e->signedTeamTravel ? null : (float) $e->signedTeamTravel, 'meals' => $e->signedMeals, 'nights' => $e->signedNights,
-            ] : null,
+            // Devis initial (signé) : comparé au réalisé (déplacements de l'équipe, repas, nuitées), avec son détail ; null si rien de saisi
+            'signedQuote' => $finance ? $this->signedQuote($e) : null,
             'personCosts' => $this->quotes->personCosts($e),
         ];
         if (!$finance) {

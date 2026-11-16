@@ -29,7 +29,7 @@ class SignedQuoteParser
 
     /**
      * @return array{number: string, date: ?string, show: string, organizer: string, period: string, performances: ?int,
-     *               lunches: ?int, dinners: ?int, meals: ?int, nights: ?int, teamTravel: ?float, teamLines: list<array{label: string, detail: string, amount: float}>,
+     *               cession: ?float, allowances: ?float, lunches: ?int, dinners: ?int, meals: ?int, nights: ?int, teamTravel: ?float, teamLines: list<array{label: string, detail: string, amount: float}>,
      *               decor: ?float, travelTotal: ?float, totalHt: ?float, totalTtc: ?float, checks: list<string>, warnings: list<string>}
      */
     public function parse(string $text): array
@@ -45,7 +45,7 @@ class SignedQuoteParser
             return null;
         };
         $after = fn (string $label, string $line) => trim(preg_replace('/^\s*'.$label.'\s*/iu', '', $line));
-        $d = ['number' => '', 'date' => null, 'show' => '', 'organizer' => '', 'period' => '', 'performances' => null, 'lunches' => null, 'dinners' => null,
+        $d = ['number' => '', 'date' => null, 'show' => '', 'organizer' => '', 'period' => '', 'performances' => null, 'cession' => null, 'allowances' => null, 'lunches' => null, 'dinners' => null,
             'meals' => null, 'nights' => null, 'teamTravel' => null, 'teamLines' => [], 'decor' => null, 'travelTotal' => null, 'totalHt' => null, 'totalTtc' => null,
             'checks' => [], 'warnings' => []];
 
@@ -64,6 +64,10 @@ class SignedQuoteParser
         if ('' === $d['organizer'] && ($m = $find('/^\s*ORGANISATEUR\s*$/u'))) {
             $d['organizer'] = trim($lines[$m[0] + 1] ?? '');
         }
+
+        // Cession (montant des représentations) et total des défraiements, pour information
+        ($m = $find('/TOTAL Cession\s+(-?\d[\d\s\x{a0}\x{202f}]*,\d{2})\s*€?\s*$/iu')) && $d['cession'] = self::amount($m[1][1]);
+        ($m = $find('/TOTAL D[ée]fraiements\s+(-?\d[\d\s\x{a0}\x{202f}]*,\d{2})\s*€?\s*$/iu')) && $d['allowances'] = self::amount($m[1][1]);
 
         // Défraiements : colonnes « repas midi », « repas soir », « hôtel + pdéj. », totaux sur la ligne « Totaux »
         $head = $find('/repas midi.*repas soir.*h[ôo]tel/iu');
