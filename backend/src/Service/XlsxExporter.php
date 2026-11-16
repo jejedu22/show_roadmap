@@ -333,15 +333,16 @@ class XlsxExporter
                 $of = $i->performance && isset($sum['byPerformance'][$i->performance->id]) ? $i->performance->id : 'none';
                 if ($of === $key) {
                     $rows[] = [$s ? $s->day : '', $s ? trim($s->time.($s->detail ? ' · '.$s->detail : '')) : ($perfs ? 'À répartir' : 'Toutes'),
-                        \App\Entity\Invitation::KINDS[$i->kind], $i->lastName, $i->firstName, $i->structure, $i->places];
+                        \App\Entity\Invitation::TICKETS[$i->ticket] ?? 'Invitation', \App\Entity\Invitation::KINDS[$i->kind], $i->lastName, $i->firstName, $i->structure, $i->places];
                 }
             }
         }
         $ws = $this->newSheet($book, $ev, 'Invitations', $this->rgb('mint'),
-            sprintf('Places mises à disposition par le lieu : %d · attribuées : %d (Cie %d, Pro %d) · restantes : %d', $sum['quota'], $sum['used'], $sum['company'], $sum['pro'], $sum['left']));
-        $b = $this->block($ws, self::HEADER_ROW, [['Date', 'date'], ['Représentation', 'text', 22], ['Type', 'text', 8], ['Nom', 'text', 20], ['Prénom', 'text', 16],
+            sprintf('Invitations : %d mises à disposition · %d attribuées (Cie %d, Pro %d) · %d restantes — Détaxes : %d prévues · %d attribuées · %d restantes',
+                $sum['quota'], $sum['used'], $sum['company'], $sum['pro'], $sum['left'], $sum['detaxeQuota'], $sum['detaxe'], $sum['detaxeLeft']));
+        $b = $this->block($ws, self::HEADER_ROW, [['Date', 'date'], ['Représentation', 'text', 22], ['Billet', 'text', 11], ['Type', 'text', 8], ['Nom', 'text', 20], ['Prénom', 'text', 16],
             ['Structure', 'text', 28], ['Places', 'int']], $rows, ['total' => 'Total']);
-        $rows && $ws->setAutoFilter('A'.self::HEADER_ROW.':G'.$b['last']);
+        $rows && $ws->setAutoFilter('A'.self::HEADER_ROW.':H'.$b['last']);
         $this->finish($ws, $ev, $b['width'], self::HEADER_ROW);
     }
 

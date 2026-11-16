@@ -33,6 +33,10 @@ class ScheduleItem
     #[ORM\Column(options: ['default' => 0])]
     public int $invitationQuota = 0;
 
+    /** Pour une représentation : places en détaxe mises à disposition */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $detaxeQuota = 0;
+
     public function __construct(Event $event)
     {
         $this->event = $event;

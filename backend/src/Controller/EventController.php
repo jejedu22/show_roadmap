@@ -664,6 +664,7 @@ class EventController extends ApiController
     private function fillInvitation(Invitation $i, array $d): void
     {
         $i->kind = 'pro' === ($d['kind'] ?? null) ? 'pro' : 'company';
+        $i->ticket = 'detaxe' === ($d['ticket'] ?? null) ? 'detaxe' : 'invitation';
         $i->lastName = Input::str($d, 'lastName', 120) ?: throw new BadRequestHttpException('Nom obligatoire');
         $i->firstName = Input::str($d, 'firstName', 120);
         $i->structure = 'pro' === $i->kind ? Input::str($d, 'structure') : '';
@@ -674,19 +675,26 @@ class EventController extends ApiController
     }
 
     /**
-     * Places d'invitation mises à disposition par le lieu : par représentation ({performances: {id: places}}),
-     * ou pour toute la date ({total: places}) quand le planning n'a pas de représentation.
+     * Places mises à disposition par le lieu, en invitations et en détaxes : par représentation
+     * ({performances: {id: {invitations, detaxes}}}, ou {id: places} pour les seules invitations),
+     * ou pour toute la date ({total, detaxeTotal}) quand le planning n'a pas de représentation.
      */
     #[Route('/invitation-quotas', methods: ['PUT'])]
     public function invitationQuotas(int $id, Request $request): JsonResponse
     {
         $ev = $this->event($id, 'events.edit');
         $d = $this->body($request);
-        $ev->invitationQuota = max(0, min(10000, Input::int($d, 'total')));
+        $n = fn (mixed $v) => max(0, min(10000, (int) $v));
+        $ev->invitationQuota = $n(Input::int($d, 'total'));
+        $ev->detaxeQuota = $n(Input::int($d, 'detaxeTotal'));
         $quotas = is_array($d['performances'] ?? null) ? $d['performances'] : [];
         foreach (Invitations::performances($ev) as $s) {
-            if (isset($quotas[$s->id]) && is_scalar($quotas[$s->id])) {
-                $s->invitationQuota = max(0, min(10000, (int) $quotas[$s->id]));
+            $q = $quotas[$s->id] ?? null;
+            if (is_scalar($q)) {
+                $s->invitationQuota = $n($q);
+            } elseif (is_array($q)) {
+                isset($q['invitations']) && is_scalar($q['invitations']) && $s->invitationQuota = $n($q['invitations']);
+                isset($q['detaxes']) && is_scalar($q['detaxes']) && $s->detaxeQuota = $n($q['detaxes']);
             }
         }
 

@@ -174,6 +174,10 @@ class Event
     #[ORM\Column(options: ['default' => 0])]
     public int $invitationQuota = 0;
 
+    /** Places en détaxe mises à disposition pour toute la date, quand le planning n'a pas de représentation */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $detaxeQuota = 0;
+
     public function __construct(Show $show, string $venue, \DateTimeImmutable $firstDate, \DateTimeImmutable $lastDate)
     {
         $this->show = $show;

@@ -22,27 +22,33 @@ class Invitations
     }
 
     /**
-     * @return array{quota: int, used: int, company: int, pro: int, left: int, byPerformance: array<int|string, array{quota: int, company: int, pro: int, left: int}>}
-     *                                                                                    clé « none » : invitations sans représentation
+     * Invitations (quota, Cie, Pro, restantes) et détaxes (detaxeQuota, detaxe, detaxeLeft), chacune sur son contingent,
+     * par représentation et au total.
+     *
+     * @return array{quota: int, used: int, company: int, pro: int, left: int, detaxeQuota: int, detaxe: int, detaxeLeft: int,
+     *               byPerformance: array<int|string, array{quota: int, company: int, pro: int, left: int, detaxeQuota: int, detaxe: int, detaxeLeft: int}>}
+     *               clé « none » : invitations et détaxes sans représentation
      */
     public static function summary(Event $ev): array
     {
         $perfs = self::performances($ev);
         $by = [];
         foreach ($perfs as $s) {
-            $by[$s->id] = ['quota' => $s->invitationQuota, 'company' => 0, 'pro' => 0];
+            $by[$s->id] = ['quota' => $s->invitationQuota, 'company' => 0, 'pro' => 0, 'detaxeQuota' => $s->detaxeQuota, 'detaxe' => 0];
         }
-        $by['none'] = ['quota' => $perfs ? 0 : $ev->invitationQuota, 'company' => 0, 'pro' => 0];
+        $by['none'] = ['quota' => $perfs ? 0 : $ev->invitationQuota, 'company' => 0, 'pro' => 0, 'detaxeQuota' => $perfs ? 0 : $ev->detaxeQuota, 'detaxe' => 0];
         foreach ($ev->invitations as $i) {
             $key = $i->performance && isset($by[$i->performance->id]) ? $i->performance->id : 'none';
-            $by[$key]['pro' === $i->kind ? 'pro' : 'company'] += $i->places;
+            'detaxe' === $i->ticket ? $by[$key]['detaxe'] += $i->places : $by[$key]['pro' === $i->kind ? 'pro' : 'company'] += $i->places;
         }
         foreach ($by as &$b) {
             $b['left'] = $b['quota'] - $b['company'] - $b['pro'];
+            $b['detaxeLeft'] = $b['detaxeQuota'] - $b['detaxe'];
         }
+        unset($b);
         $sum = fn (string $k) => array_sum(array_column($by, $k));
 
         return ['quota' => $sum('quota'), 'used' => $sum('company') + $sum('pro'), 'company' => $sum('company'), 'pro' => $sum('pro'),
-            'left' => $sum('left'), 'byPerformance' => $by];
+            'left' => $sum('left'), 'detaxeQuota' => $sum('detaxeQuota'), 'detaxe' => $sum('detaxe'), 'detaxeLeft' => $sum('detaxeLeft'), 'byPerformance' => $by];
     }
 }

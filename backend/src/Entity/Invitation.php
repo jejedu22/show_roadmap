@@ -12,6 +12,8 @@ use Doctrine\ORM\Mapping as ORM;
 class Invitation
 {
     public const KINDS = ['company' => 'Cie', 'pro' => 'Pro'];
+    /** Billet : invitation (gratuite) ou détaxe (place à tarif détaxé), chacun sur son propre contingent */
+    public const TICKETS = ['invitation' => 'Invitation', 'detaxe' => 'Détaxe'];
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     public ?int $id = null;
@@ -28,6 +30,10 @@ class Invitation
     /** company / pro */
     #[ORM\Column(length: 10)]
     public string $kind = 'company';
+
+    /** invitation / detaxe */
+    #[ORM\Column(length: 10, options: ['default' => 'invitation'])]
+    public string $ticket = 'invitation';
 
     #[ORM\Column(length: 120)]
     public string $lastName = '';
