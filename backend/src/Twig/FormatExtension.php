@@ -18,6 +18,8 @@ class FormatExtension extends AbstractExtension
         return [
             new TwigFilter('fdate', $this->fdate(...)),
             new TwigFilter('fday', $this->fday(...)),
+            // « Mer. 18/11 » : jour court pour les tableaux serrés
+            new TwigFilter('fdayshort', fn (string $iso) => ucfirst(mb_substr(self::DAYS_LONG[(int) (new \DateTimeImmutable($iso))->format('w')], 0, 3)).'. '.(new \DateTimeImmutable($iso))->format('d/m')),
             new TwigFilter('fperiod', $this->fperiod(...)),
             new TwigFilter('money', fn (?float $x) => number_format($x ?? 0, 2, ',', "\u{202F}")."\u{a0}€"),
             new TwigFilter('ddmm', fn (string $iso) => substr($iso, 8, 2).'/'.substr($iso, 5, 2)),

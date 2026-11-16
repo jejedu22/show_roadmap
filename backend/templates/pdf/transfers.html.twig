@@ -3,12 +3,15 @@
 {% block body %}
   {% set phones = transfers|filter(t => t.phone)|length > 0 %}
   <p class="muted" style="margin:0 0 6pt">Arrivée : dernier trajet aller (après les correspondances). Départ : premier trajet retour.</p>
+  {# Largeurs fixes (%) : le tableau tient dans la largeur de la page, le texte va à la ligne #}
+  {% set w = phones ? [15, 9, 10, 7, 5, 10, 11, 7, 5, 10, 11] : [17, 11, 8, 5, 11, 12, 8, 5, 11, 12] %}
   <table class="grid transfers">
     <thead>
+      {# Ligne invisible : Dompdf prend les largeurs de colonnes sur la première ligne (le bandeau suivant a des cellules fusionnées) #}
+      <tr class="sizer">{% for x in w %}<th style="width:{{ x }}%"></th>{% endfor %}</tr>
       <tr class="groups"><th colspan="{{ phones ? 3 : 2 }}"></th><th colspan="4" class="arr">Arrivée</th><th colspan="4" class="dep">Départ</th></tr>
-      <tr><th>Nom</th><th>Fonction</th>{% if phones %}<th class="tel">Téléphone</th>{% endif %}
-        <th class="arr">Jour</th><th class="arr c">Heure</th><th class="arr">Lieu</th><th class="arr">Transport</th>
-        <th class="dep">Jour</th><th class="dep c">Heure</th><th class="dep">Lieu</th><th class="dep">Transport</th></tr>
+      {% set heads = ['Nom', 'Fonction']|merge(phones ? ['Téléphone'] : [])|merge(['Jour', 'Heure', 'Lieu', 'Transport', 'Jour', 'Heure', 'Lieu', 'Transport']) %}
+      <tr>{% for h in heads %}{% set dep = loop.revindex <= 4 %}{% set arr = not dep and loop.revindex <= 8 %}<th class="{{ arr ? 'arr' }}{{ dep ? 'dep' }}{{ h == 'Heure' ? ' c' }}">{{ h }}</th>{% endfor %}</tr>
     </thead>
     <tbody>
     {% for t in transfers %}
@@ -16,7 +19,7 @@
         <td><b>{{ t.name }}</b></td><td>{{ t.role }}</td>{% if phones %}<td class="tel">{{ t.phone }}</td>{% endif %}
         {% for x in [t.arrival, t.departure] %}
           {% if x %}
-            <td class="when">{{ x.day|fday }}</td><td class="c"><b>{{ x.time ?: '—' }}</b></td><td>{{ x.place }}</td><td class="muted">{{ x.transport }}</td>
+            <td class="when">{{ x.day|fdayshort }}</td><td class="c"><b>{{ x.time ?: '—' }}</b></td><td>{{ x.place }}</td><td class="muted">{{ x.transport }}</td>
           {% else %}
             <td colspan="4" class="todo">{{ loop.first ? 'Aller' : 'Retour' }} à réserver</td>
           {% endif %}
@@ -29,7 +32,10 @@
   </table>
   <style>
     @page { size: A4 landscape; } /* paysage (aussi fixé au rendu, PdfRenderer) */
-    table.transfers .tel, table.transfers td.when { white-space: nowrap; }
+    table.transfers { table-layout: fixed; font-size: 7.6pt; }
+    table.transfers th, table.transfers td { padding: 4pt 4pt; word-wrap: break-word; overflow-wrap: break-word; }
+    table.transfers td.when { white-space: nowrap; }
+    table.transfers tr.sizer th { padding: 0; height: 0; background: none; border: 0; font-size: 0; line-height: 0; }
     table.transfers tr.groups th { text-align: center; font-size: 8.5pt; }
     table.transfers tr.groups th:first-child { background: none; }
     table.transfers th.arr { background: {{ theme.violet }}; }
