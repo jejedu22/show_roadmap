@@ -59,6 +59,16 @@ class TechPlanningImportTest extends ApiTestCase
         self::assertSame(['2026-11-20', '21h45–minuit', 'Démontage'], $rows[10], 'démontage, même si la ligne parle de la représentation');
         self::assertSame('Plateau danseurs / répétitions', $b['rows'][7]['detail']);
 
+        // Intitulés absents de la liste : celui du mot-clé est proposé quand même (nouveau), sinon le début de l'activité
+        $lists = static::getContainer()->get(Lists::class);
+        $lists->replace('schedule', array_values(array_diff($lists->entries('schedule'), ['Réglage lumière', 'Conduite lumière', 'Conduite'])));
+        $c = $this->parser()->parse(self::fixture('fiche-a'), self::event('2026-11-21', '2026-11-21'));
+        self::assertSame(['Réglage lumière', true], [$c['rows'][1]['label'], $c['rows'][1]['newLabel']]);
+        self::assertSame(['Conduite lumière', true], [$c['rows'][4]['label'], $c['rows'][4]['newLabel']]);
+        self::assertSame(['Représentation', false], [$c['rows'][9]['label'], $c['rows'][9]['newLabel']]);
+        self::assertSame('Accueil de l\'équipe', TechPlanningParser::newLabel('accueil de l\'équipe. Café en loge'));
+        self::assertSame('Marquage au sol', TechPlanningParser::newLabel('Marquage au sol / tapis'));
+
         $this->expectException(\InvalidArgumentException::class);
         $this->parser()->parse("Fiche technique\nPuissance électrique 63 A", self::event('2026-11-20', '2026-11-20'));
     }
@@ -95,6 +105,19 @@ class TechPlanningImportTest extends ApiTestCase
         self::assertSame(400, $this->code());
         $ev = $this->call('POST', "/api/events/$id/schedule/import", ['rows' => $rows]);
         self::assertCount(11, $ev['schedule']);
+
+        // Intitulés nouveaux ajoutés à la liste à l'import (« addLabels ») ; un intitulé existant n'est pas ajouté en double
+        $before = $this->call('GET', '/api/lists')['schedule'];
+        $ev = $this->call('POST', "/api/events/$id/schedule/import", ['addLabels' => true, 'rows' => [
+            ['day' => '2026-11-21', 'time' => '9h', 'label' => 'Marquage', 'detail' => 'tapis'], ['day' => '2026-11-21', 'time' => '9h30', 'label' => 'marquage'],
+            ['day' => '2026-11-21', 'time' => '10h', 'label' => 'représentation']]]);
+        self::assertSame(200, $this->code());
+        self::assertSame([...$before, 'Marquage'], $this->call('GET', '/api/lists')['schedule']);
+        self::assertSame(['Marquage', 'Marquage', 'Représentation'], array_values(array_map(fn ($s) => $s['label'], array_filter($ev['schedule'], fn ($s) => in_array($s['time'], ['9h', '9h30', '10h'], true)))));
+        $this->call('POST', "/api/events/$id/schedule/import", ['addLabels' => true, 'rows' => [['day' => '2026-11-21', 'label' => 'Autre'], ['label' => 'Encore']]]);
+        self::assertSame(400, $this->code(), 'ligne sans jour');
+        self::assertNotContains('Autre', $this->call('GET', '/api/lists')['schedule'], 'rien ajouté si l\'import est refusé');
+        self::assertCount(14, $this->call('GET', "/api/events/$id")['schedule']);
         $ev = $this->call('POST', "/api/events/$id/schedule/import", ['rows' => $rows, 'replace' => true]);
         self::assertCount(10, $ev['schedule']);
         self::assertSame(['Représentation'], array_column(array_filter($ev['schedule'], fn ($s) => $s['isPerformance']), 'label'));

@@ -178,6 +178,7 @@ class TechPlanningParser
             $d = $days[$r['dayIdx']];
             $label = $this->label($r['text'], $entries);
             $out[] = ['day' => $d['date'], 'dayText' => $d['text'], 'time' => $r['time'], 'text' => $r['text'], 'staff' => $r['staff'], 'label' => $label,
+                'newLabel' => '' !== $label && !in_array($label, $entries, true),
                 'detail' => mb_substr(Sheet::norm($label) === Sheet::norm($r['text']) ? '' : $r['text'], 0, 255),
                 'checked' => '' !== $r['time'] && null !== $d['date']];
         }
@@ -227,7 +228,11 @@ class TechPlanningParser
         }
     }
 
-    /** Intitulé de la liste le plus proche de l'activité ; « » si aucun (à choisir dans l'aperçu). */
+    /**
+     * Intitulé proposé pour l'activité : celui du mot-clé qui apparaît le premier (pris dans la liste s'il y est, sous la forme
+     * de la liste ; sinon nouvel intitulé, ajouté à la liste à l'import), puis l'entrée de la liste par laquelle commence le texte,
+     * puis le début du texte de la fiche (nouvel intitulé).
+     */
     private function label(string $text, array $entries): string
     {
         $norm = Sheet::norm($text);
@@ -245,13 +250,13 @@ class TechPlanningParser
         $best = null;
         foreach (array_keys(self::RULES) as $rank => $re) {
             if (preg_match('/'.$re.'/u', $norm, $m, PREG_OFFSET_CAPTURE)) {
-                $weak = in_array($re, ['transfert', 'arrivee', 'depart'], true);
-                $key = [$weak, $m[0][1], $rank];
-                foreach (self::RULES[$re] as $l) {
-                    if (($found = $exists($l)) && (null === $best || $key < $best[0])) {
-                        $best = [$key, $found];
-                        break;
+                $key = [in_array($re, ['transfert', 'arrivee', 'depart'], true), $m[0][1], $rank];
+                if (null === $best || $key < $best[0]) {
+                    $found = null;
+                    foreach (self::RULES[$re] as $l) {
+                        $found ??= $exists($l);
                     }
+                    $best = [$key, $found ?? self::RULES[$re][0]];
                 }
             }
         }
@@ -259,7 +264,16 @@ class TechPlanningParser
             return $best[1];
         }
 
-        return $this->lists->match('schedule', $text)['label'] ?? '';
+        return $this->lists->match('schedule', $text)['label'] ?? self::newLabel($text);
+    }
+
+    /** Début de l'activité, jusqu'à la première ponctuation (« Accueil de l'équipe. Café » → « Accueil de l'équipe »). */
+    public static function newLabel(string $text): string
+    {
+        $head = trim((string) preg_split('/\s*(?:[.:;(,*]|\s[\/+–—-]\s)\s*/u', trim($text))[0]);
+        $head = mb_substr($head, 0, 60);
+
+        return '' === $head ? '' : mb_strtoupper(mb_substr($head, 0, 1)).mb_substr($head, 1);
     }
 
     private static function month(string $s): ?int
