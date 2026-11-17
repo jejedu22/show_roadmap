@@ -21,6 +21,7 @@ use App\Service\Import\TechPlanningParser;
 use App\Service\Import\TrainSheetParser;
 use App\Service\Input;
 use App\Service\Invitations;
+use App\Service\Lists;
 use App\Service\PdfRenderer;
 use App\Service\Planning;
 use App\Service\XlsxExporter;
@@ -449,12 +450,24 @@ class EventController extends ApiController
         if (count($rows) > 200) {
             throw new BadRequestHttpException('200 lignes au plus par import.');
         }
+        // Intitulés absents de la liste : ajoutés à la liste des intitulés de planning si demandé (« addLabels »), sinon refusés
+        $known = array_map([Lists::class, 'key'], $this->lists->entries('schedule'));
+        $added = [];
+        foreach ($rows as $i => $r) {
+            Input::date($r, 'day') ?? throw new BadRequestHttpException(sprintf('Ligne %d : jour manquant.', $i + 1));
+            $label = Input::str($r, 'label', 120) ?: throw new BadRequestHttpException(sprintf('Ligne %d : intitulé à choisir.', $i + 1));
+            if (!empty($d['addLabels']) && !in_array(Lists::key($label), $known, true)) {
+                $known[] = Lists::key($label);
+                $added[] = trim(preg_replace('/\s+/u', ' ', $label));
+            }
+        }
+        $added && $this->lists->append('schedule', $added);
         $items = [];
         foreach ($rows as $i => $r) {
             $item = new ScheduleItem($ev);
-            $item->day = Input::date($r, 'day') ?? throw new BadRequestHttpException(sprintf('Ligne %d : jour manquant.', $i + 1));
+            $item->day = Input::date($r, 'day');
             $item->time = Input::str($r, 'time', 20);
-            $item->label = $this->lists->check('schedule', Input::str($r, 'label') ?: throw new BadRequestHttpException(sprintf('Ligne %d : intitulé à choisir.', $i + 1)));
+            $item->label = $this->lists->check('schedule', Input::str($r, 'label', 120));
             $item->detail = Input::str($r, 'detail');
             $items[] = $item;
         }
@@ -471,7 +484,7 @@ class EventController extends ApiController
         foreach ($items as $item) {
             $ev->schedule->add($item);
         }
-        $this->audit->log('event.schedule_import', sprintf('%s — %s', $ev->show->title, $ev->venue), ['lignes' => count($items), 'remplacées' => $removed]);
+        $this->audit->log('event.schedule_import', sprintf('%s — %s', $ev->show->title, $ev->venue), array_filter(['lignes' => count($items), 'remplacées' => $removed, 'intitulés ajoutés à la liste' => implode(', ', $added)]));
 
         return $this->savedEvent($ev);
     }
