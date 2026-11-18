@@ -16,6 +16,8 @@ class FakeHttp
     public string $orfeoToken = 'cle-orfeo-valide';
     /** Météo simulée (Open-Meteo) : prévisions quotidiennes servies ; null = service injoignable */
     public ?array $forecast = null;
+    /** Villes servies par la recherche Open-Meteo (homonymes) */
+    public array $places = [['name' => 'Beauvais', 'latitude' => 49.43, 'longitude' => 2.08]];
 
     public function __invoke(string $method, string $url, array $options = []): MockResponse
     {
@@ -24,7 +26,7 @@ class FakeHttp
 
         return match (true) {
             str_contains($url, 'orfeo.test') => $this->orfeo($url, $options),
-            str_contains($url, 'geocoding-api.open-meteo.com') && null !== $this->forecast => $json(['results' => [['name' => 'Beauvais', 'latitude' => 49.43, 'longitude' => 2.08]]]),
+            str_contains($url, 'geocoding-api.open-meteo.com') && null !== $this->forecast => $json(['results' => $this->places]),
             str_contains($url, 'api.open-meteo.com/v1/forecast') && null !== $this->forecast => $json(['daily' => $this->forecast]),
             str_contains($url, 'gtfs.test') => new MockResponse($this->gtfsZip),
             str_contains($url, 'oauth2.googleapis.com/token') => $json(['access_token' => 'tok']),

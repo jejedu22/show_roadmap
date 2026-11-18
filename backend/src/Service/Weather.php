@@ -11,7 +11,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * Prévisions météo de la ville d'une date (feuille de route), par Open-Meteo : gratuit, sans clé ; seul le nom de la ville est
- * envoyé. Prévisions jusqu'à 16 jours ; mises en cache 3 heures (la position de la ville, 30 jours ; un échec n'est pas gardé). Un service injoignable
+ * envoyé. Parmi les villes du même nom, celle du code postal de l'adresse, puis du pays ou de la région cités (« Saint-Louis (Sénégal) »),
+ * sinon celle de France. Prévisions jusqu'à 16 jours ; mises en cache 3 heures (la position de la ville, 30 jours ; un échec n'est pas gardé). Un service injoignable
  * ne bloque jamais le PDF : la météo est simplement absente. Désactivable avec WEATHER_ENABLED=0.
  */
 class Weather
@@ -55,7 +56,7 @@ class Weather
         }
         $inRange = array_values(array_filter($dates, fn ($d) => $d <= $last));
         [$days, $place] = [[], null];
-        if ($inRange && ($place = $this->place($city))) {
+        if ($inRange && ($place = $this->place($city, $ev->address))) {
             $forecast = $this->forecast($place, reset($inRange), end($inRange));
             foreach ($inRange as $d) {
                 if ($f = $forecast[$d->format('Y-m-d')] ?? null) {
@@ -73,24 +74,71 @@ class Weather
     }
 
     /** @return array{name: string, latitude: float, longitude: float}|null */
-    private function place(string $city): ?array
+    private function place(string $city, string $address = ''): ?array
     {
-        return $this->cache->get('weather.place.'.md5(mb_strtolower($city)), function (ItemInterface $item, bool &$save) use ($city) {
+        // « Saint-Louis (Sénégal) » ou « Valence, Espagne » : le nom cherché, et la précision qui aide à choisir
+        $name = trim((string) preg_replace('/\s*(\(.*\)|,.*)$/u', '', $city)) ?: $city;
+        $context = $city.' '.$address;
+
+        return $this->cache->get('weather.place2.'.md5(mb_strtolower($name.'|'.$context)), function (ItemInterface $item, bool &$save) use ($name, $context) {
             $item->expiresAfter(30 * 86400);
             try {
                 $r = $this->http->request('GET', 'https://geocoding-api.open-meteo.com/v1/search', [
-                    'query' => ['name' => $city, 'count' => 1, 'language' => 'fr', 'format' => 'json'], 'timeout' => 5,
+                    'query' => ['name' => $name, 'count' => 10, 'language' => 'fr', 'format' => 'json'], 'timeout' => 5,
                 ])->toArray();
-                $p = $r['results'][0] ?? null;
+                $p = self::pick($r['results'] ?? [], $context);
 
-                return $p ? ['name' => (string) $p['name'], 'latitude' => (float) $p['latitude'], 'longitude' => (float) $p['longitude']] : null;
+                return $p ? ['name' => self::label($p), 'latitude' => (float) $p['latitude'], 'longitude' => (float) $p['longitude']] : null;
             } catch (\Throwable $e) {
                 $save = false; // pas de cache en cas d'échec : nouvel essai à la prochaine ouverture
-                $this->logger->warning('Météo : ville introuvable ({city}) : {error}', ['city' => $city, 'error' => $e->getMessage()]);
+                $this->logger->warning('Météo : ville introuvable ({city}) : {error}', ['city' => $name, 'error' => $e->getMessage()]);
 
                 return null;
             }
         });
+    }
+
+    /**
+     * Ville retenue parmi les homonymes (résultats classés par population) : code postal de l'adresse (exact, puis département),
+     * pays ou région cités dans la ville ou l'adresse, puis France métropolitaine, puis pays voisins francophones, puis la plus peuplée.
+     */
+    public static function pick(array $results, string $context): ?array
+    {
+        if (!$results) {
+            return null;
+        }
+        $norm = fn (string $s) => ' '.trim((string) preg_replace('/[^a-z0-9]+/', ' ', strtolower(iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s) ?: $s))).' ';
+        $text = $norm($context);
+        preg_match_all('/(?<!\d)(\d{5})(?!\d)/', $context, $m);
+        $codes = $m[1];
+        $best = null;
+        foreach (array_values($results) as $i => $r) {
+            $posts = array_map(fn ($c) => substr((string) $c, 0, 5), (array) ($r['postcodes'] ?? []));
+            $score = 0;
+            foreach ($codes as $c) {
+                $score = max($score, in_array($c, $posts, true) ? 100 : (array_filter($posts, fn ($x) => substr($x, 0, 2) === substr($c, 0, 2)) && 'FR' === ($r['country_code'] ?? '') ? 60 : 0));
+            }
+            foreach (['country', 'admin1', 'admin2'] as $k) {
+                $v = trim($norm((string) ($r[$k] ?? '')));
+                if ('' !== $v && mb_strlen($v) > 2 && str_contains($text, ' '.$v.' ') && trim($norm((string) ($r['name'] ?? ''))) !== $v) {
+                    $score = max($score, 'country' === $k ? 40 : 50);
+                }
+            }
+            $score += ['FR' => 20, 'BE' => 10, 'CH' => 10, 'LU' => 10, 'MC' => 10][$r['country_code'] ?? ''] ?? 0;
+            if (null === $best || $score > $best[0]) {
+                $best = [$score, $r];
+            }
+        }
+
+        return $best[1];
+    }
+
+    /** « Saint-Louis (Haut-Rhin) », « Saint-Louis (Sénégal) » : pour vérifier d'un coup d'œil sur la feuille de route. */
+    private static function label(array $p): string
+    {
+        $where = 'FR' === ($p['country_code'] ?? '') ? ($p['admin2'] ?? $p['admin1'] ?? '') : ($p['country'] ?? '');
+
+        return (string) $p['name'].('' !== $where && $where !== $p['name'] ? ' ('.$where.')' : '');
     }
 
     /** @return array<string, array{label: string, icon: string, min: int, max: int, rain: ?int}> par jour */
