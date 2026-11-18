@@ -43,4 +43,44 @@ class WeatherTest extends ApiTestCase
         $past = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Salle', 'firstDate' => $d(-10)]);
         self::assertNull($weather->forEvent($this->em()->find(Event::class, $past['id']), $today));
     }
+
+    /** Homonymes (réponse réelle d'Open-Meteo pour « Saint-Louis », classée par population) : la bonne ville est retenue. */
+    public function testPickHomonym(): void
+    {
+        $r = [
+            ['name' => 'Saint-Louis', 'latitude' => 16.02, 'longitude' => -16.49, 'country_code' => 'SN', 'country' => 'Sénégal', 'admin1' => 'Saint-Louis'],
+            ['name' => 'Saint-Louis', 'latitude' => 38.63, 'longitude' => -90.2, 'country_code' => 'US', 'country' => 'États-Unis', 'admin1' => 'Missouri', 'postcodes' => ['63101']],
+            ['name' => 'Saint-Louis', 'latitude' => -21.29, 'longitude' => 55.41, 'country_code' => 'RE', 'admin1' => 'Réunion', 'admin2' => 'Réunion', 'postcodes' => ['97450']],
+            ['name' => 'Saint-Louis', 'latitude' => 47.59, 'longitude' => 7.56, 'country_code' => 'FR', 'country' => 'France', 'admin1' => 'Grand Est', 'admin2' => 'Haut-Rhin', 'postcodes' => ['68300', '68301 CEDEX']],
+            ['name' => 'Saint-Louis', 'latitude' => 48.72, 'longitude' => 7.2, 'country_code' => 'FR', 'country' => 'France', 'admin1' => 'Grand Est', 'admin2' => 'Moselle', 'postcodes' => ['57820']],
+        ];
+        $at = fn (string $context) => Weather::pick($r, $context)['latitude'];
+        self::assertSame(47.59, $at('Saint-Louis'), 'France avant la ville la plus peuplée');
+        self::assertSame(48.72, $at('Saint-Louis 2 rue du Théâtre, 57820 Saint-Louis'), 'code postal de l\'adresse');
+        self::assertSame(47.59, $at('Saint-Louis 68301 Saint-Louis Cedex'), 'code CEDEX');
+        self::assertSame(48.72, $at('Saint-Louis (Moselle)'), 'département cité');
+        self::assertSame(16.02, $at('Saint-Louis (Sénégal)'), 'pays cité');
+        self::assertSame(38.63, $at('Saint-Louis, Missouri'));
+        self::assertSame(-21.29, $at('Saint-Louis 97450 La Réunion'));
+        self::assertNull(Weather::pick([], 'x'));
+    }
+
+    /** La ville affichée précise le département (ou le pays) retenu, et la précision entre parenthèses n'est pas cherchée. */
+    public function testPlaceLabelAndQuery(): void
+    {
+        $this->login();
+        [, [$show]] = $this->buildCompany();
+        $today = new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris'));
+        $d = fn (int $n) => $today->modify("+$n days")->format('Y-m-d');
+        $ev = $this->call('POST', "/api/shows/$show/events", ['venue' => 'Théâtre', 'city' => 'Saint-Louis (Haut-Rhin)', 'firstDate' => $d(2)]);
+        $fake = static::getContainer()->get(FakeHttp::class);
+        $fake->forecast = ['time' => [$d(2)], 'weather_code' => [0], 'temperature_2m_max' => [10], 'temperature_2m_min' => [2], 'precipitation_probability_max' => [0]];
+        $fake->places = [['name' => 'Saint-Louis', 'latitude' => 16.02, 'longitude' => -16.49, 'country_code' => 'SN', 'country' => 'Sénégal'],
+            ['name' => 'Saint-Louis', 'latitude' => 47.59, 'longitude' => 7.56, 'country_code' => 'FR', 'country' => 'France', 'admin1' => 'Grand Est', 'admin2' => 'Haut-Rhin']];
+        $w = static::getContainer()->get(Weather::class)->forEvent($this->em()->find(Event::class, $ev['id']), $today->modify('+1 day'));
+        self::assertSame('Saint-Louis (Haut-Rhin)', $w['city']);
+        $geo = array_values(array_filter($fake->calls, fn ($u) => str_contains($u, 'geocoding')));
+        self::assertStringContainsString('name=Saint-Louis&', $geo[0]);
+        self::assertStringContainsString('47.59', implode(' ', array_filter($fake->calls, fn ($u) => str_contains($u, 'forecast'))));
+    }
 }
